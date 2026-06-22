@@ -1,0 +1,281 @@
+schema_version: "2.0"
+sources:
+  - id: src-ua-general-staff
+    title: General Staff of the Armed Forces of Ukraine
+    source_type: MILITARY
+    jurisdiction: UA
+    aliases: [Ukrainian General Staff]
+    canonical_home: https://www.facebook.com/GeneralStaff.ua
+    active_from: null
+    active_to: null
+
+  - id: src-ua-mod
+    title: Ministry of Defence of Ukraine
+    source_type: GOVERNMENT
+    jurisdiction: UA
+    aliases: [Ukrainian Ministry of Defence]
+    canonical_home: https://www.mil.gov.ua/
+    active_from: null
+    active_to: null
+
+  - id: src-ua-sbu
+    title: Security Service of Ukraine
+    source_type: SECURITY_SERVICE
+    jurisdiction: UA
+    aliases: [SBU]
+    canonical_home: https://ssu.gov.ua/
+    active_from: null
+    active_to: null
+
+  - id: src-ua-hur
+    title: Defence Intelligence of Ukraine
+    source_type: SECURITY_SERVICE
+    jurisdiction: UA
+    aliases: [HUR, GUR]
+    canonical_home: https://gur.gov.ua/
+    active_from: null
+    active_to: null
+
+  - id: src-ru-mod
+    title: Ministry of Defence of the Russian Federation
+    source_type: MILITARY
+    jurisdiction: RU
+    aliases: [Russian Ministry of Defence]
+    canonical_home: https://mil.ru/
+    active_from: null
+    active_to: null
+
+  - id: src-crimea-appointed-administration
+    title: Russian-appointed administration of Crimea
+    source_type: GOVERNMENT
+    jurisdiction: UA-43
+    aliases: [Crimea occupation administration]
+    canonical_home: null
+    active_from: "2014-03-18"
+    active_to: null
+
+  - id: src-sevastopol-appointed-governor-office
+    title: Office of the Russian-appointed governor of Sevastopol
+    source_type: GOVERNMENT
+    jurisdiction: UA-40
+    aliases: [Sevastopol appointed governor office]
+    canonical_home: null
+    active_from: "2014-03-18"
+    active_to: null
+
+  - id: src-kherson-appointed-administration
+    title: Russian-appointed administration in occupied Kherson region
+    source_type: GOVERNMENT
+    jurisdiction: UA-65
+    aliases: [Kherson occupation administration]
+    canonical_home: null
+    active_from: "2022-03-01"
+    active_to: null
+
+  - id: src-reuters
+    title: Reuters
+    source_type: NEWSWIRE
+    jurisdiction: GLOBAL
+    aliases: []
+    canonical_home: https://www.reuters.com/
+    active_from: null
+    active_to: null
+
+  - id: src-bloomberg
+    title: Bloomberg
+    source_type: NEWS_OUTLET
+    jurisdiction: GLOBAL
+    aliases: []
+    canonical_home: https://www.bloomberg.com/
+    active_from: null
+    active_to: null
+
+  - id: src-ft
+    title: Financial Times
+    source_type: NEWS_OUTLET
+    jurisdiction: GB
+    aliases: [FT]
+    canonical_home: https://www.ft.com/
+    active_from: null
+    active_to: null
+
+  - id: src-bbc
+    title: BBC News
+    source_type: NEWS_OUTLET
+    jurisdiction: GB
+    aliases: [BBC]
+    canonical_home: https://www.bbc.com/news
+    active_from: null
+    active_to: null
+
+  - id: src-moscow-times
+    title: The Moscow Times
+    source_type: NEWS_OUTLET
+    jurisdiction: RU
+    aliases: []
+    canonical_home: https://www.themoscowtimes.com/
+    active_from: null
+    active_to: null
+
+  - id: src-kyiv-independent
+    title: The Kyiv Independent
+    source_type: NEWS_OUTLET
+    jurisdiction: UA
+    aliases: []
+    canonical_home: https://kyivindependent.com/
+    active_from: null
+    active_to: null
+
+  - id: src-kyiv-post
+    title: Kyiv Post
+    source_type: NEWS_OUTLET
+    jurisdiction: UA
+    aliases: []
+    canonical_home: https://www.kyivpost.com/
+    active_from: null
+    active_to: null
+
+  - id: src-newsweek
+    title: Newsweek
+    source_type: NEWS_OUTLET
+    jurisdiction: US
+    aliases: []
+    canonical_home: https://www.newsweek.com/
+    active_from: null
+    active_to: null
+
+  - id: src-isw
+    title: Institute for the Study of War
+    source_type: RESEARCH_INSTITUTE
+    jurisdiction: US
+    aliases: [ISW]
+    canonical_home: https://www.understandingwar.org/
+    active_from: null
+    active_to: null
+
+  - id: src-carnegie
+    title: Carnegie Endowment for International Peace
+    source_type: RESEARCH_INSTITUTE
+    jurisdiction: US
+    aliases: [Carnegie]
+    canonical_home: https://carnegieendowment.org/
+    active_from: null
+    active_to: null
+
+  - id: src-isans
+    title: iSANS
+    source_type: RESEARCH_INSTITUTE
+    jurisdiction: BY
+    aliases: []
+    canonical_home: https://isans.org/
+    active_from: null
+    active_to: null
+
+  - id: src-crea
+    title: Centre for Research on Energy and Clean Air
+    source_type: NGO
+    jurisdiction: FI
+    aliases: [CREA]
+    canonical_home: https://energyandcleanair.org/
+    active_from: null
+    active_to: null
+
+  - id: src-iea
+    title: International Energy Agency
+    source_type: INTERGOVERNMENTAL
+    jurisdiction: GLOBAL
+    aliases: [IEA]
+    canonical_home: https://www.iea.org/
+    active_from: null
+    active_to: null
+
+  - id: src-chriso-wiki
+    title: ChrisO_wiki
+    source_type: SOCIAL_ACCOUNT
+    jurisdiction: null
+    aliases: [ChrisO]
+    canonical_home: https://x.com/ChrisO_wiki
+    active_from: null
+    active_to: null
+
+  - id: src-shashank-joshi
+    title: Shashank Joshi
+    source_type: SOCIAL_ACCOUNT
+    jurisdiction: GB
+    aliases: []
+    canonical_home: https://x.com/shashj
+    active_from: null
+    active_to: null
+
+  - id: src-yaroslav-trofimov
+    title: Yaroslav Trofimov
+    source_type: SOCIAL_ACCOUNT
+    jurisdiction: null
+    aliases: []
+    canonical_home: https://x.com/yarotrof
+    active_from: null
+    active_to: null
+
+  - id: src-special-kherson-cat
+    title: Special Kherson Cat
+    source_type: SOCIAL_ACCOUNT
+    jurisdiction: null
+    aliases: [bayraktar_1love]
+    canonical_home: https://x.com/bayraktar_1love
+    active_from: null
+    active_to: null
+
+  - id: src-wartranslated
+    title: WarTranslated
+    source_type: SOCIAL_ACCOUNT
+    jurisdiction: null
+    aliases: [wartranslated]
+    canonical_home: https://x.com/wartranslated
+    active_from: null
+    active_to: null
+
+  - id: src-osinttechnical
+    title: OSINTtechnical
+    source_type: SOCIAL_ACCOUNT
+    jurisdiction: null
+    aliases: []
+    canonical_home: https://x.com/Osinttechnical
+    active_from: null
+    active_to: null
+
+  - id: src-anton-gerashchenko
+    title: Anton Gerashchenko
+    source_type: SOCIAL_ACCOUNT
+    jurisdiction: UA
+    aliases: [Gerashchenko_en]
+    canonical_home: https://x.com/Gerashchenko_en
+    active_from: null
+    active_to: null
+
+  - id: src-tendar
+    title: Tendar
+    source_type: SOCIAL_ACCOUNT
+    jurisdiction: null
+    aliases: []
+    canonical_home: https://x.com/Tendar
+    active_from: null
+    active_to: null
+
+groups:
+  - id: grp-social-aggregators
+    title: Social-media aggregators and amplifiers
+    citable: false
+    member_ids:
+      - src-special-kherson-cat
+      - src-wartranslated
+      - src-osinttechnical
+      - src-anton-gerashchenko
+      - src-tendar
+
+  - id: grp-russian-appointed-officials
+    title: Russian-appointed occupation administrations and officials
+    citable: false
+    member_ids:
+      - src-crimea-appointed-administration
+      - src-sevastopol-appointed-governor-office
+      - src-kherson-appointed-administration
