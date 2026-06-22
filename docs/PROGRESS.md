@@ -18,7 +18,7 @@ after every work package.
 
 ## Current state
 
-**Pre-WP0.0 — v3 merged design package complete; no code exists.**
+**Phase 0 authorized — v3 cold review complete + adjudicated; governance READY (ACCEPTED_WITH_LIMITS, 2026-06-22). WP0.0 may begin. No code exists yet.**
 
 v3 merges two v2 designs (see `MERGE_NOTES.md`): it keeps the rigorous evidence-chain /
 multi-axis data model and adds the **three-tier rigor model** (Constitution §1) so the
@@ -27,19 +27,22 @@ the GPT v2 base: the tier framing in the constitution and plan, **WP0.3** (the T
 `docs/CONVERSATION.md` contract) + **Milestone 0** (day-zero value), §6.6 solo right-sizing,
 `MERGE_NOTES.md`, and tier annotations in README/CLAUDE.
 
-**Governance is BLOCKED:** v3 is a *new merge* and has not been externally reviewed. Merging
-two reviewed-or-unreviewed designs does not transfer any review to the merged artifact — run
-a cold external review of v3 and adjudicate new P0/P1s before WP0.0. The day-zero **Tier-0**
-mode is usable now regardless, since it is a discipline, not a gated build step.
+**Governance is READY (ACCEPTED_WITH_LIMITS, 2026-06-22):** v3's cold review ran
+(`docs/REVIEW_V3_COLD_claude-opus-4-8.md`, 74/100; 1 P0 + ~11 P1; all nine A1–A9 exploits
+slipped past the planned gates) and every P0/P1 is adjudicated in
+`docs/REVIEW_ADJUDICATION.md`. The review was a **non-independent Claude pass**, accepted with
+limits to unblock **Phase 0 only**; a genuinely independent cross-vendor/human pass on the P0 +
+top P1s is a **binding gate before Phase 1**. The day-zero **Tier-0** mode remains usable
+regardless, since it is a discipline, not a gated build step.
 
-### Governance [BLOCKED]
+### Governance [DONE — READY w/ limits]
 
 - Shipped: v2 governance/design package; structured review adjudication; neutral source
   registry; empty append-only source-assessment, evidence, claim-evidence, observation,
   claim, prediction, geography, baseline-event, and prediction-event stores; fact-
   repository and visual skills; worked end-to-end example.
-- Acceptance: YAML parse, link, work-package-reference, and bundle consistency checks run
-  locally; cold external review not yet run.
+- Acceptance: cold review run + adjudicated (`REVIEW_ADJUDICATION.md` READY, `open_p0_p1: 0`,
+  no BLOCKING); YAML/link/bundle checks pass locally.
 - Assumptions / deferred: semantic truth remains review-based; public release and
   autonomous monitoring remain out of scope.
 - Oracle-data changes: source identity/type separated from append-only reliability
@@ -47,15 +50,15 @@ mode is usable now regardless, since it is a discipline, not a gated build step.
   no seeded reliability grades asserted without a scoped review sample.
 - Migration impact: v1 source/claim data requires WP1.7 quarantine-aware migration; no
   old source ID is converted into fake evidence.
-- Commit: n/a
-- Next: run `docs/REVIEW_PROMPT.md` cold, adjudicate all new P0/P1 findings, then begin
-  WP0.0.
+- Commit: see git log (governance-unblock commit, 2026-06-22)
+- Next: WP0.0 (review-adjudication gate). **Binding gate before Phase 1:** independent
+  cross-vendor/human pass on P0 + top P1s, plus doc-incorporation of V-P0-1/V-P1-4/5/10.
 
 ## Phase checklist
 
 ### Phase 0 — Governance and scaffold
 
-- [ ] WP0.0 Review-adjudication gate — **BLOCKED pending cold review**
+- [ ] WP0.0 Review-adjudication gate — **READY to start**
 - [ ] WP0.1 Repository scaffold and unified verifier
 - [ ] WP0.2 Sensitive-locator and secret hygiene
 
@@ -121,9 +124,11 @@ mode is usable now regardless, since it is a discipline, not a gated build step.
 
 ## Open blockers
 
-1. **Cold external review of v2 has not run.** No implementation WP may start.
-2. `docs/REVIEW_ADJUDICATION.md` remains `governance_status: BLOCKED` until that review
-   is complete and every new P0/P1 is dispositioned.
+1. **Phase 1 gate:** a genuinely independent cross-vendor (GPT-5.5-Pro/Gemini)/human pass on
+   the P0 + top P1s, plus doc-incorporation of V-P0-1 / V-P1-4 / V-P1-5 / V-P1-10, must complete
+   before any WP1.x begins. (Phase 0 is authorized.)
+2. Several v3 findings are `PLANNED_FIX` — adjudicated, not yet implemented — tracked in their
+   named WPs in `docs/REVIEW_ADJUDICATION.md`.
 
 ## Candidate backlog
 

@@ -1,8 +1,11 @@
-# REVIEW PROMPT — Cold adversarial review of Analyst Harness v2
+# REVIEW PROMPT — Cold adversarial review of Analyst Harness v3
 
-**Use:** start a fresh capable model session. Attach the files listed below. Do not include
-the previous review findings until a second reconciliation pass; cold independence is the
-point.
+**Use:** start a fresh, **cross-vendor** capable model session (GPT-5.5-Pro / Gemini / human —
+NOT Claude, which co-authored v3). Attach the files listed below. Do not include the previous
+review findings (including `docs/REVIEW_V3_SELFPASS.md` and the existing
+`docs/REVIEW_V3_COLD_claude-opus-4-8.md`) until a second reconciliation pass; cold independence
+is the point. v3 adds the three-tier rigor model — aim especially at the Tier-0 escalation
+seams (F1/F2) in `docs/CONVERSATION.md`.
 
 Attach:
 
@@ -11,6 +14,7 @@ Attach:
 - `CLAUDE.md`
 - `IMPLEMENTATION_PLAN.md`
 - `docs/CONSTITUTION.md`
+- `docs/CONVERSATION.md`
 - `docs/DATA_MODEL.md`
 - `docs/KNOWLEDGE.md`
 - `docs/TOOLING.md`
@@ -18,6 +22,8 @@ Attach:
 - `docs/PROGRESS.md`
 - `docs/REVIEW_ADJUDICATION.md`
 - `docs/RED_TEAM_BRIEF.md`
+- `MERGE_NOTES.md`
+- `docs/REVIEW_V3_SELFPASS.md` *(second reconciliation pass only — keep the first pass cold)*
 - `skills/fact-repository/SKILL.md`
 - `skills/visuals/SKILL.md`
 - `factbase/README.md`
