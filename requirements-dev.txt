@@ -1,0 +1,4 @@
+# Dev/runtime dependencies. Policy (TOOLING §1, §7): add a dependency only in the phase that
+# needs it, pinned to a compatible range, with a stdlib-first preference.
+PyYAML>=6.0,<7.0    # parse YAML registries + the adjudication frontmatter (WP0.0, WP1.x)
+pytest>=8.0,<10.0   # test runner

@@ -54,11 +54,30 @@ regardless, since it is a discipline, not a gated build step.
 - Next: WP0.0 (review-adjudication gate). **Binding gate before Phase 1:** independent
   cross-vendor/human pass on P0 + top P1s, plus doc-incorporation of V-P0-1/V-P1-4/5/10.
 
+### WP0.0 — Review-adjudication gate [DONE]
+
+- Shipped: `scripts/check_review_adjudication.py` (frontmatter READY checks; finding-row
+  parsing with unique-ID, allowed-disposition-enum, no-`BLOCKING`, and P0/P1 full-field checks;
+  required-documents existence check; fail-closed). `tests/test_review_adjudication.py` (9 tests)
+  + 6 fixtures. `requirements-dev.txt` (PyYAML, pytest). `.venv`.
+- Acceptance: `.venv/bin/python scripts/check_review_adjudication.py` → exit 0 on the real
+  ledger (34 findings, 29/29 docs present); `pytest tests/` → 9 passed; fixtures map
+  complete→0, missing-field / blocking / blocked-status→2, duplicate-id / out-of-enum→1.
+- Assumptions / deferred: the disposition enum is hardcoded in the gate (authoritative, so the
+  ledger can't widen its own set); the required-files list is the WP0.0 set; semantic
+  correctness of dispositions is out of scope.
+- Oracle-data changes: F1–F6 finding rows normalized to the 5-column shape (separate commit;
+  no finding content changed).
+- Migration impact: none.
+- Commit: see git log (WP0.0).
+- Next: WP0.1 (repository scaffold + unified verifier). NOTE: the Phase-1 gate (independent
+  cross-vendor/human pass) still applies before any WP1.x.
+
 ## Phase checklist
 
 ### Phase 0 — Governance and scaffold
 
-- [ ] WP0.0 Review-adjudication gate — **READY to start**
+- [x] WP0.0 Review-adjudication gate — **DONE**
 - [ ] WP0.1 Repository scaffold and unified verifier
 - [ ] WP0.2 Sensitive-locator and secret hygiene
 
