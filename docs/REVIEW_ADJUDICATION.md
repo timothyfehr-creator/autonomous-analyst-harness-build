@@ -112,14 +112,14 @@ implemented — those are tracked in their named WPs.
 
 ### Self-pass F1–F6 — now formally logged (per V-P1-2)
 
-| ID | Sev | Disposition | Incorporated as |
-|---|---:|---|---|
-| F1 | P1 | PLANNED_FIX | Tier-0 forced-escalation friction + recurrence backstop → **V-P1-1** |
-| F2 | P1 | PLANNED_FIX | `high_impact`/`load-bearing` self-assignment + refuter must contest → **V-P0-1** |
-| F3 | P2 | PLANNED_FIX | State explicitly in §6.1/§6.6 that Tier-1 without credibility/CHECKED caps at `SUPPORTED`; `CORROBORATED` always needs full §6.1 |
-| F4 | P2 | PLANNED_FIX | WP0.1 `conversational` mode emits a loud "unverified by design" notice, never the word `PASS` |
-| F5 | P2 | ACCEPTED_WITH_LIMITS | Treat Milestone B as the probable terminal state; Phases 5–7 demand-gated → **V-P1-11** |
-| F6 | P2 | ACCEPTED_WITH_LIMITS | Solo author-reviewer `CHECKED` rubber-stamping → Accepted-limitations #2/#3 (sampling re-review of CHECKED assessments) |
+| ID | Sev | Disposition | Governing change | WP / proving test |
+|---|---:|---|---|---|
+| F1 | P1 | PLANNED_FIX | Tier-0 forced-escalation friction + recurrence backstop | incorporated as V-P1-1 (see its proving test) |
+| F2 | P1 | PLANNED_FIX | `high_impact`/`load-bearing` self-assignment; refuter must contest | incorporated as V-P0-1 (see its proving test) |
+| F3 | P2 | PLANNED_FIX | §6.1/§6.6: Tier-1 without credibility/CHECKED caps support at `SUPPORTED`; `CORROBORATED` always needs full §6.1 | fixture: Tier-1-no-credibility requesting CORROBORATED → fail; at SUPPORTED → pass |
+| F4 | P2 | PLANNED_FIX | WP0.1 `conversational` mode emits a loud "unverified by design" notice, never `PASS` | WP0.1: mode output contains the notice and never the token `PASS` |
+| F5 | P2 | ACCEPTED_WITH_LIMITS | Treat Milestone B as probable terminal; Phases 5–7 demand-gated | incorporated as V-P1-11; PROGRESS records the demand trigger |
+| F6 | P2 | ACCEPTED_WITH_LIMITS | Solo author-reviewer `CHECKED` rubber-stamping | Accepted-limitations #2/#3; sampling re-review of CHECKED assessments |
 
 ### Real-but-disclosed (map to existing Accepted limitations — not new breaks)
 
