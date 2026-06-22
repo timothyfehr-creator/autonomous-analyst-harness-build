@@ -73,12 +73,30 @@ regardless, since it is a discipline, not a gated build step.
 - Next: WP0.1 (repository scaffold + unified verifier). NOTE: the Phase-1 gate (independent
   cross-vendor/human pass) still applies before any WP1.x.
 
+### WP0.1 — Repository scaffold + unified verifier [DONE]
+
+- Shipped: `scripts/verify.py` (modes: `conversational` [loud "unverified by design" notice,
+  never prints `PASS` — F4], `scaffold` [reuses the WP0.0 gate for docs + adjudication, plus
+  runtime-dir and dependency checks], `records`/`draft`/`answer` → exit 2 unavailable, unknown
+  → 2, no-mode → scaffold); `tests/test_verify.py` (10 tests); runtime dirs `analyses/`,
+  `visuals/specs/`.
+- Acceptance: `verify.py --mode scaffold`→0, `--mode records`→2, `--mode bogus`→2,
+  `--mode conversational`→0 (notice present, token `PASS` absent); `pytest`→19 passed.
+- Discharged findings: F4 (conversational unverified-by-design, never `PASS` — mutation-tested
+  by the separate reviewer); N11 (commands use `.venv/bin/python`; no bare-python shell-out).
+- Assumptions / deferred: `records`/`draft`/`answer` are exit-2 placeholders until their phases.
+- Oracle-data changes: none.
+- Migration impact: none.
+- Separate review: PASS (fresh-context reviewer re-ran the suite + mutation-tested the F4 test).
+- Commit: see git log (WP0.1).
+- Next: WP0.2 (sensitive-locator + secret hygiene).
+
 ## Phase checklist
 
 ### Phase 0 — Governance and scaffold
 
 - [x] WP0.0 Review-adjudication gate — **DONE**
-- [ ] WP0.1 Repository scaffold and unified verifier
+- [x] WP0.1 Repository scaffold and unified verifier — **DONE**
 - [ ] WP0.2 Sensitive-locator and secret hygiene
 
 ### Phase 1 — Closed schemas and migration
