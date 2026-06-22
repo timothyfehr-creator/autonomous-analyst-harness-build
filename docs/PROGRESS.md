@@ -118,6 +118,26 @@ regardless, since it is a discipline, not a gated build step.
 - Commit: see git log (WP0.2).
 - Next: WP0.3 (confirm Tier-0 conversational contract).
 
+### WP0.3 — Tier-0 conversational contract [DONE]
+
+- Shipped: confirmed `docs/CONVERSATION.md` (pre-existing) meets the WP0.3 acceptance; added
+  `tests/test_conversation_contract.py` (8 tests) turning the acceptance bullets into a green
+  structural invariant. No change to the contract doc itself.
+- Acceptance: the doc defines the four labels, confidence vocabulary, self-refute convention,
+  the objective escalation triggers (F1 hardening: deliverable / number-you'd-act-on /
+  future-cite / contradiction / forecast-feed / high_impact / 3+-recurrence), the `high_impact`
+  + `load-bearing` definitions (F2 doc-level fix), and 2 worked examples; `verify.py --mode
+  conversational` points here and never prints `PASS`. pytest → 47 passed.
+- Discharged findings: doc-level F1/F2 incorporation (objective triggers + `high_impact` /
+  `load-bearing` definitions present). NOTE: the ENFORCEMENT parts — the recurrence backstop
+  (F1 / V-P1-1) and gate-computed `high_impact` (F2 / V-P0-1) — are code, deferred to Segment 2.
+- Oracle-data changes: none. Migration impact: none.
+- Separate review: PASS (fresh-context reviewer confirmed every asserted element is genuinely
+  in the doc, the assertions have teeth, and the diff is the single test file).
+- Commit: see git log (WP0.3).
+- Next: **PHASE 0 COMPLETE → STOP at the Phase-1 gate** (independent cross-vendor/human review
+  + the four doc-fixes V-P0-1 / V-P1-4 / V-P1-5 / F3 before any WP1.x).
+
 ## Phase checklist
 
 ### Phase 0 — Governance and scaffold
@@ -125,8 +145,9 @@ regardless, since it is a discipline, not a gated build step.
 - [x] WP0.0 Review-adjudication gate — **DONE**
 - [x] WP0.1 Repository scaffold and unified verifier — **DONE**
 - [x] WP0.2 Sensitive-locator and secret hygiene — **DONE**
+- [x] WP0.3 Tier-0 conversational labeling contract — **DONE** (Phase 0 complete)
 
-### Phase 1 — Closed schemas and migration
+### Phase 1 — Closed schemas and migration *(GATED: independent review + 4 doc-fixes first)*
 
 - [ ] WP1.1 Envelope validator and schema registry
 - [ ] WP1.2 Source entities, groups, and assessments
