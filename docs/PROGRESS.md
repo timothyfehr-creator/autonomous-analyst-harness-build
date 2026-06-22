@@ -91,13 +91,40 @@ regardless, since it is a discipline, not a gated build step.
 - Commit: see git log (WP0.1).
 - Next: WP0.2 (sensitive-locator + secret hygiene).
 
+### WP0.2 — Sensitive-locator + secret hygiene [DONE]
+
+- Shipped: `scripts/sensitive_scan.py` (detectors: credential-shaped strings [AWS key,
+  private-key block, key-name secret assignments], signed/auth-param URLs, private-network URLs,
+  `file://` locators-with-path, private-overlay reserved fields, committed-geodata path rule).
+  Scans tracked content; excludes `tests/` (synthetic adversarial fixtures) + the scanner's own
+  ruleset file. Fails closed (exit 2) on no-git / zero-tracked. `tests/test_sensitive_scan.py`
+  (20 tests).
+- Acceptance: `sensitive_scan.py`→0 on the real repo; `pytest`→39 passed; adversarial fixtures
+  (signed URL / AKIA / private-net / file:// / `private_notes` field / geodata path) each flag;
+  near-miss controls (canonical URL / sha256 hash / public URL / `rationale` field / `private/`
+  geodata) stay clean; no-git + zero-tracked → 2.
+- Discharged findings: N10 (signed/private locators + prohibited private-overlay fields fail —
+  reviewer-probed live); V-P1-3 (geodata path rule + named-person assessments in scope; private
+  overlay = git-ignored `private/`; the named sources' neutral identity stays clean).
+- Detector precision: credential detection is key-name/prefix-contextual (NOT entropy), so
+  sha256 hashes never trip; FILE_URI requires a path (a path-less prose `file://` is not a
+  locator — reviewer-verified to hide no real secret).
+- Assumptions / deferred: source-code secret scanning beyond the content layer is out of WP0.2
+  scope.
+- Oracle-data changes: none.
+- Migration impact: none.
+- Separate review: PASS (fresh-context reviewer git-grepped all tracked files for real secrets,
+  mutation-probed every detector, and specifically cleared the FILE_URI tightening + exclusions).
+- Commit: see git log (WP0.2).
+- Next: WP0.3 (confirm Tier-0 conversational contract).
+
 ## Phase checklist
 
 ### Phase 0 — Governance and scaffold
 
 - [x] WP0.0 Review-adjudication gate — **DONE**
 - [x] WP0.1 Repository scaffold and unified verifier — **DONE**
-- [ ] WP0.2 Sensitive-locator and secret hygiene
+- [x] WP0.2 Sensitive-locator and secret hygiene — **DONE**
 
 ### Phase 1 — Closed schemas and migration
 
@@ -175,3 +202,5 @@ regardless, since it is a discipline, not a gated build step.
 - Automated evidence snapshotting subject to copyright/access rules.
 - Geospatial change detection and front-line extraction.
 - Centaur integration for questions requiring adversary simulation.
+- Make the canonical private-overlay reserved-field list live in the data model (DATA_MODEL),
+  not solely in `sensitive_scan.py`'s regex (reviewer note, WP0.2).
