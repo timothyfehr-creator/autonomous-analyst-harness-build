@@ -138,6 +138,25 @@ regardless, since it is a discipline, not a gated build step.
 - Next: **PHASE 0 COMPLETE → STOP at the Phase-1 gate** (independent cross-vendor/human review
   + the four doc-fixes V-P0-1 / V-P1-4 / V-P1-5 / F3 before any WP1.x).
 
+### Phase-1 gate [PENDING — packet assembled; BUILD PAUSED HERE]
+
+- Shipped (gate infrastructure, not a numbered WP): `scripts/preflight_phase1.py` +
+  `tests/test_preflight_phase1.py` (7 tests) — machine guard that BLOCKS any WP1.x until the
+  five doc-fix anchors (V-P0-1, V-P1-4, V-P1-5, V-P1-10, F3) are present in
+  `docs/CONSTITUTION.md` + `docs/DATA_MODEL.md` AND `independent_review_complete: true` is set in
+  `docs/REVIEW_ADJUDICATION.md`; fails closed (exit 2). `docs/PHASE1_DOC_FIXES_DRAFT.md` — the
+  five draft doc-fixes (PROPOSAL, not applied) + a focused cross-vendor review prompt.
+- Live state: pre-flight reports **BLOCKED** (all five fixes + the independent review outstanding).
+- Separate review: PASS (fresh-context reviewer confirmed no governing-doc edits, the guard
+  fails closed, it reads only the governing docs not the draft, and no fix loosens a rule; it
+  flagged that the binding condition names V-P1-10 where the gate had F3 — now reconciled, both
+  enforced).
+- **TO CLEAR THE GATE:** (1) run the independent cross-vendor/human review (focused prompt in
+  the draft); (2) reconcile + apply the five fixes to the governing docs, keeping each anchor
+  token; (3) set `independent_review_complete: true`. Then `preflight_phase1.py` → exit 0 and
+  Segment 2 (Phases 1–3 → Milestone A, minus WP1.7) may resume.
+- Commit: see git log.
+
 ## Phase checklist
 
 ### Phase 0 — Governance and scaffold
