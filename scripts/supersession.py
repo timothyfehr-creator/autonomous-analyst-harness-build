@@ -70,11 +70,15 @@ def check_supersession(records, *, partition_key=None, label="record") -> list[s
     superseded = {r.get("supersedes") for r in records
                   if r.get("supersedes") in ids and r.get("supersedes") is not None}
     in_cycle = set().union(*reported) if reported else set()
+    # Group active leaves by PARTITION when one is given (a partition is one logical chain even if
+    # its records aren't all edge-connected — two un-superseded records for the same key is a fork),
+    # else by connected component (the no-partition source-assessment case).
     leaves = defaultdict(list)
     for rid in ids:
         if rid not in superseded and rid not in in_cycle:  # un-superseded, non-cyclic = active leaf
-            leaves[find(rid)].append(rid)
-    for _comp, lvs in sorted(leaves.items()):
+            key = keyfn(by_id[rid]) if partition_key is not None else find(rid)
+            leaves[key].append(rid)
+    for _key, lvs in sorted(leaves.items(), key=lambda kv: str(kv[0])):
         if len(lvs) > 1:
             findings.append(f"supersession chain has {len(lvs)} active leaves {sorted(lvs)}; "
                             f"exactly one is allowed")

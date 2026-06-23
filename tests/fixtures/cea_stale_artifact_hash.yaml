@@ -1,0 +1,15 @@
+schema_version: "2.0"
+claim_evidence_assessments:
+  - id: cea-a
+    claim_id: clm-a
+    artifact_id: evd-a
+    support_locator: {kind: PAGE_AND_QUOTE, page: 1, quote: q}
+    support_summary: s
+    stance: SUPPORTS
+    information_credibility: 2
+    temporal_scope: {kind: AS_OF, start: "2026-06-20T08:00:00Z", end: null}
+    origin_chain:
+      - {source_id: src-reuters, artifact_id: evd-a}
+    independence_group: ind-cea-a
+    semantic_review: {status: CHECKED, reviewer: human:tim, reviewed_at: "2026-06-22T11:30:00Z", claim_content_hash: sha256:b3cc0475bb78a5026098858e9889acf666d31062d513d303314eca31d36e72f2, artifact_hash: sha256:02b60b3b9ed309b730abc7006e62bf07ad5b911bc8ae57c4cf001bad35819e7a, relationship_input_hash: sha256:b3cc0475bb78a5026098858e9889acf666d31062d513d303314eca31d36e72f2}
+    supersedes: null

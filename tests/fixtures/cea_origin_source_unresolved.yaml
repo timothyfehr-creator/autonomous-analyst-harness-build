@@ -1,0 +1,15 @@
+schema_version: "2.0"
+claim_evidence_assessments:
+  - id: cea-a
+    claim_id: clm-a
+    artifact_id: evd-a
+    support_locator: {kind: PAGE_AND_QUOTE, page: 1, quote: q}
+    support_summary: s
+    stance: SUPPORTS
+    information_credibility: 2
+    temporal_scope: {kind: AS_OF, start: "2026-06-20T08:00:00Z", end: null}
+    origin_chain:
+      - {source_id: src-ghost, artifact_id: evd-a}
+    independence_group: ind-cea-a
+    semantic_review: {status: UNCHECKED}
+    supersedes: null
