@@ -1,0 +1,13 @@
+schema_version: "2.0"
+# Owner-editable §10 / V-P0-1 trigger tokens (gate-driving ORACLE data, Constitution §13).
+# A claim whose `topics` intersect this set (matched by EXACT token after NFC + casefold + strip —
+# NOT substring) is forced `high_impact: true`; the gate raises an author `high_impact: false`.
+# `alias_of` records that a token is a spelling variant of a canonical token: §10 text says
+# "territorial-control" while the binding adjudication row (REVIEW_ADJUDICATION.md V-P0-1) says
+# "control" — BOTH must trigger, so both are listed. Adding/removing a token is an oracle-data
+# change (reviewed separately, §13) — it is intentionally config, not a code constant.
+high_impact_triggers:
+  - {token: casualties,          alias_of: null}
+  - {token: attribution,         alias_of: null}
+  - {token: territorial-control, alias_of: null}
+  - {token: control,             alias_of: territorial-control}

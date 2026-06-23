@@ -50,6 +50,35 @@ UNIT_VOCAB_ENTRY_SCHEMA = {
     "types": {},
 }
 
+# ---- owner-editable high_impact trigger tokens (Constitution §10 / V-P0-1; oracle data per §13) ----
+# Same data-not-code pattern as the unit vocabulary. The WP2.2a recompute gate treats an empty /
+# unreadable trigger set as CANNOT-RUN (exit 2, §13 empty-rule-set) — never as "no claims trigger".
+_HI_TRIGGERS_PATH = pathlib.Path(__file__).resolve().parent.parent / "config" / "high_impact_triggers.yaml"
+
+
+def _load_high_impact_triggers():
+    """Raw trigger token list (canonical tokens + alias spellings). Empty on any read error; the
+    gate, not the loader, enforces the §13 empty-rule-set → exit 2 obligation."""
+    try:
+        doc = _yaml.safe_load(_HI_TRIGGERS_PATH.read_text(encoding="utf-8")) or {}
+    except OSError:
+        return []
+    entries = doc.get("high_impact_triggers", [])
+    if not isinstance(entries, list):
+        return []
+    return [e["token"] for e in entries if isinstance(e, dict) and "token" in e]
+
+
+HIGH_IMPACT_TRIGGER_TOKENS = _load_high_impact_triggers()
+
+HIGH_IMPACT_TRIGGER_SCHEMA = {
+    "prefix": "",  # entries are topic tokens, not prefixed ids
+    "required": {"token"},
+    "optional": {"alias_of"},
+    "enums": {},
+    "types": {},
+}
+
 SOURCE_TYPES = {
     "GOVERNMENT", "MILITARY", "SECURITY_SERVICE", "INTERGOVERNMENTAL", "NEWSWIRE",
     "NEWS_OUTLET", "RESEARCH_INSTITUTE", "NGO", "DATA_PROVIDER", "SOCIAL_ACCOUNT", "OTHER",
@@ -575,6 +604,7 @@ COLLECTIONS = {
     "analyses": ANALYSIS_SCHEMA,
     "refuters": REFUTER_SCHEMA,
     "visuals": VISUAL_SCHEMA,
+    "high_impact_triggers": HIGH_IMPACT_TRIGGER_SCHEMA,
 }
 
 # JSONL append-only event logs keyed by the log-file stem (substring-matched against filenames).
