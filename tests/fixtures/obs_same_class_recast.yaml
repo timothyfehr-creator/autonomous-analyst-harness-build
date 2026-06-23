@@ -1,0 +1,24 @@
+schema_version: "2.0"
+observations:
+  - id: obs-same
+    claim_id: clm-x
+    claim_evidence_assessment_ids: [cea-x]
+    value_type: NUMBER
+    value: 10
+    unit: m3/day
+    denominator: null
+    basis: b
+    source_value: 10
+    source_unit: bpd
+    temporal_scope: {kind: AS_OF, start: "2026-06-22T00:00:00Z", end: null}
+    geography_id: null
+    uncertainty: null
+    extraction:
+      method: HUMAN
+      extractor: human:tim
+      extracted_at: "2026-06-22T12:10:00Z"
+      source_locator_hash: sha256:a7f32380cf333659452317bd08b287067ac939609b81d093391a047818a38960
+    derived_from: []
+    transformation: "declared transform"
+    lifecycle: ACTIVE
+    supersedes: null
