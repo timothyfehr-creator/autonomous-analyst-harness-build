@@ -3,9 +3,16 @@ __pycache__/
 .pytest_cache/
 *.py[cod]
 .DS_Store
+# Agent/IDE working state — never publish. Holds machine-local settings (absolute paths,
+# broad tool permissions) and transient build worktrees under .claude/worktrees/.
+.claude/
 private/*
 !private/.gitkeep
 outputs/*
 !outputs/.gitkeep
+# Generated output locations: keep the directory (.gitkeep), ignore the contents.
+analyses/*
+!analyses/.gitkeep
+visuals/renders/
 *.tmp
 *.bak
