@@ -1,0 +1,14 @@
+schema_version: "2.0"
+predictions:
+  - id: prd-example-reopen
+    question: Will limited road operation resume before 2026-08-01?
+    resolution_criterion: TRUE if the authority documents sustained transit before resolve_by.
+    as_of: "2026-06-22T12:00:00Z"
+    resolve_by: "2026-08-01T23:59:59Z"
+    probability: 0.65
+    resolution_authority: src-reuters
+    void_policy: Void if decommissioned.
+    category: infrastructure-recovery
+    dependence_cluster: x
+    benchmark_probability: 0.5
+    declared_data_source: null

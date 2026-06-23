@@ -1,0 +1,17 @@
+schema_version: "2.0"
+claims:
+  - id: clm-p
+    text: x
+    epistemic_type: PROJECTION
+    projection_kind: FALSIFIABLE
+    prediction_id: prd-ghost
+    scenario_id: null
+    support_status: UNVERIFIED
+    dispute_status: UNKNOWN
+    freshness_status: NOT_APPLICABLE
+    lifecycle: REVIEWED
+    stability: VOLATILE
+    topics: [transport]
+    high_impact: false
+    created_at: "2026-06-22T00:00:00Z"
+    supersedes: null
