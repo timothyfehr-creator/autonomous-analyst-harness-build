@@ -465,6 +465,24 @@ exit 2). SUPERSEDED/REJECTED excluded. Reuses iso_instant.
   BEFORE validate_freshness; standalone gate does not compose it. **PHASE 2: 7/8 WPs done.** Next:
   WP2.8 (observation/unit_vocabulary dimensional → kills A5).
 
+### WP2.8 — Observation integrity (dimensional; kills A5) [DONE]
+
+Design-wf (critic REVISE — resolved: cross-class-only check, vocab fail-closed-first, defer obs→
+claim/cea) → gate (dc57e68) → review PASS → hardening (cc16563). `scripts/validate_observations.py`:
+R-OBS-1 every `derived_from` resolves to a known obs (+ a self/cycle guard — a self-loop self-
+certifies nothing); R-OBS-2 a NUMBER/INTEGER cross-dimensional-class recast (su≠un, different
+`dimensional_class` per config/unit_vocabulary.yaml) must be backed by a non-empty derived_from, not
+just a transformation — **the A5 kill**, catching the absolute→share-via-DIMENSIONLESS path WP1.6
+misses (A5 fixtures verified WP1.6-schema-clean). Same-class numerator conversions (bpd→m3/day) pass
+(no over-reach). Empty/unreadable vocab → exit 2 (before the loop).
+- Review PASS; closed the A5 self-certification escape (self/cycle guard, mutant-verified) + the
+  untested dup-id branch. Honest residual (flagged): a same-class wrong-denominator with both units
+  in vocab isn't structurally separable from a legit numerator conversion (no transformation DSL).
+  Deferred: obs→claim/cea resolution + OPEN epistemic_type==FACT / cea-ACTIVE questions.
+- Acceptance: full suite **344**; Phase-1 gate PASS; dogfood (empty + skeleton CATEGORY) at 0.
+- **PHASE 2: all 8 gates DONE (2.1–2.8), each adversarially reviewed.** Next (in progress): the
+  `records` composition (verify.py --mode records, DAG order, fail-closed) + the Phase-2 auto-gate.
+
 ## Phase checklist
 
 ### Phase 0 — Governance and scaffold
@@ -495,7 +513,7 @@ exit 2). SUPERSEDED/REJECTED excluded. Reuses iso_instant.
 - [x] WP2.5 Support and corroboration gate — **DONE** (kills A1; V-P1-4 + V-P1-10 + F3)
 - [x] WP2.6 Conflict and stance gate — **DONE** (CONTESTED recompute; same-origin-both-sides kill)
 - [x] WP2.7 Freshness and supersession gate — **DONE** (injectable clock; bidirectional)
-- [ ] WP2.8 Structured observation integrity
+- [x] WP2.8 Structured observation integrity — **DONE** (dimensional check; kills A5)
 - [ ] Phase 2 `records` composition acceptance
 
 ### Phase 3 — Analysis binding and refutation
