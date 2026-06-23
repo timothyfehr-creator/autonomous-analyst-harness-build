@@ -429,6 +429,25 @@ at [0]], reject-direction + downgrades resolved), built solo, adversarially revi
 - Acceptance: full suite **296 green**; Phase-1 gate PASS; dogfood (empty factbase + skeleton) at 0.
   Oracle/factbase changes: none. **PHASE 2: 5 of 8 WPs done (2.1–2.5).** Next: WP2.6 (conflict).
 
+### WP2.6 — Conflict / stance gate [DONE]
+
+Design-wf (critic REVISE — decisions resolved per the autonomy contract) → refactor (1c8d7d9) →
+gate (f06e26b) → review PASS → hardening. `scripts/validate_conflict.py` recomputes the CONTESTED
+axis of dispute_status (§6.4), **bidirectionally** (unearned CONTESTED AND a stored UNCONTESTED that
+hides an independent credible conflict both fail — a faithful departure from WP2.5's over-claim-only,
+forced by §6.4). A contest = credible SUPPORTS + credible opposer (REFUTES/MIXED) at DISTINCT
+`origin_chain[0]` origins (reused collapse), so a source on both sides can't manufacture one (the
+same-origin-both-sides A-exploit, first fixture). Refactor: factored stance-agnostic
+`active_checked_by_claim` (WP2.5's is a thin wrapper, no behavior change).
+- Owner-flaggable defaults (surfaced for the summary): "credible" = CHECKED + scored {1..6}
+  [alt ≤3]; gate only the CONTESTED axis (UNKNOWN↔UNCONTESTED unpoliced); FACT/INFERENCE scope.
+- Review PASS; closed the should_fix (null-origin strips reachable → false-CONTESTED) + watch
+  coverage (credibility domain/bool, type guard). Full suite **309**; Phase-1 gate PASS; no existing
+  dispute_status force-rewritten.
+- **Records-mode note (carry to WP2.x):** validate_conflict trusts the cea registry (parse-only); the
+  records composition must run validate_schema + validate_claim_evidence on claim_evidence.yaml
+  BEFORE validate_conflict. **PHASE 2: 6/8 WPs done.** Next: WP2.7 (freshness, injectable clock).
+
 ## Phase checklist
 
 ### Phase 0 — Governance and scaffold
@@ -457,7 +476,7 @@ at [0]], reject-direction + downgrades resolved), built solo, adversarially revi
 - [x] WP2.3 Artifact integrity and claim-evidence governance — **DONE**
 - [x] WP2.4 Type-specific claim integrity — **DONE**
 - [x] WP2.5 Support and corroboration gate — **DONE** (kills A1; V-P1-4 + V-P1-10 + F3)
-- [ ] WP2.6 Conflict and stance gate
+- [x] WP2.6 Conflict and stance gate — **DONE** (CONTESTED recompute; same-origin-both-sides kill)
 - [ ] WP2.7 Freshness and supersession gate
 - [ ] WP2.8 Structured observation integrity
 - [ ] Phase 2 `records` composition acceptance
