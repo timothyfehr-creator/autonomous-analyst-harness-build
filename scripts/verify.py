@@ -84,16 +84,20 @@ def scaffold_check(root: Path):
     return code, lines
 
 
-def _count_claims(claims_paths) -> int:
-    """Total claims across the baseline+live files (for the empty-factbase precheck)."""
+def _count_claims(claims_paths):
+    """Return (total_claims, parse_error). A MISSING claims file contributes 0 (an absent baseline/
+    live file is 'no claims', i.e. empty); a PRESENT-but-unparseable file is a cannot-run condition
+    reported distinctly (so a corrupt factbase isn't mislabeled 'empty')."""
     n = 0
     for cp in claims_paths:
+        if not cp.exists():
+            continue
         try:
             d = vs.load_yaml_strict(cp) or {}
             n += len(d.get("claims") or [])
-        except Exception:  # noqa: BLE001 — a parse error surfaces in the gate; the precheck just counts
-            pass
-    return n
+        except Exception as e:  # noqa: BLE001
+            return None, f"cannot parse {cp.name} ({e})"
+    return n, None
 
 
 def records_check(root: Path, as_of):
@@ -109,7 +113,10 @@ def records_check(root: Path, as_of):
     claims = [fb / "baseline" / "claims.yaml", fb / "live" / "claims.yaml"]
     predictions, observations = fb / "predictions.yaml", fb / "observations.yaml"
 
-    if _count_claims(claims) == 0:
+    n_claims, parse_err = _count_claims(claims)
+    if parse_err is not None:
+        return 2, [f"  [records] {parse_err} — cannot run (fail closed, §13)."]
+    if n_claims == 0:
         return 2, ["  [records] empty factbase — zero claims to compose (fail closed, R3: expected "
                    "records and found none)."]
     try:  # resolution sets for the cross-file gates (a bad registry here is §13 cannot-run)

@@ -70,6 +70,16 @@ def test_single_downstream_finding_propagates_exit1(tmp_path):
     assert code == 1
 
 
+def test_corrupt_claims_file_is_not_mislabeled_empty(tmp_path):
+    # review should-fix: a present-but-unparseable claims file fails closed as cannot-parse, NOT
+    # mislabeled "empty factbase"
+    fb = _stage(tmp_path)
+    (fb / "baseline" / "claims.yaml").write_text("schema_version: \"2.0\"\nclaims: [unbalanced\n")
+    code, lines = verify.records_check(tmp_path, ASOF)
+    joined = "\n".join(lines).lower()
+    assert code == 2 and "cannot parse" in joined and "empty factbase" not in joined
+
+
 def test_missing_as_of_on_nonempty_fails_closed(tmp_path):
     # a non-empty compose with no clock → the freshness gate fails closed → records 2
     _stage(tmp_path)
