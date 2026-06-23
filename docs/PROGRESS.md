@@ -409,6 +409,26 @@ fixture, deferred the un-oracled rules), built solo, adversarially reviewed (ver
   Oracle/factbase changes: none. Next: **WP2.5** (hardest — support + corroboration: primary_evidence
   _kind + credibility floor + Tier-1 cap; kills the A1 exploit).
 
+### WP2.5 — Support + corroboration recompute (the A1 kill) [DONE]
+
+Designed via a judge-panel design workflow (critic REVISE — origin_chain convention fixed [origin
+at [0]], reject-direction + downgrades resolved), built solo, adversarially reviewed (FIX_REQUIRED →
+1 must-fix + 2 should-fix fixed-forward). Commits 47f968f + 651f959.
+
+- `scripts/validate_support.py` recomputes `support_status` from active CHECKED SUPPORTS assessments,
+  rejects an OVER-CLAIM (under-label passes — the one owner-overridable choice). SUPPORTED = ≥1 such
+  assessment. CORROBORATED = C1 (≥2 independent origins, collapsed by `origin_chain[0]`) ∧ C2
+  (authoritative-primary kind, V-P1-4) ∧ C3 (FIRST_PARTY excluded from the C1 tally — **the A1 kill**)
+  ∧ C4 (credibility floor 1≤cred≤3, V-P1-10; also the F3 Tier-1 cap). Scoped to FACT/INFERENCE.
+- Faithful downgrades (both CORROBORATED labels were unearnable): skeleton clm-skeleton → SUPPORTED
+  (one source); claims_valid_mixed clm-fact-1 → UNVERIFIED (no co-loaded evidence).
+- Review-found + fixed: the C3 A1-kill branch was live but untested (added a mutant-killing test);
+  floor now `1≤cred≤3` (rejects out-of-domain 0/neg); `id:null` cea fail-closes instead of crashing
+  (hardened in validate_claims.py R-CLM-5 too). Accepted trust boundary: independence rests on the
+  self-declared `origin_chain[0]` — semantic displacement is the WP3.3 refuter, not a structural gate.
+- Acceptance: full suite **296 green**; Phase-1 gate PASS; dogfood (empty factbase + skeleton) at 0.
+  Oracle/factbase changes: none. **PHASE 2: 5 of 8 WPs done (2.1–2.5).** Next: WP2.6 (conflict).
+
 ## Phase checklist
 
 ### Phase 0 — Governance and scaffold
@@ -436,7 +456,7 @@ fixture, deferred the un-oracled rules), built solo, adversarially reviewed (ver
 - [x] WP2.2 Source-assessment governance + high_impact recompute + reward-hack gate — **DONE**
 - [x] WP2.3 Artifact integrity and claim-evidence governance — **DONE**
 - [x] WP2.4 Type-specific claim integrity — **DONE**
-- [ ] WP2.5 Support and corroboration gate
+- [x] WP2.5 Support and corroboration gate — **DONE** (kills A1; V-P1-4 + V-P1-10 + F3)
 - [ ] WP2.6 Conflict and stance gate
 - [ ] WP2.7 Freshness and supersession gate
 - [ ] WP2.8 Structured observation integrity
