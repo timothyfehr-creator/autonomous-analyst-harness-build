@@ -59,6 +59,12 @@ def test_group_as_source_rejected_at_schema_layer():
     assert any("must reference an id with prefix 'src-'" in f for f in findings), findings
 
 
+def test_date_only_retrieved_not_false_positive():
+    # R-EVD-5 regression: a date-only retrieved_at on/after the published day must NOT be flagged
+    # (the old lexical string compare mis-ordered '2026-06-21' before '2026-06-20T08:00:00Z')
+    assert ve.main([str(FIX / "evd_date_dateonly_ok.yaml"), "--sources", str(SRC)]) == 0
+
+
 def test_empty_factbase_evidence_passes():
     assert ve.main([str(ROOT / "factbase" / "evidence.yaml")]) == 0
 

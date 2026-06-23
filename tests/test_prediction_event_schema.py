@@ -45,6 +45,15 @@ def test_predictions_registered():
     assert "predictions" in vs.SCHEMAS
 
 
+def test_date_only_as_of_not_false_positive():
+    # regression: a date-only as_of before a later datetime resolve_by is valid (the lexical compare
+    # used to mis-order '2026-06-20' vs '2026-06-20T..'); iso_instant parses to a real instant
+    import schema_defs
+    assert schema_defs.iso_instant("2026-06-20") is not None
+    assert schema_defs._prediction_extra({"as_of": "2026-06-20", "resolve_by": "2026-09-01T00:00:00Z"}) == []
+    assert schema_defs._prediction_extra({"as_of": "2026-09-01T00:00:00Z", "resolve_by": "2026-06-20"}) != []
+
+
 # ---- append-only event logs (JSONL) ----
 def test_empty_event_logs_pass():
     # the seed logs ship empty and must validate cleanly (append-only logs start empty)

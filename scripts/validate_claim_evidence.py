@@ -17,9 +17,13 @@ SHAPE; this adds the cross-record/cross-file rules (DATA_MODEL §4, §1, §14; C
 DEFERRED (NOT enforced here, by design): "active assessment on an ASSUMPTION is invalid" →
 IMPLEMENTATION_PLAN routes it to WP2.4 (single owner, no double-report). The `claim_content_hash`
 and `relationship_input_hash` EQUALITY is deferred — verified not reproducible from the frozen
-record_hash, so a check now would false-fail; it lands with the capture/compose tooling. Support /
-corroboration math (stance/credibility VALUES) is WP2.5; conflict is WP2.6; semantic displacement
-is the WP3.3 refuter.
+record_hash, so a check now would false-fail; it lands with the capture/compose tooling. The
+"a shared terminal origin may not use multiple independence groups without adjudication" rule
+(IMPLEMENTATION_PLAN §WP2.3 / Constitution §3) is a corroboration-INDEPENDENCE substance judgment
+→ WP2.5/WP2.6 (resolved here only structurally: origin source_ids resolve + are non-group).
+Support / corroboration math (stance/credibility VALUES) is WP2.5; conflict is WP2.6; semantic
+displacement is the WP3.3 refuter. Cross-COMMIT evidence-record immutability is the reward-hack
+gate's record-set (WP2.2c), which does not yet diff `evidence` — a tracked future-WP gap.
 
 Schema runs first. Every referenced registry (claims / evidence / sources) is required to resolve
 references — a missing/unreadable/duplicate-key one → exit 2 (§13 cannot-run). Empty cea list → 0.

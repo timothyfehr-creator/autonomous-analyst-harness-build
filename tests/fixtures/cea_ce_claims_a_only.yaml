@@ -1,0 +1,16 @@
+schema_version: "2.0"
+claims:
+  - id: clm-a
+    text: A
+    epistemic_type: FACT
+    support_status: SUPPORTED
+    dispute_status: UNCONTESTED
+    freshness_status: CURRENT
+    lifecycle: REVIEWED
+    stability: DURABLE
+    topics: [transport]
+    high_impact: false
+    created_at: "2026-06-22T00:00:00Z"
+    supersedes: null
+    temporal: {kind: AS_OF, event_time: null, as_of: "2026-06-22T00:00:00Z"}
+    review_by: "2026-12-22T00:00:00Z"

@@ -67,8 +67,14 @@ def check_supersession(records, *, partition_key=None, label="record") -> list[s
         if sup is not None and sup in ids and (partition_key is None or keyfn(r) == keyfn(by_id[sup])):
             parent[find(r.get("id"))] = find(sup)
 
-    superseded = {r.get("supersedes") for r in records
-                  if r.get("supersedes") in ids and r.get("supersedes") is not None}
+    # A record counts as superseded only by a SAME-partition edge (mirrors the union condition
+    # above) — a cross-partition edge is its own finding and must not poison the target's partition
+    # (which would mask a real co-located fork or invent a phantom leaf).
+    superseded = set()
+    for r in records:
+        sup = r.get("supersedes")
+        if sup is not None and sup in ids and (partition_key is None or keyfn(r) == keyfn(by_id[sup])):
+            superseded.add(sup)
     in_cycle = set().union(*reported) if reported else set()
     # Group active leaves by PARTITION when one is given (a partition is one logical chain even if
     # its records aren't all edge-connected — two un-superseded records for the same key is a fork),

@@ -9,12 +9,35 @@ Grows WP-by-WP: WP1.2 sources/groups/assessments; WP1.3 claims; WP1.4 evidence/c
 WP1.5 predictions/events; WP1.6 observations/etc.
 """
 
+import datetime as _dt
 import pathlib
 import re
 
 import yaml as _yaml  # for loading the owner-editable unit_vocabulary config
 
 _HASH_RE = re.compile(r"^sha256:[0-9a-f]{64}$")  # mirrors validate_schema (no import → no cycle)
+_FRAC_RE = re.compile(r"\.(\d+)")
+
+
+def iso_instant(s):
+    """Parse an ISO-8601 date or UTC datetime to an aware datetime for ORDERING. Robust to the
+    formats is_iso_datetime accepts — date-only (→ start-of-day UTC), trailing `Z`, and variable
+    fractional-second widths — so a lexical `a < b` string compare (which mis-orders '2026-06-20'
+    vs '2026-06-20T..' and '.5Z' vs '.50Z') is never used. Returns None if unparseable."""
+    if not isinstance(s, str):
+        return None
+    t = s.strip().replace("Z", "+00:00")
+    m = _FRAC_RE.search(t)
+    if m:  # pad/truncate fractional seconds to 6 digits for fromisoformat strictness (<3.11)
+        t = t[:m.start()] + "." + (m.group(1) + "000000")[:6] + t[m.end():]
+    try:
+        if "T" not in t:
+            d = _dt.date.fromisoformat(t)
+            return _dt.datetime(d.year, d.month, d.day, tzinfo=_dt.timezone.utc)
+        dt = _dt.datetime.fromisoformat(t)
+        return dt if dt.tzinfo else dt.replace(tzinfo=_dt.timezone.utc)
+    except ValueError:
+        return None
 
 # ---- owner-editable unit vocabulary (Constitution §6.3, V-P1-5) ----
 # Loaded from config/unit_vocabulary.yaml (data, not code). Missing/unreadable → empty, so numeric
@@ -268,10 +291,8 @@ def _prediction_extra(rec):
         v = rec.get(fld)
         if isinstance(v, (int, float)) and not isinstance(v, bool) and not (0.0 <= v <= 1.0):
             f.append(f"{fld} must be within [0,1]")
-    # Lexical compare is correct for the canonical fixed-width ISO-8601 UTC `Z` datetimes the
-    # schema accepts; normalized instant comparison (fractional-second widths, tz) is Phase-2.
-    a, r = rec.get("as_of"), rec.get("resolve_by")
-    if isinstance(a, str) and isinstance(r, str) and r <= a:
+    a, r = iso_instant(rec.get("as_of")), iso_instant(rec.get("resolve_by"))
+    if a is not None and r is not None and r <= a:
         f.append("resolve_by must be after as_of")
     return sorted(f)
 

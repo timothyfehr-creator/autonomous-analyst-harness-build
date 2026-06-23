@@ -71,6 +71,29 @@ def test_stale_artifact_hash_invalid():
     assert code == 1 and any("artifact_hash does not match" in x for x in f), f
 
 
+def test_duplicate_cea_id_invalid():
+    code, f = _run("cea_dup_id.yaml")
+    assert code == 1 and any("duplicate id 'cea-x'" in x for x in f), f
+
+
+def test_origin_artifact_unresolved_invalid():
+    code, f = _run("cea_origin_artifact_unresolved.yaml")
+    assert code == 1 and any("origin_chain[0] artifact_id 'evd-ghost' does not resolve" in x for x in f), f
+
+
+def test_baseline_live_claims_union_resolves():
+    # clm-b lives ONLY in the second claims file; the union of the two claim files must resolve it
+    assert vce.main([str(FIX / "cea_uses_clm_b.yaml"),
+                     "--claims", str(FIX / "cea_ce_claims_a_only.yaml"), str(FIX / "cea_ce_claims_b_only.yaml"),
+                     "--evidence", str(EVID), "--sources", str(SRC)]) == 0
+
+
+def test_claims_union_is_load_bearing():
+    # with only the a-only claims file, clm-b is unresolved -> proves the union matters (not a no-op)
+    assert vce.main([str(FIX / "cea_uses_clm_b.yaml"), "--claims", str(FIX / "cea_ce_claims_a_only.yaml"),
+                     "--evidence", str(EVID), "--sources", str(SRC)]) == 1
+
+
 def test_skeleton_claim_evidence_passes():
     sk = FIX / "skeleton"
     assert vce.main([str(sk / "skeleton_claim_evidence.yaml"),

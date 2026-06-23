@@ -28,6 +28,7 @@ from collections import defaultdict
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))  # sibling import
+import schema_defs  # noqa: E402  (iso_instant — robust date ordering)
 import validate_schema as vs  # noqa: E402
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
@@ -68,9 +69,10 @@ def check_evidence(records, src_ids, grp_ids) -> list[str]:
         if ch is not None:
             by_hash[ch].append(rid)
 
-        pub, ret = r.get("published_at"), r.get("retrieved_at")
-        if isinstance(pub, str) and isinstance(ret, str) and ret < pub:
-            findings.append(f"artifact {rid!r} retrieved_at {ret!r} precedes published_at {pub!r}")
+        pub, ret = schema_defs.iso_instant(r.get("published_at")), schema_defs.iso_instant(r.get("retrieved_at"))
+        if pub is not None and ret is not None and ret < pub:
+            findings.append(f"artifact {rid!r} retrieved_at {r.get('retrieved_at')!r} "
+                            f"precedes published_at {r.get('published_at')!r}")
 
     for ch, rids in by_hash.items():
         if len(rids) > 1:
