@@ -93,6 +93,25 @@ def test_inactive_lifecycle_excluded():
     assert code == 0 and not f
 
 
+def test_review_by_at_asof_is_review_due_inclusive():
+    # boundary: as_of EXACTLY == review_by → REVIEW_DUE (inclusive); kills a >=→> mutant
+    code, f = _run("fresh_review_by_at_asof.yaml")
+    assert code == 1 and any("recomputes REVIEW_DUE" in x for x in f), f
+
+
+def test_expires_at_at_asof_is_stale_inclusive():
+    code, f = _run("fresh_expires_at_at_asof.yaml")
+    assert code == 1 and any("recomputes STALE" in x for x in f), f
+
+
+def test_durable_missing_review_by_fails_closed():
+    # the DURABLE-nodate fail-close branch (defensive; pinned so a return-CURRENT mutant dies)
+    claim = {"id": "clm-d", "epistemic_type": "FACT", "stability": "DURABLE",
+             "lifecycle": "REVIEWED", "review_by": None, "freshness_status": "CURRENT"}
+    code, _ = vf.check_freshness([claim], vf.schema_defs.iso_instant(ASOF))
+    assert code == 2
+
+
 def test_compute_freshness_units():
     asof = vf.schema_defs.iso_instant(ASOF)
     assert vf.compute_freshness({"epistemic_type": "INFERENCE"}, asof)[0] == "NOT_APPLICABLE"
