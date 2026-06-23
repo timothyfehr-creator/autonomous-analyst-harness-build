@@ -381,6 +381,31 @@ closed under boil-the-lake). Five commits.
   the Milestone-A skeleton (CHECKED artifact_hash matches) at exit 0. Oracle/factbase changes: none.
 - Next: WP2.4 (type-specific claim integrity — also owns the deferred cea-on-ASSUMPTION rule).
 
+### WP2.4 — Type-specific claim integrity [DONE]
+
+Designed via a design workflow (critic REVISE — its findings folded in: fixed the canonical
+fixture, deferred the un-oracled rules), built solo, adversarially reviewed (verdict **PASS**;
+1 real should-fix bug + 2 coverage gaps fixed-forward). Two commits (2a88f33 + 53e0d6f hardening).
+
+- `scripts/validate_claims.py` (CONSTITUTION §4/§5, DATA_MODEL §5/§14): R-CLM-1 claim id uniqueness
+  across the baseline+live UNION; R-CLM-2 INFERENCE premise resolution; R-CLM-5 active cea on an
+  ASSUMPTION (DATA_MODEL §4 — **WP2.4 owns it, resolving the WP2.3b deferral**; active = un-superseded
+  leaf, partition-scoped to `(claim_id, artifact_id)`, & not REJECTED); R-CLM-6 FALSIFIABLE
+  prediction_id resolution; R-CLM-8 PROJECTION ≠ CORROBORATED; R-CLM-12 claim supersession via the
+  shared helper. Schema-first; cea + prediction registries required (unreadable → exit 2); empty → 0.
+- Review-found bug (fixed): R-CLM-5's `superseded` set was global → a cross-pair supersedes edge
+  masked an active assumption cea; now partition-scoped (same class as the WP2.3 fix). +5 tests.
+- **DEFERRED for owner ratification (surfaced, NOT shipped — §13 gate-rules-live-in-the-oracle):**
+  premise **acyclicity**, and `review_by`/`expires_at` ≥ `created_at` **ordering**. Zero-false-
+  positive structural invariants recommended for Constitution §4/§6.5; off until ratified. (The
+  WP2.3 `retrieved_at ≥ published_at` ASSUMED check is in the same ratification basket.)
+- Deferred by charter: support VALUE → WP2.5; conflict → WP2.6; freshness CLOCK → WP2.7;
+  cross-commit in-place claim edits → WP2.2c family; high_impact recompute → WP2.2a; `scenario_id`
+  has no registry (not invented).
+- Acceptance: full suite **271 green**; Phase-1 gate PASS; empty factbase + skeleton dogfood at 0.
+  Oracle/factbase changes: none. Next: **WP2.5** (hardest — support + corroboration: primary_evidence
+  _kind + credibility floor + Tier-1 cap; kills the A1 exploit).
+
 ## Phase checklist
 
 ### Phase 0 — Governance and scaffold
@@ -407,7 +432,7 @@ closed under boil-the-lake). Five commits.
 - [x] WP2.1 Source registry integrity — **DONE**
 - [x] WP2.2 Source-assessment governance + high_impact recompute + reward-hack gate — **DONE**
 - [x] WP2.3 Artifact integrity and claim-evidence governance — **DONE**
-- [ ] WP2.4 Type-specific claim integrity
+- [x] WP2.4 Type-specific claim integrity — **DONE**
 - [ ] WP2.5 Support and corroboration gate
 - [ ] WP2.6 Conflict and stance gate
 - [ ] WP2.7 Freshness and supersession gate
