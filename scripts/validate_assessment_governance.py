@@ -25,10 +25,10 @@ from __future__ import annotations
 
 import argparse
 import sys
-from collections import defaultdict
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))  # sibling import
+import supersession  # noqa: E402
 import validate_schema as vs  # noqa: E402
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
@@ -46,62 +46,15 @@ def _is_blank(v) -> bool:
 
 
 def check_assessment_governance(data) -> list[str]:
-    """Structural supersession + provenance findings for a schema-clean assessment log."""
-    findings = []
+    """Structural supersession + provenance findings for a schema-clean assessment log. The
+    supersession-structural checks are the shared supersession.check_supersession (no partition —
+    a chain is any connected component); provenance non-emptiness is assessment-specific."""
     recs = data.get("source_assessments", []) or []
-    ids = {r.get("id") for r in recs}
-    by_id = {r.get("id"): r for r in recs}
-
-    # self-supersede / orphan pointer / non-empty provenance
+    findings = supersession.check_supersession(recs, label="assessment")
     for r in recs:
-        rid, sup = r.get("id"), r.get("supersedes")
-        if sup is not None:
-            if sup == rid:
-                findings.append(f"assessment {rid!r} cannot supersede itself")
-            elif sup not in ids:
-                findings.append(f"assessment {rid!r} supersedes {sup!r} which does not resolve to a known assessment")
         for fld in _NONEMPTY_FIELDS:
             if _is_blank(r.get(fld)):
-                findings.append(f"assessment {rid!r} has an empty {fld}")
-
-    # cycle detection (walk supersedes pointers; dedupe by the cycle's node set)
-    reported = set()
-    for r in recs:
-        seen, cur = [], r.get("id")
-        while cur is not None and cur in by_id:
-            if cur in seen:
-                key = frozenset(seen[seen.index(cur):])
-                if key not in reported:
-                    reported.add(key)
-                    findings.append(f"assessment supersession cycle: {sorted(key)}")
-                break
-            seen.append(cur)
-            cur = by_id[cur].get("supersedes")
-
-    # one active leaf per chain (connected component via resolvable supersedes edges)
-    parent = {rid: rid for rid in ids}
-
-    def find(x):
-        while parent[x] != x:
-            parent[x] = parent[parent[x]]
-            x = parent[x]
-        return x
-
-    for r in recs:
-        sup = r.get("supersedes")
-        if sup is not None and sup in ids:
-            parent[find(r.get("id"))] = find(sup)
-
-    superseded = {r.get("supersedes") for r in recs if r.get("supersedes") in ids and r.get("supersedes") is not None}
-    in_cycle = set().union(*reported) if reported else set()
-    leaves = defaultdict(list)
-    for rid in ids:
-        if rid not in superseded and rid not in in_cycle:  # un-superseded, non-cyclic = active leaf
-            leaves[find(rid)].append(rid)
-    for comp, lvs in sorted(leaves.items()):
-        if len(lvs) > 1:
-            findings.append(f"supersession chain has {len(lvs)} active leaves {sorted(lvs)}; exactly one is allowed")
-
+                findings.append(f"assessment {r.get('id')!r} has an empty {fld}")
     return sorted(findings)
 
 
