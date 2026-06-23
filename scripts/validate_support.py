@@ -69,10 +69,11 @@ def _is_floor(a) -> bool:
     return isinstance(cred, int) and not isinstance(cred, bool) and 1 <= cred <= 3
 
 
-def active_supports_by_claim(ceas):
-    """Map claim_id -> [active CHECKED SUPPORTS cea]. Active = un-superseded leaf of its
-    (claim_id, artifact_id) chain (partition-scoped: only a same-pair edge deactivates). Tolerant of
-    a malformed cea with a null/absent id or supersedes — no crash (fail-closed, not KeyError)."""
+def active_checked_by_claim(ceas, stance=None):
+    """Map claim_id -> [active CHECKED cea] (optionally filtered to one `stance`). Active = the
+    un-superseded leaf of its (claim_id, artifact_id) chain (partition-scoped: only a same-pair edge
+    deactivates). Tolerant of a malformed cea with a null/absent id or supersedes (fail-closed, no
+    KeyError). Stance-agnostic so WP2.6 (conflict) can reuse it across REFUTES/MIXED."""
     by_id = {a.get("id"): a for a in ceas if a.get("id") is not None}
     key = lambda a: (a.get("claim_id"), a.get("artifact_id"))  # noqa: E731
     superseded = set()
@@ -83,9 +84,15 @@ def active_supports_by_claim(ceas):
     out = defaultdict(list)
     for a in ceas:
         sr = a.get("semantic_review") if isinstance(a.get("semantic_review"), dict) else {}
-        if a.get("id") not in superseded and a.get("stance") == "SUPPORTS" and sr.get("status") == "CHECKED":
+        if (a.get("id") not in superseded and sr.get("status") == "CHECKED"
+                and (stance is None or a.get("stance") == stance)):
             out[a.get("claim_id")].append(a)
     return out
+
+
+def active_supports_by_claim(ceas):
+    """WP2.5 view: active CHECKED SUPPORTS assessments per claim (thin wrapper — no behavior change)."""
+    return active_checked_by_claim(ceas, stance="SUPPORTS")
 
 
 def compute_support(qualifying):
