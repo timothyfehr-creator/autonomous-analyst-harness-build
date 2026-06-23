@@ -399,6 +399,9 @@ fixture, deferred the un-oracled rules), built solo, adversarially reviewed (ver
   premise **acyclicity**, and `review_by`/`expires_at` ≥ `created_at` **ordering**. Zero-false-
   positive structural invariants recommended for Constitution §4/§6.5; off until ratified. (The
   WP2.3 `retrieved_at ≥ published_at` ASSUMED check is in the same ratification basket.)
+  **→ OWNER-RATIFIED + ENFORCED 2026-06-23 (2c1e8f8):** written into CONSTITUTION §4/§6.5 +
+  DATA_MODEL §3/§5.1; enforced in validate_claims.py (R-CLM-3 premise acyclicity, R-CLM-9/10 date
+  ordering) + R-EVD-5 relabeled. preflight PASS (anchor tokens intact); full suite 275.
 - Deferred by charter: support VALUE → WP2.5; conflict → WP2.6; freshness CLOCK → WP2.7;
   cross-commit in-place claim edits → WP2.2c family; high_impact recompute → WP2.2a; `scenario_id`
   has no registry (not invented).
