@@ -1,0 +1,30 @@
+schema_version: "2.0"
+claim_evidence_assessments:
+  - id: cea-s
+    claim_id: clm-x
+    artifact_id: evd-1
+    support_locator: {kind: PAGE_AND_QUOTE, page: 1, quote: q}
+    support_summary: s
+    stance: SUPPORTS
+    information_credibility: 2
+    primary_evidence_kind: OFFICIAL_PRIMARY_DOCUMENT
+    temporal_scope: {kind: TIMELESS, start: null, end: null}
+    origin_chain:
+      - {source_id: src-a, artifact_id: evd-1}
+    independence_group: ind-cea-s
+    semantic_review: {status: CHECKED, reviewer: human:tim, reviewed_at: "2026-06-22T11:30:00Z", claim_content_hash: sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa, artifact_hash: sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb, relationship_input_hash: sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc}
+    supersedes: null
+  - id: cea-r
+    claim_id: clm-x
+    artifact_id: evd-2
+    support_locator: {kind: PAGE_AND_QUOTE, page: 1, quote: q}
+    support_summary: s
+    stance: REFUTES
+    information_credibility: 2
+    primary_evidence_kind: OFFICIAL_PRIMARY_DOCUMENT
+    temporal_scope: {kind: TIMELESS, start: null, end: null}
+    origin_chain:
+      - {source_id: src-b, artifact_id: evd-2}
+    independence_group: ind-cea-r
+    semantic_review: {status: CHECKED, reviewer: human:tim, reviewed_at: "2026-06-22T11:30:00Z", claim_content_hash: sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa, artifact_hash: sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb, relationship_input_hash: sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc}
+    supersedes: null
