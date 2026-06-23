@@ -483,6 +483,25 @@ misses (A5 fixtures verified WP1.6-schema-clean). Same-class numerator conversio
 - **PHASE 2: all 8 gates DONE (2.1–2.8), each adversarially reviewed.** Next (in progress): the
   `records` composition (verify.py --mode records, DAG order, fail-closed) + the Phase-2 auto-gate.
 
+### WP2.x — records composition + Phase-2 exit gate [DONE]
+
+Design-wf (critic REVISE — provenance anchors corrected, path-resolution via explicit-paths-under-
+root decided, empty=zero-claims + high_impact-in-DAG resolved) → build (eb6f67d) → review PASS →
+hardening (7650db1). `verify.py --mode records` composes the 9 per-snapshot integrity gates in DAG
+order (sources→source_assessments→evidence→claim_evidence→high_impact→claims→{support,conflict,
+freshness}→observations), import-not-subprocess, over explicit paths under `--root`. Fail-closed:
+zero claims → exit 2 (R3); a corrupt claims file → distinct cannot-parse exit 2; the FIRST gate
+returning 2 short-circuits and propagates (never masked by a downstream 0/1); a downstream finding →
+records=1. `--as-of` threads the freshness clock (absent on a non-empty compose → fail-closed). The
+cross-commit reward-hack gate (WP2.2c) is intentionally OUT of the per-snapshot composer.
+`scripts/gate_phase2_exit.py` (exit 0/2): records-empty-fails-closed + skeleton-composes-to-0 +
+the R4 standing invariants (A1/two-cred-6/high_impact/A5/conflict all fire) + Phase-1-still-green;
+witnesses mutation-proven load-bearing.
+- Review PASS; closed the cannot-parse-vs-empty messaging. Watch (deferred, documented): geography
+  integrity + the reward-hack gate are not in the per-snapshot composer; the compose-clean path is
+  exercised on the skeleton only (real factbase is empty) — re-confirm when real claims land.
+- Acceptance: full suite **359**; both phase gates PASS. Oracle/factbase changes: none.
+
 ## Phase checklist
 
 ### Phase 0 — Governance and scaffold
@@ -514,7 +533,10 @@ misses (A5 fixtures verified WP1.6-schema-clean). Same-class numerator conversio
 - [x] WP2.6 Conflict and stance gate — **DONE** (CONTESTED recompute; same-origin-both-sides kill)
 - [x] WP2.7 Freshness and supersession gate — **DONE** (injectable clock; bidirectional)
 - [x] WP2.8 Structured observation integrity — **DONE** (dimensional check; kills A5)
-- [ ] Phase 2 `records` composition acceptance
+- [x] Phase 2 `records` composition acceptance — **DONE** (verify.py --mode records + gate_phase2_exit)
+- **PHASE 2 COMPLETE 2026-06-23 — all 8 integrity gates + records composition + the Phase-2 exit
+  gate. 359 tests; both phase gates PASS. A1 + A5 + high_impact + two-cred-6 + conflict standing
+  invariants enforced.**
 
 ### Phase 3 — Analysis binding and refutation
 
