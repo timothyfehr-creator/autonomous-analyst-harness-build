@@ -1,0 +1,10 @@
+schema_version: "2.0"
+evidence:
+  - id: evd-a
+    source_id: src-ghost
+    artifact_type: ARTICLE
+    title: t
+    canonical_locator: https://example.invalid/evd-a
+    content_hash: sha256:9585f94b4ddb106c7327cbf4414d6b732b8b80e8881105afe96f703824ff7f01
+    published_at: "2026-06-20T08:00:00Z"
+    retrieved_at: "2026-06-22T09:00:00Z"

@@ -1,0 +1,13 @@
+schema_version: "2.0"
+sources:
+  - id: src-reuters
+    title: Reuters
+    source_type: NEWSWIRE
+  - id: src-owner
+    title: Owner
+    source_type: GOVERNMENT
+groups:
+  - id: grp-wires
+    title: Wire services
+    citable: false
+    member_ids: [src-reuters]

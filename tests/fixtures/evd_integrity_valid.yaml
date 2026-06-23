@@ -1,0 +1,18 @@
+schema_version: "2.0"
+evidence:
+  - id: evd-a
+    source_id: src-reuters
+    artifact_type: ARTICLE
+    title: t
+    canonical_locator: https://example.invalid/evd-a
+    content_hash: sha256:9585f94b4ddb106c7327cbf4414d6b732b8b80e8881105afe96f703824ff7f01
+    published_at: "2026-06-20T08:00:00Z"
+    retrieved_at: "2026-06-22T09:00:00Z"
+  - id: evd-b
+    source_id: src-reuters
+    artifact_type: ARTICLE
+    title: t
+    canonical_locator: https://example.invalid/evd-b
+    content_hash: sha256:46f8fa66d6dd140d49d774d2778d84059214efe8822c139e1943abecfa3e977a
+    published_at: "2026-06-20T08:00:00Z"
+    retrieved_at: "2026-06-22T09:00:00Z"
