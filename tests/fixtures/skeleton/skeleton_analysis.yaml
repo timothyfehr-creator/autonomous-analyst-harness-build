@@ -1,0 +1,24 @@
+schema_version: "2.0"
+analyses:
+  - id: ana-skeleton
+    lifecycle: ANSWER
+    question: What transport modes use the Skeleton Crossing? (synthetic)
+    context_pack_id: ctx-skeleton
+    context_pack_hash: sha256:4dfd51ac6d6ba986605082da4e3fba46e4c1075c55c9ef5f7b2adb8fcd57e6ae
+    output_path: outputs/ana-skeleton.md
+    output_hash: sha256:751842b8ec06e5e06f717b3e2c976e59dd4c45abc42ca624f53667f47f5ffe8a
+    claim_markers:
+      c1:
+        claim_id: clm-skeleton-crossing-modes
+        claim_hash: sha256:2b52b3667061d404eae1ea6bf7db479d8dc3921552fd48ae814a56becaefc7d5
+    claim_evidence_assessment_refs:
+      - {id: cea-skeleton-owner-to-modes, record_hash: sha256:d11babd7eaf222cd8451cd939522036a125967085b8a74b8d41788e1ce89cd78}
+    artifact_refs:
+      - {id: evd-skeleton-owner-record, content_hash: sha256:2ffe16a8d8601ce0f8efdfc316256e71ac6e0b67f4c04b47f6ad16a237e01e4b}
+    observation_refs:
+      - {id: obs-skeleton-road, record_hash: sha256:3c5b925fac0aed5a1557ca91835790dd7893a23d0bfb40af7eed36ac431c08a8}
+    prediction_refs: []
+    visual_refs:
+      - {id: vis-skeleton-modes, record_hash: sha256:a5266b1c7ede14770efcd4b69822e1554ffffe5b60d4fe6e2c353a83f279ca85}
+    required_refuter_class: HUMAN_OR_DIFFERENT_MODEL
+    manifest_hash: sha256:799c7306c700ca7072d541dc5ebdbd3e22efa044f2c35f3bee36448e967a2e41

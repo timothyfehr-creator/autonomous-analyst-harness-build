@@ -1,0 +1,11 @@
+schema_version: "2.0"
+evidence:
+  - id: evd-skeleton-owner-record
+    source_id: src-skeleton-owner
+    artifact_type: OFFICIAL_STATEMENT
+    title: Crossing status release (synthetic)
+    canonical_locator: https://example.invalid/owner/release/1
+    content_hash: sha256:2ffe16a8d8601ce0f8efdfc316256e71ac6e0b67f4c04b47f6ad16a237e01e4b
+    published_at: "2026-06-20T08:00:00Z"
+    retrieved_at: "2026-06-22T09:00:00Z"
+    language: en

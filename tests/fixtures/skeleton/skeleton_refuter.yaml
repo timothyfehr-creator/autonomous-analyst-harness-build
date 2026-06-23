@@ -1,0 +1,24 @@
+schema_version: "2.0"
+refuters:
+  - id: ref-skeleton
+    analysis_id: ana-skeleton
+    manifest_hash: sha256:799c7306c700ca7072d541dc5ebdbd3e22efa044f2c35f3bee36448e967a2e41
+    output_hash: sha256:751842b8ec06e5e06f717b3e2c976e59dd4c45abc42ca624f53667f47f5ffe8a
+    reviewer_class: HUMAN
+    reviewer: human:tim
+    reviewed_at: "2026-06-22T13:30:00Z"
+    reviewed_claim_ids: [clm-skeleton-crossing-modes]
+    reviewed_assessment_ids: [cea-skeleton-owner-to-modes]
+    verdicts:
+      - claim_id: clm-skeleton-crossing-modes
+        verdict: SURVIVES
+        displacement_check: PASS
+        independence_check: PASS
+        freshness_check: PASS
+        observation_check: PASS
+        reasoning_check: NOT_APPLICABLE
+        notes: synthetic skeleton verdict
+    alternative_hypotheses: []
+    disconfirming_searches:
+      - {query: skeleton crossing no road, result: no contrary artifact}
+    unresolved_gaps: []

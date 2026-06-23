@@ -1,0 +1,22 @@
+schema_version: "2.0"
+observations:
+  - id: obs-skeleton-road
+    claim_id: clm-skeleton-crossing-modes
+    claim_evidence_assessment_ids: [cea-skeleton-owner-to-modes]
+    value_type: CATEGORY
+    value: ROAD
+    unit: null
+    denominator: null
+    basis: transport mode supported by the crossing
+    temporal_scope: {kind: TIMELESS, start: null, end: null}
+    geography_id: geo-skeleton-crossing
+    uncertainty: null
+    extraction:
+      method: HUMAN
+      extractor: human:tim
+      extracted_at: "2026-06-22T12:10:00Z"
+      source_locator_hash: sha256:54de9a26c0d4b359471e25c9176f0c4e00fe50215b9e6e15008a48ca2edbc352
+    derived_from: []
+    transformation: null
+    lifecycle: ACTIVE
+    supersedes: null

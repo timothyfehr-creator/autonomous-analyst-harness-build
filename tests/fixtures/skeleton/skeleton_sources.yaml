@@ -1,0 +1,18 @@
+schema_version: "2.0"
+sources:
+  - id: src-skeleton-owner
+    title: Skeleton Crossing Authority (synthetic)
+    source_type: GOVERNMENT
+    jurisdiction: XX
+    canonical_home: https://example.invalid/owner
+    active_from: "2000-01-01"
+    active_to: null
+  - id: src-skeleton-wire
+    title: Skeleton Newswire (synthetic)
+    source_type: NEWSWIRE
+    canonical_home: https://example.invalid/wire
+groups:
+  - id: grp-skeleton-wires
+    title: Wire services (non-citable)
+    citable: false
+    member_ids: [src-skeleton-wire]

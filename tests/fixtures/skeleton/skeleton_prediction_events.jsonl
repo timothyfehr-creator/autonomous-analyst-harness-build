@@ -1,0 +1,1 @@
+{"event_id":"evt-prd-skeleton-lock","event_type":"LOCK","prediction_id":"prd-skeleton-reopen","record_hash":"sha256:0be0d2876164bbbe594afa4bbaa93be6abcd9d6ccc1832c0874b6f04a000fade","previous_event_hash":null,"event_hash":"sha256:cd1a0766e73dfc899e05bebf8ea41358fb4bb4faedfb8470a996b750cbe9603e","recorded_at":"2026-06-22T12:05:00Z","anchor_ref":"local-anchor:skeleton"}

@@ -1,0 +1,15 @@
+schema_version: "2.0"
+geography:
+  - id: geo-skeleton-crossing
+    title: Skeleton Crossing location (synthetic)
+    geometry_type: POINT
+    spatial_semantics: STRUCTURE_CENTROID
+    crs: EPSG:4326
+    geometry_ref: geodata/geo-skeleton-crossing.geojson
+    geometry_hash: sha256:0350e88e824821d1fbd6a6b54197779e7331e0b80dc7f12175e35c247ddfcc7c
+    geometry_claim_id: clm-skeleton-crossing-modes
+    claim_evidence_assessment_ids: [cea-skeleton-owner-to-modes]
+    valid_from: null
+    valid_to: null
+    lifecycle: ACTIVE
+    supersedes: null

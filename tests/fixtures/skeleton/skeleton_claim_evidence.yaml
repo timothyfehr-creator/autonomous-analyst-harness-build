@@ -1,0 +1,22 @@
+schema_version: "2.0"
+claim_evidence_assessments:
+  - id: cea-skeleton-owner-to-modes
+    claim_id: clm-skeleton-crossing-modes
+    artifact_id: evd-skeleton-owner-record
+    support_locator: {kind: PAGE_AND_QUOTE, page: 1, quote: "road transport resumes"}
+    support_summary: The official release states road transport is supported.
+    stance: SUPPORTS
+    information_credibility: 2
+    primary_evidence_kind: OFFICIAL_PRIMARY_DOCUMENT
+    temporal_scope: {kind: AS_OF, start: "2026-06-20T08:00:00Z", end: null}
+    origin_chain:
+      - {source_id: src-skeleton-owner, artifact_id: evd-skeleton-owner-record}
+    independence_group: ind-skeleton-owner
+    semantic_review:
+      status: CHECKED
+      reviewer: human:tim
+      reviewed_at: "2026-06-22T11:30:00Z"
+      claim_content_hash: sha256:2b52b3667061d404eae1ea6bf7db479d8dc3921552fd48ae814a56becaefc7d5
+      artifact_hash: sha256:2ffe16a8d8601ce0f8efdfc316256e71ac6e0b67f4c04b47f6ad16a237e01e4b
+      relationship_input_hash: sha256:30d6d636688c8545c60528d8dc4db115f529cadf27af0fb0ca444eb7d02a4d68
+    supersedes: null
