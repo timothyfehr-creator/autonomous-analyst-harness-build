@@ -159,6 +159,25 @@ regardless, since it is a discipline, not a gated build step.
   Segment 2 (Phases 1–3 → Milestone A, minus WP1.7) may resume.
 - Commit: see git log.
 
+### WP1.1 — Schema-core framework + golden canonicalization vector [DONE]
+
+- Shipped: `scripts/validate_schema.py` — `canonicalize`/`record_hash` (frozen serialization),
+  strict YAML load (duplicate-key rejection), envelope validation (root version `2.0`, unknown
+  → 2, per-record version → 1), `validate_record` primitives (id / datetime / enum /
+  number-not-bool / unknown-field), and a `register_schema` hook for WP1.2–1.6.
+  `tests/test_schema_core.py` (17 tests incl. the hand-verified golden vector) + envelope fixtures.
+- Acceptance: envelope_valid → 0, unknown_version → 2, per_record_version → 1, dup_key → 1,
+  missing-version / no-input → 2; `pytest` → 72 passed.
+- Discharged: **V-P1-7** (golden canonicalization vector; reviewer mutation-tested it — non-circular,
+  catches sort/NFC/exclude drift → the R1 tripwire is live, re-asserted by every later WP).
+- **Watch-items for later WPs** (reviewer): (1) `exclude` is top-level only — a WP needing nested
+  mutable-field exclusion must extend it (with a migration); (2) line-ending normalization is NOT
+  in the record hash — close it at **WP1.4** when artifact-content hashing lands (date/time
+  normalization lives in `datetime` validation).
+- Oracle-data changes: none. Migration impact: none.
+- Separate review: PASS (mutation-tested the golden vector; confirmed framework-only scope).
+- Commit: see git log. Next: WP1.2 (source schemas).
+
 ## Phase checklist
 
 ### Phase 0 — Governance and scaffold
@@ -170,7 +189,7 @@ regardless, since it is a discipline, not a gated build step.
 
 ### Phase 1 — Closed schemas and migration *(gate cleared 2026-06-22; WP1.7 deferred)*
 
-- [ ] WP1.1 Envelope validator and schema registry
+- [x] WP1.1 Envelope validator and schema registry — **DONE**
 - [ ] WP1.2 Source entities, groups, and assessments
 - [ ] WP1.3 Type-specific claim schema
 - [ ] WP1.4 Evidence artifact and claim-evidence assessment schemas
