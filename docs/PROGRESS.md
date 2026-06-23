@@ -316,6 +316,42 @@ regardless, since it is a discipline, not a gated build step.
 - Oracle/factbase changes: none. Commit: see git log. Next: WP2.2 (assessment governance +
   `high_impact` gate-recompute V-P0-1 + the same-change reward-hack gate across a commit range).
 
+### WP2.2 — Assessment governance + high_impact recompute (P0) + reward-hack gate [DONE]
+
+Three gates under one WP number (kept as separate scripts, each independently green); designed via
+a multi-agent design workflow, then adversarially reviewed by a worktree-isolated multi-agent
+review (verdict FIX_REQUIRED → all confirmed findings fixed-forward, re-reviewed green).
+
+- 2.2a (0a12634) — **the P0 fix.** `scripts/validate_high_impact.py` recomputes `high_impact` and
+  raises a stored false/null that should be true: T1 (topics ∩ trigger tokens, exact-token
+  NFC+casefold) OR T2-pred (FALSIFIABLE projection feeds a prediction). Trigger tokens = owner-
+  editable oracle config `config/high_impact_triggers.yaml` (alias resolves §10 `territorial-control`
+  vs the binding adjudication-row `control`). Only false→true enforced (lower bound); stored true
+  accepted with a printed [deferred] notice (manifest/visual = WP3.2/Ph5, contradiction = WP2.6, are
+  not computable at records scope); refuter-contest is WP3.3. Empty trigger config → exit 2 (§13).
+- 2.2b (8cb9132) — `scripts/validate_assessment_governance.py`: structural single-file supersession
+  integrity (no self-supersede / orphan / cycle; one active leaf per chain) + non-empty provenance.
+- 2.2c (196872b) — `scripts/check_reward_hack.py`: cross-commit (base..head) reward-hack gate
+  (V-P1-7). R-RH (oracle + factbase record M/D), R-EDIT (in-place committed-assessment edit, by
+  record_hash), R-DELETE, R-HI (claim high_impact true→false or §10 trigger-input change), R-COLLUDE
+  (assessment + benefiting claim/claim-evidence change). DATA = `factbase/**` only (tests/config/
+  scripts = ORACLE, so normal TDD doesn't false-positive). Carve-outs: anchored Reviewed-separately
+  trailer on every commit clears R-RH/R-COLLUDE (not R-EDIT/R-DELETE/R-HI); net-new data doesn't
+  trip. `--base` required, fail-closed exit 2. Pure `evaluate()` + git wrapper.
+- Hardening (58c838f) — the adversarial review found evasions in untested paths (all reproduced):
+  M1 `high_impact: null` bypassed both layers → gate `stored is not True` + schema forbids null;
+  M2 a `git mv` hid a renamed+edited claim → `--no-renames` + global-by-id reconciliation;
+  M3 R-COLLUDE ignored the claim-evidence benefit layer → now diffs cea stance/credibility;
+  S1 R-EDIT only watched reliability → record_hash catches any in-place edit; S2 blank-provenance
+  bypass (null/non-string/zero-width) closed; S3 R-HI trigger inputs completed (epistemic_type/
+  projection_kind). +11 regression tests.
+- Acceptance: full suite **221 green**; Phase-1 exit gate PASS; the gate is clean on the real WP2.2
+  range (no false positive). Oracle/governing-doc changes: none. Factbase seeding: none.
+- Discharged: **V-P0-1** (gate-computed high_impact — the #1 cold-review finding, gate half; refuter
+  half is WP3.3), **V-P1-7** (commit-range reward-hack), assessment append-only governance
+  (DATA_MODEL §2/§14, IMPLEMENTATION_PLAN WP2.2 incl. the social-source-upgrade fixture).
+- Next: WP2.3 (artifact integrity + claim-evidence governance).
+
 ## Phase checklist
 
 ### Phase 0 — Governance and scaffold
@@ -340,7 +376,7 @@ regardless, since it is a discipline, not a gated build step.
 ### Phase 2 — Source, artifact, assessment, claim, and observation integrity
 
 - [x] WP2.1 Source registry integrity — **DONE**
-- [ ] WP2.2 Source-assessment governance
+- [x] WP2.2 Source-assessment governance + high_impact recompute + reward-hack gate — **DONE**
 - [ ] WP2.3 Artifact integrity and claim-evidence governance
 - [ ] WP2.4 Type-specific claim integrity
 - [ ] WP2.5 Support and corroboration gate
