@@ -11,6 +11,8 @@ WP1.5 predictions/events; WP1.6 observations/etc.
 
 import re
 
+_HASH_RE = re.compile(r"^sha256:[0-9a-f]{64}$")  # mirrors validate_schema (no import → no cycle)
+
 SOURCE_TYPES = {
     "GOVERNMENT", "MILITARY", "SECURITY_SERVICE", "INTERGOVERNMENTAL", "NEWSWIRE",
     "NEWS_OUTLET", "RESEARCH_INSTITUTE", "NGO", "DATA_PROVIDER", "SOCIAL_ACCOUNT", "OTHER",
@@ -188,6 +190,96 @@ CLAIM_EVIDENCE_SCHEMA = {
     "extra": _cea_extra,
 }
 
+# ---- predictions (WP1.5): ex-ante forecast registry (DATA_MODEL §7) ----
+def _prediction_extra(rec):
+    """Forecast sanity (shape): probabilities in [0,1]; resolution after the as-of time."""
+    f = []
+    for fld in ("probability", "benchmark_probability"):
+        v = rec.get(fld)
+        if isinstance(v, (int, float)) and not isinstance(v, bool) and not (0.0 <= v <= 1.0):
+            f.append(f"{fld} must be within [0,1]")
+    # Lexical compare is correct for the canonical fixed-width ISO-8601 UTC `Z` datetimes the
+    # schema accepts; normalized instant comparison (fractional-second widths, tz) is Phase-2.
+    a, r = rec.get("as_of"), rec.get("resolve_by")
+    if isinstance(a, str) and isinstance(r, str) and r <= a:
+        f.append("resolve_by must be after as_of")
+    return sorted(f)
+
+
+PREDICTION_SCHEMA = {
+    "prefix": "prd-",
+    "required": {"id", "question", "resolution_criterion", "as_of", "resolve_by", "probability",
+                 "resolution_authority", "void_policy", "category", "dependence_cluster",
+                 "benchmark_probability", "declared_data_source"},
+    "optional": set(),
+    "enums": {},
+    "types": {"id": "id", "as_of": "datetime", "resolve_by": "datetime",
+              "probability": "number", "benchmark_probability": "number",
+              "resolution_authority": "ref:src-"},
+    "extra": _prediction_extra,
+}
+
+# ---- append-only event logs (WP1.5): JSONL, no envelope; shape only (chain is Phase 2) ----
+# Concrete event-type tokens specified in DATA_MODEL: LOCK (§7) and PROMOTE (§13). The remaining
+# members are the README's per-log vocabularies normalized to imperative verbs to match those two
+# anchors; only LOCK / PROMOTE variant *bodies* are documented, so only those are field-enforced.
+PREDICTION_EVENT_TYPES = {"LOCK", "RESOLVE", "VOID", "DISPUTE", "CORRECT"}
+BASELINE_EVENT_TYPES = {"PROMOTE", "REFRESH", "REJECT", "SUPERSEDE"}
+
+
+def _prediction_event_extra(rec):
+    """LOCK freezes the ex-ante record: it binds record_hash + an external anchor_ref (§7)."""
+    f = []
+    if rec.get("event_type") == "LOCK":
+        for fld in ("record_hash", "anchor_ref"):
+            if not rec.get(fld):
+                f.append(f"LOCK event requires {fld}")
+    return sorted(f)
+
+
+PREDICTION_EVENT_SCHEMA = {
+    "prefix": "evt-",
+    "required": {"event_id", "event_type", "prediction_id", "recorded_at",
+                 "previous_event_hash", "event_hash"},
+    "optional": {"record_hash", "anchor_ref"},
+    "enums": {"event_type": PREDICTION_EVENT_TYPES},
+    "types": {"event_id": "id", "prediction_id": "ref:prd-", "recorded_at": "datetime",
+              "previous_event_hash": "hash", "event_hash": "hash", "record_hash": "hash"},
+    "extra": _prediction_event_extra,
+}
+
+
+def _baseline_event_extra(rec):
+    """PROMOTE binds before/after record hashes + the supporting assessment/artifact hashes (§13)."""
+    f = []
+    if rec.get("event_type") == "PROMOTE":
+        for fld in ("claim_content_hash", "before_record_hash", "after_record_hash", "review_hash"):
+            if not rec.get(fld):
+                f.append(f"PROMOTE event requires {fld}")
+        for fld in ("assessment_hashes", "artifact_hashes"):
+            v = rec.get(fld)
+            if not isinstance(v, list):
+                f.append(f"PROMOTE event requires {fld} as a list")
+            else:
+                for h in v:
+                    if not (isinstance(h, str) and _HASH_RE.match(h)):
+                        f.append(f"{fld} contains a non-hash entry: {h!r}")
+    return sorted(f)
+
+
+BASELINE_EVENT_SCHEMA = {
+    "prefix": "evt-",
+    "required": {"event_id", "event_type", "claim_id", "recorded_at",
+                 "previous_event_hash", "event_hash"},
+    "optional": {"claim_content_hash", "before_record_hash", "after_record_hash",
+                 "assessment_hashes", "artifact_hashes", "review_hash"},
+    "enums": {"event_type": BASELINE_EVENT_TYPES},
+    "types": {"event_id": "id", "claim_id": "ref:clm-", "recorded_at": "datetime",
+              "previous_event_hash": "hash", "event_hash": "hash", "claim_content_hash": "hash",
+              "before_record_hash": "hash", "after_record_hash": "hash", "review_hash": "hash"},
+    "extra": _baseline_event_extra,
+}
+
 COLLECTIONS = {
     "sources": SOURCE_SCHEMA,
     "groups": GROUP_SCHEMA,
@@ -195,4 +287,11 @@ COLLECTIONS = {
     "claims": CLAIM_SCHEMA,
     "evidence": EVIDENCE_SCHEMA,
     "claim_evidence_assessments": CLAIM_EVIDENCE_SCHEMA,
+    "predictions": PREDICTION_SCHEMA,
+}
+
+# JSONL append-only event logs keyed by the log-file stem (substring-matched against filenames).
+EVENT_LOGS = {
+    "prediction_events": PREDICTION_EVENT_SCHEMA,
+    "baseline_events": BASELINE_EVENT_SCHEMA,
 }

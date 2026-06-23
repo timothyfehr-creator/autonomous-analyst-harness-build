@@ -1,0 +1,1 @@
+{"event_id":"evt-prd-x-lock","event_type":"LOCK","prediction_id":"prd-x-reopen","record_hash":"sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","previous_event_hash":null,"event_hash":"sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb","recorded_at":"2026-06-22T12:05:00Z","anchor_ref":"local-anchor:zzz"}

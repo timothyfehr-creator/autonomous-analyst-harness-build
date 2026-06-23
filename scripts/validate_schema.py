@@ -32,6 +32,11 @@ KNOWN_VERSIONS = {"2.0"}
 # spec = {prefix, required:set, optional:set, enums:{field:set}, types:{field:"id|datetime|number|..."}}
 SCHEMAS: dict[str, dict] = {}
 
+# JSONL append-only event-log schemas (WP1.5): log-stem -> spec dict. Keyed by a stem that is
+# substring-matched against the .jsonl filename (so a fixture named prediction_events_*.jsonl
+# routes to the prediction-event schema). Shape only; the cross-line chain is Phase-2 integrity.
+EVENT_SCHEMAS: dict[str, dict] = {}
+
 
 def register_schema(collection: str, spec: dict) -> None:
     SCHEMAS[collection] = spec
@@ -82,6 +87,16 @@ _StrictLoader.add_constructor(yaml.resolver.BaseResolver.DEFAULT_MAPPING_TAG, _n
 
 def load_yaml_strict(path: Path):
     return yaml.load(path.read_text(encoding="utf-8"), Loader=_StrictLoader)
+
+
+def _json_no_dup(pairs):
+    """object_pairs_hook for json.loads: reject duplicate keys (mirrors the strict YAML loader)."""
+    mapping = {}
+    for k, v in pairs:
+        if k in mapping:
+            raise DuplicateKey(f"duplicate key: {k!r}")
+        mapping[k] = v
+    return mapping
 
 
 # ----------------------------- primitives -----------------------------
@@ -174,8 +189,40 @@ def validate_envelope(data) -> list[str]:
     return sorted(findings)
 
 
+def validate_jsonl_file(path: Path):
+    """Validate an append-only event log (one JSON object per line). Shape only — the cross-line
+    chain (previous_event_hash continuity, event_hash recomputation, anchor) is Phase-2 integrity.
+    An empty log is valid (logs start empty). An unrecognized .jsonl fails closed (exit 2)."""
+    spec = next((s for stem, s in EVENT_SCHEMAS.items() if stem in path.name), None)
+    if spec is None:
+        return 2, [f"{path.name}: unrecognized event log (no schema; fail closed)"]
+    try:
+        text = path.read_text(encoding="utf-8")
+    except OSError as e:
+        return 2, [f"{path.name}: cannot read ({e})"]
+    code, findings = 0, []
+    for lineno, raw in enumerate(text.splitlines(), 1):
+        if not raw.strip():
+            continue  # blank line — append-only logs may end with a trailing newline
+        try:
+            rec = json.loads(raw, object_pairs_hook=_json_no_dup)
+        except DuplicateKey as e:
+            findings.append(f"{path.name}: line {lineno}: {e}"); code = max(code, 1); continue
+        except json.JSONDecodeError as e:
+            findings.append(f"{path.name}: line {lineno}: invalid JSON ({e})"); code = max(code, 2); continue
+        if isinstance(rec, dict) and "schema_version" in rec:
+            findings.append(f"{path.name}: line {lineno}: per-record schema_version prohibited"); code = max(code, 1)
+        recf = validate_record(rec, spec)
+        if recf:
+            code = max(code, 1)
+            findings += [f"{path.name}: line {lineno}: {f}" for f in recf]
+    return code, findings
+
+
 def validate_file(path: Path):
     """Return (exit_code, findings) for one registry file."""
+    if path.suffix == ".jsonl":
+        return validate_jsonl_file(path)
     try:
         data = load_yaml_strict(path)
     except DuplicateKey as e:
@@ -214,6 +261,8 @@ try:
     import schema_defs
     for _name, _spec in schema_defs.COLLECTIONS.items():
         register_schema(_name, _spec)
+    for _stem, _spec in getattr(schema_defs, "EVENT_LOGS", {}).items():
+        EVENT_SCHEMAS[_stem] = _spec
 except ImportError:
     pass
 

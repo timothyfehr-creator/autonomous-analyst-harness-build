@@ -239,6 +239,37 @@ regardless, since it is a discipline, not a gated build step.
   every cross-field rule probed; the bool-enum quirk hardened + tested).
 - Commit: see git log. Next: WP1.5 (prediction + append-only event schemas).
 
+### WP1.5 — Prediction registry + append-only event-log schemas (shape) [DONE]
+
+- Shipped: `schema_defs.py` PREDICTION_SCHEMA (prd-: `resolution_authority`→src-, datetimes,
+  `_prediction_extra` = probability∈[0,1] + `resolve_by` after `as_of`) registered as the
+  `predictions` collection; PREDICTION_EVENT_SCHEMA + BASELINE_EVENT_SCHEMA (both evt-, with
+  `event_type` enums; LOCK binds `record_hash`+`anchor_ref` per §7, PROMOTE binds before/after
+  record hashes + `assessment_hashes`/`artifact_hashes` (list-of-hash) + `review_hash` per §13);
+  `EVENT_LOGS` map. `validate_schema.py` gains a JSONL path: `EVENT_SCHEMAS`, `_json_no_dup`
+  (JSON duplicate-key rejection mirroring the strict YAML loader), `validate_jsonl_file()`, and a
+  `.jsonl` dispatch in `validate_file()`. `tests/test_prediction_event_schema.py` (18 tests).
+- Scope discipline: **shape + per-record cross-field only.** The cross-LINE append-only chain
+  (`previous_event_hash` continuity, `event_hash` recomputation, external anchoring) is Phase-2
+  integrity and is NOT implemented here — `previous_event_hash`/`event_hash` are shape-checked
+  (hash format) only. Empty event log → exit 0 (logs start empty). Unrecognized `.jsonl` →
+  exit 2 (fail closed). Suffix-gated dispatch (YAML never reaches the jsonl path or vice-versa).
+- Epistemic note: only `LOCK` (§7) and `PROMOTE` (§13) have field bodies SPECIFIED in DATA_MODEL,
+  so only those variant bodies are field-enforced. The other `event_type` enum members
+  (RESOLVE/VOID/DISPUTE/CORRECT · REFRESH/REJECT/SUPERSEDE) are the README per-log vocabularies
+  normalized to imperative verbs to match those two anchors; their bodies stay at the common
+  shape until DATA_MODEL specifies them (a real such event currently fails closed on unknown
+  fields — the safe direction). No invented required fields; no documented field dropped.
+- Acceptance: valid prediction + valid LOCK + valid PROMOTE + empty seeds → 0; prob-out-of-range
+  / resolve-before-as-of / authority-not-source / unknown-field / LOCK-missing-record_hash /
+  bad-event_type / bad-event_hash / dup-JSON-key / PROMOTE-missing-hash / PROMOTE-bad-hashlist →
+  1; unrecognized `.jsonl` → 2. Full suite 123 passed (R1 golden vector + R2 conformance intact).
+- Oracle-data changes: none. Factbase seeding: none (seeds stay empty). Separate review: PASS
+  (8/8 new detectors mutation-proven load-bearing; every invalid fixture fails for its named
+  reason; no scope creep; fields faithful to §7/§13; diff additive & confined; oracle untouched).
+- Commit: see git log. Next: WP1.6 (observation `unit_vocabulary` + analysis/refuter/geography/
+  baseline/visual schemas — fattest WP, sub-commits allowed; SURFACE `unit_vocabulary` to owner).
+
 ## Phase checklist
 
 ### Phase 0 — Governance and scaffold
