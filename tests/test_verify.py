@@ -39,9 +39,10 @@ def test_scaffold_incomplete_root_fails_closed(tmp_path):
     assert _run("scaffold", tmp_path)[0] == 2
 
 
-def test_records_mode_unavailable():
+def test_records_mode_empty_factbase_fails_closed():
+    # records is now available (WP2.x), but the real seed factbase has zero claims -> fail closed (R3)
     code, lines = _run("records")
-    assert code == 2 and "unavailable" in "\n".join(lines).lower()
+    assert code == 2 and "empty factbase" in "\n".join(lines).lower()
 
 
 def test_draft_mode_unavailable():
@@ -61,5 +62,7 @@ def test_cli_scaffold_exit0():
     assert verify.main(["--mode", "scaffold"]) == 0
 
 
-def test_cli_records_exit2():
-    assert verify.main(["--mode", "records"]) == 2
+def test_cli_records_exit2_on_empty_factbase():
+    # records fails closed (exit 2) on the empty seed factbase; composition is exercised in
+    # tests/test_verify_records.py against a staged non-empty root
+    assert verify.main(["--mode", "records", "--as-of", "2026-06-23T00:00:00Z"]) == 2
