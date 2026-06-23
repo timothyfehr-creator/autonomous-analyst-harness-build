@@ -23,7 +23,7 @@ def test_classify_path_precedence():
 
 
 def test_evaluate_oracle_only_clean():
-    code, f, _ = rh.evaluate([("M", "scripts/g.py")], [], [], attested=False)
+    code, f, _ = rh.evaluate([("M", "scripts/g.py")], [], [], [], attested=False)
     assert code == 0 and not f
 
 
@@ -31,36 +31,55 @@ def test_evaluate_data_only_clean():
     # a factbase claim text edit (no hi flip / no trigger change), no oracle -> nothing fires
     code, f, _ = rh.evaluate([("M", "factbase/baseline/claims.yaml")],
                              [{"id": "clm-x", "status": "M", "base_hi": False, "head_hi": False,
-                               "trigger_inputs_changed": []}], [], attested=False)
+                               "trigger_inputs_changed": []}], [], [], attested=False)
     assert code == 0 and not f
 
 
 def test_evaluate_co_change_flagged_and_attestation_clears():
     changed = [("M", "scripts/g.py"), ("M", "factbase/baseline/claims.yaml")]
-    code, f, _ = rh.evaluate(changed, [], [], attested=False)
+    code, f, _ = rh.evaluate(changed, [], [], [], attested=False)
     assert code == 1 and any("R-RH" in x for x in f)
-    code2, f2, cleared = rh.evaluate(changed, [], [], attested=True)
+    code2, f2, cleared = rh.evaluate(changed, [], [], [], attested=True)
     assert code2 == 0 and not f2 and any("R-RH" in c for c in cleared)
 
 
 def test_evaluate_netnew_data_does_not_trip_rrh():
     # net-new factbase data (status A) is not "modified" -> R-RH does not fire
-    code, f, _ = rh.evaluate([("M", "scripts/g.py"), ("A", "factbase/x.yaml")], [], [], attested=False)
+    code, f, _ = rh.evaluate([("M", "scripts/g.py"), ("A", "factbase/x.yaml")], [], [], [], attested=False)
     assert code == 0 and not f
 
 
 def test_evaluate_high_impact_flip_flagged():
     code, f, _ = rh.evaluate([("M", "factbase/baseline/claims.yaml")],
                              [{"id": "clm-x", "status": "M", "base_hi": True, "head_hi": False,
-                               "trigger_inputs_changed": []}], [], attested=False)
+                               "trigger_inputs_changed": []}], [], [], attested=False)
     assert code == 1 and any("R-HI" in x and "true" in x for x in f)
 
 
-def test_evaluate_in_place_rating_change_not_cleared_by_attestation():
-    # R-EDIT is an append-only violation, NOT a "reviewed separately" escape
-    asses = [{"id": "sas-x", "status": "M", "base_reliability": "D", "head_reliability": "A"}]
-    code, f, _ = rh.evaluate([("M", "factbase/source_assessments.yaml")], [], asses, attested=True)
+def test_evaluate_in_place_edit_not_cleared_by_attestation():
+    # R-EDIT (any in-place content change, detected by record hash) is an append-only violation,
+    # NOT a "reviewed separately" escape — attestation must not clear it
+    asses = [{"id": "sas-x", "status": "M", "content_changed": True}]
+    code, f, _ = rh.evaluate([("M", "factbase/source_assessments.yaml")], [], asses, [], attested=True)
     assert code == 1 and any("R-EDIT" in x for x in f)
+
+
+def test_evaluate_cea_routed_collusion_flagged():
+    # M3: a source-assessment change + a claim-evidence stance/credibility change (claims.yaml
+    # untouched) is collusion routed through the benefit layer -> R-COLLUDE
+    asses = [{"id": "sas-x", "status": "A", "content_changed": False}]
+    cea = [{"id": "cea-x", "status": "M", "benefit_changed": True}]
+    code, f, _ = rh.evaluate([("M", "factbase/source_assessments.yaml"), ("M", "factbase/claim_evidence.yaml")],
+                             [], asses, cea, attested=False)
+    assert code == 1 and any("R-COLLUDE" in x for x in f)
+
+
+def test_evaluate_trigger_input_change_flagged():
+    # S3: a change to any §10 T2 input (here projection_kind) on an existing claim is flagged
+    code, f, _ = rh.evaluate([("M", "factbase/baseline/claims.yaml")],
+                             [{"id": "clm-x", "status": "M", "base_hi": False, "head_hi": False,
+                               "trigger_inputs_changed": ["projection_kind"]}], [], [], attested=False)
+    assert code == 1 and any("R-HI" in x and "projection_kind" in x for x in f)
 
 
 # ============================ integration tests (real tmp git repos) ============================
@@ -122,12 +141,30 @@ source_assessments:
 '''
 
 
+CEA = '''schema_version: "2.0"
+claim_evidence_assessments:
+  - id: cea-x
+    claim_id: clm-x
+    artifact_id: evd-x
+    stance: {stance}
+    information_credibility: {cred}
+    support_summary: s
+    support_locator: {{kind: PAGE_AND_QUOTE, page: 1, quote: q}}
+    temporal_scope: {{kind: TIMELESS, start: null, end: null}}
+    origin_chain: [{{source_id: src-social, artifact_id: evd-x}}]
+    independence_group: ind-x
+    semantic_review: {{status: UNCHECKED}}
+    supersedes: null
+'''
+
+
 def _base_repo(tmp_path):
     repo = tmp_path / "repo"
     _init(repo)
     _write(repo, "scripts/validate_sources.py", "THRESHOLD = 3\n")
     _write(repo, "factbase/baseline/claims.yaml", CLAIM.format(text="A", topics="casualties", hi="true"))
     _write(repo, "factbase/source_assessments.yaml", ASSESS.format(rel="D"))
+    _write(repo, "factbase/claim_evidence.yaml", CEA.format(stance="REFUTES", cred=5))
     base = _commit(repo, "base")
     return repo, base
 
@@ -215,6 +252,59 @@ def test_bad_base_fails_closed(tmp_path):
 def test_not_a_git_repo_fails_closed(tmp_path):
     code, findings, _ = rh.run(tmp_path / "nope", "HEAD~1", "HEAD")
     assert code == 2
+
+
+def test_rename_evasion_caught(tmp_path):
+    # M2 regression: a `git mv` of the claims file + a high_impact true->false flip must NOT hide the
+    # tamper. Global-by-id reconciliation + --no-renames catch it.
+    repo, base = _base_repo(tmp_path)
+    _git(repo, "mv", "factbase/baseline/claims.yaml", "factbase/baseline/claims2.yaml")
+    _write(repo, "factbase/baseline/claims2.yaml", CLAIM.format(text="A", topics="logistics", hi="false"))
+    _commit(repo, "rename and quietly downgrade")
+    code, findings, _ = rh.run(repo, base, "HEAD")
+    assert code == 1 and any("R-HI" in f and "true" in f for f in findings), findings
+
+
+def test_benign_pure_rename_clean(tmp_path):
+    # control for M2: a pure rename (no content change), no oracle -> nothing fires (no false pos)
+    repo, base = _base_repo(tmp_path)
+    _git(repo, "mv", "factbase/baseline/claims.yaml", "factbase/baseline/claims2.yaml")
+    _commit(repo, "rename only")
+    code, findings, _ = rh.run(repo, base, "HEAD")
+    assert code == 0 and not findings, findings
+
+
+def test_cea_routed_collusion_caught(tmp_path):
+    # M3 regression: a NEW superseding assessment (append-only-respecting) + a claim-evidence stance
+    # flip REFUTES->SUPPORTS, with claims.yaml UNTOUCHED, must still trip R-COLLUDE.
+    repo, base = _base_repo(tmp_path)
+    _write(repo, "factbase/source_assessments.yaml", ASSESS.format(rel="D") +
+           '''  - id: sas-soc-2
+    source_id: src-social
+    scope: social posts
+    reliability: A
+    sample_definition: 10 posts
+    sample_size: 10
+    rationale: upgraded
+    assessed_by: human:tim
+    assessed_at: "2026-06-23"
+    supersedes: sas-soc
+''')
+    _write(repo, "factbase/claim_evidence.yaml", CEA.format(stance="SUPPORTS", cred=2))
+    _commit(repo, "upgrade source and flip the support stance")
+    code, findings, _ = rh.run(repo, base, "HEAD")
+    assert code == 1 and any("R-COLLUDE" in f for f in findings), findings
+
+
+def test_in_place_non_reliability_edit_caught(tmp_path):
+    # S1 regression: an in-place edit of a committed assessment's rationale (NOT reliability) must
+    # still trip R-EDIT (content-hash comparison, not just the reliability letter).
+    repo, base = _base_repo(tmp_path)
+    _write(repo, "factbase/source_assessments.yaml",
+           ASSESS.format(rel="D").replace("rationale: ok", "rationale: rewritten-after-the-fact"))
+    _commit(repo, "retroactively rewrite rationale")
+    code, findings, _ = rh.run(repo, base, "HEAD")
+    assert code == 1 and any("R-EDIT" in f for f in findings), findings
 
 
 def test_standing_invariant_high_impact_fixture_stays_red(tmp_path):

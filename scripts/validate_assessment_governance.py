@@ -34,6 +34,15 @@ import validate_schema as vs  # noqa: E402
 REPO_ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_LOG = REPO_ROOT / "factbase" / "source_assessments.yaml"
 _NONEMPTY_FIELDS = ("scope", "rationale", "sample_definition", "assessed_by")
+_ZERO_WIDTH = "​‌‍⁠﻿"  # ZWSP/ZWNJ/ZWJ/word-joiner/BOM (str.strip leaves these)
+
+
+def _is_blank(v) -> bool:
+    """A provenance field is blank unless it is a string with real content. Catches null, non-string
+    (list/int), empty, whitespace-only, AND zero-width-only (which str.strip does not remove)."""
+    if not isinstance(v, str):
+        return True
+    return not v.strip().strip(_ZERO_WIDTH).strip()
 
 
 def check_assessment_governance(data) -> list[str]:
@@ -52,8 +61,7 @@ def check_assessment_governance(data) -> list[str]:
             elif sup not in ids:
                 findings.append(f"assessment {rid!r} supersedes {sup!r} which does not resolve to a known assessment")
         for fld in _NONEMPTY_FIELDS:
-            v = r.get(fld)
-            if isinstance(v, str) and not v.strip():
+            if _is_blank(r.get(fld)):
                 findings.append(f"assessment {rid!r} has an empty {fld}")
 
     # cycle detection (walk supersedes pointers; dedupe by the cycle's node set)

@@ -146,7 +146,11 @@ def _claim_extra(rec):
             f.append("FALSIFIABLE projection requires prediction_id")
         elif pk == "SCENARIO" and not rec.get("scenario_id"):
             f.append("SCENARIO projection requires scenario_id")
-    elif et == "FACT":
+    # high_impact is the gate-recomputed V-P0-1 boolean — it may not be null/unset (the general
+    # "null is a valid unset" rule does not apply; a null would slip the recompute gate, §10).
+    if "high_impact" in rec and rec.get("high_impact") is None:
+        f.append("high_impact may not be null — it is the gate-recomputed V-P0-1 boolean (§10)")
+    if et == "FACT":  # separate `if` (was `elif`): equivalent — a claim has one epistemic_type
         if "temporal" not in rec:
             f.append("FACT requires temporal")
         stab = rec.get("stability")

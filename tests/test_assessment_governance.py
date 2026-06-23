@@ -5,6 +5,8 @@ evident: a backstopping rule must not mask the removal of the named one). Failin
 import pathlib
 import sys
 
+import pytest
+
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "scripts"))
 
@@ -43,6 +45,16 @@ def test_two_leaves_one_chain_raised():
 
 def test_empty_provenance_raised():
     code, findings = _run("sas_empty_provenance.yaml")
+    assert code == 1
+    assert any("empty rationale" in f for f in findings), findings
+
+
+@pytest.mark.parametrize("fixture", ["sas_blank_rationale_null", "sas_blank_rationale_list",
+                                     "sas_blank_rationale_zwsp"])
+def test_blank_provenance_variants_raised(fixture):
+    # S2 regression: null / non-string / zero-width-only provenance must all be caught (not just
+    # empty/whitespace strings, which were the only cases the original guard handled)
+    code, findings = _run(fixture + ".yaml")
     assert code == 1
     assert any("empty rationale" in f for f in findings), findings
 

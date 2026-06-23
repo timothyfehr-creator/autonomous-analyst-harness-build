@@ -22,7 +22,7 @@ def _run(name):
 def test_v_p0_1_proving_test_raises_authored_false():
     code, findings, _ = _run("hi_t1_casualties_false.yaml")
     assert code == 1
-    assert any("stored false but computed true" in f and "T1" in f for f in findings), findings
+    assert any("but computed true" in f and "T1" in f for f in findings), findings
 
 
 def test_t1_alias_control_raises():
@@ -55,6 +55,19 @@ def test_true_deferred_not_failed():
     code, findings, notices = _run("hi_true_deferred_ok.yaml")
     assert code == 0 and not findings
     assert any("deferred, not scored" in n for n in notices), notices
+
+
+def test_null_high_impact_on_trigger_is_rejected():
+    # M1 regression: a casualties claim authored high_impact: null must NOT slip past (schema layer
+    # now forbids null on the required V-P0-1 boolean). Previously bypassed both gate and schema.
+    assert vhi.main([str(FIX / "hi_null_casualties.yaml")]) == 1
+
+
+def test_null_high_impact_unit_is_a_mismatch():
+    # M1 regression at the gate layer: stored null with computed true IS a mismatch (`is not True`)
+    claim = {"id": "clm-n", "topics": ["casualties"], "high_impact": None}
+    findings, _ = vhi.check_claims({"claims": [claim]}, vhi.trigger_set())
+    assert findings and "computed true" in findings[0]
 
 
 def test_canonical_mixed_fixture_passes_after_clm_prj_1_flip():

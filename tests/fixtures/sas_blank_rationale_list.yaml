@@ -1,0 +1,12 @@
+schema_version: "2.0"
+source_assessments:
+  - id: sas-a
+    source_id: src-reuters
+    scope: energy
+    reliability: B
+    sample_definition: 20 reports
+    sample_size: 20
+    rationale: []
+    assessed_by: human:tim
+    assessed_at: "2026-06-22"
+    supersedes: null

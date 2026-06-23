@@ -23,9 +23,10 @@ Rules over `git diff base..head` (each finding names its rule):
 
 Carve-outs (printed, never silent): a `Reviewed-separately:` trailer on EVERY commit in the range
 clears R-RH/R-COLLUDE (the §13 "reviewed separately" escape made auditable; a dishonest trailer is a
-logged residual, not closed). DATA = `factbase/**` only (the answer-affecting records — the
-"benefiting claim/visual"); `tests/**` + `config/**` + `scripts/**` are ORACLE (test inputs,
-expectations, thresholds, and code are all goalposts).
+logged residual, not closed). DATA = `factbase/**` only (the answer-affecting claim / assessment /
+claim-evidence records); `tests/**` + `config/**` + `scripts/**` are ORACLE (test inputs,
+expectations, thresholds, and code are all goalposts). The answer/visual layer
+(analyses/visuals/outputs) is chartered to WP3/WP5.1, which carry their own co-change protection.
 
 `--base` is REQUIRED (no safe auto-base in a no-remote single branch). Missing/unresolvable base or
 non-git → exit 2 (fail closed). Exit codes: 0 clean · 1 flagged · 2 cannot-run.
@@ -33,15 +34,21 @@ non-git → exit 2 (fail closed). Exit codes: 0 clean · 1 flagged · 2 cannot-r
 from __future__ import annotations
 
 import argparse
+import re
 import subprocess
 import sys
 from pathlib import Path
 
 import yaml
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))  # sibling import
+import validate_schema as vs  # noqa: E402  (for the frozen record_hash — in-place-edit detection)
+
 REPO_ROOT = Path(__file__).resolve().parent.parent
-_ATTEST_TRAILER = "Reviewed-separately:"
-_TRIGGER_INPUTS = ("topics", "prediction_id")
+# Anchored trailer (a casual prose mention or an empty-valued trailer cannot clear the gate).
+_ATTEST_RE = re.compile(r"(?mi)^\s*Reviewed-separately:\s*\S")
+# The full §10 T2 conjunction validate_high_impact recomputes on (a change to any is suspicious).
+_TRIGGER_INPUTS = ("topics", "prediction_id", "epistemic_type", "projection_kind")
 
 
 # ----------------------------- path classification (ordered, first-match-wins) -----------------------------
@@ -76,7 +83,9 @@ def _resolve(root: Path, rev: str) -> str:
 
 
 def _changed(root: Path, base: str, head: str):
-    out = _git(root, "diff", "--name-status", f"{base}..{head}")
+    # --no-renames: a `git mv` of a factbase file would otherwise appear as one 'R' row on the NEW
+    # path, hiding the deleted old path and letting a rename-and-edit dodge every record rule.
+    out = _git(root, "diff", "--no-renames", "--name-status", f"{base}..{head}")
     changed = []
     for line in out.splitlines():
         if not line.strip():
@@ -100,10 +109,12 @@ def _show_yaml(root: Path, rev: str, path: str):
 
 
 def _attested(root: Path, base: str, head: str) -> bool:
-    """True iff EVERY commit in base..head carries the Reviewed-separately: trailer (all-or-nothing)."""
+    """True iff EVERY commit in base..head carries an anchored Reviewed-separately: <value> trailer
+    (all-or-nothing). A dishonest trailer remains a printed, auditable residual (not a silent pass);
+    R-EDIT/R-DELETE/R-HI are never clearable by attestation."""
     out = _git(root, "log", "--format=%B%x1e", f"{base}..{head}")
     commits = [c for c in out.split("\x1e") if c.strip()]
-    return bool(commits) and all(_ATTEST_TRAILER in c for c in commits)
+    return bool(commits) and all(_ATTEST_RE.search(c) for c in commits)
 
 
 def _records(doc, key):
@@ -113,42 +124,55 @@ def _records(doc, key):
 
 
 def _record_changes(root: Path, base: str, head: str, changed):
-    """Diff factbase claim + assessment files by record id between base and head."""
-    claim_changes, assessment_changes = [], []
-    data_paths = {p for s, p in changed if classify_path(p) == "DATA"}
-    for path in sorted(data_paths):
-        base_doc, head_doc = _show_yaml(root, base, path), _show_yaml(root, head, path)
-        # claims
-        b, h = _records(base_doc, "claims"), _records(head_doc, "claims")
-        for cid in sorted(set(b) | set(h)):
-            bc, hc = b.get(cid), h.get(cid)
-            if bc and hc:
-                ti = sorted(k for k in _TRIGGER_INPUTS if bc.get(k) != hc.get(k))
-                claim_changes.append({"id": cid, "base_hi": bc.get("high_impact"),
-                                      "head_hi": hc.get("high_impact"), "trigger_inputs_changed": ti,
-                                      "status": "M"})
-            elif hc and not bc:
-                claim_changes.append({"id": cid, "base_hi": None, "head_hi": hc.get("high_impact"),
-                                      "trigger_inputs_changed": [], "status": "A"})
-        # assessments
-        b, h = _records(base_doc, "source_assessments"), _records(head_doc, "source_assessments")
-        for sid in sorted(set(b) | set(h)):
-            ba, ha = b.get(sid), h.get(sid)
-            if ba and ha:
-                assessment_changes.append({"id": sid, "base_reliability": ba.get("reliability"),
-                                           "head_reliability": ha.get("reliability"), "status": "M"})
-            elif ha and not ba:
-                assessment_changes.append({"id": sid, "base_reliability": None,
-                                           "head_reliability": ha.get("reliability"), "status": "A"})
-            elif ba and not ha:
-                assessment_changes.append({"id": sid, "base_reliability": ba.get("reliability"),
-                                           "head_reliability": None, "status": "D"})
-    return claim_changes, assessment_changes
+    """Diff factbase claim / assessment / claim-evidence records BY ID, reconciled GLOBALLY across
+    all changed DATA paths. Global-by-id (not per-current-path) so a renamed-and-edited record is
+    still matched base→head (a `git mv` cannot reclassify a true→false flip as a clean status 'A')."""
+    data_paths = sorted({p for s, p in changed if classify_path(p) == "DATA"})
+    base_c, head_c, base_a, head_a, base_e, head_e = ({}, {}, {}, {}, {}, {})
+    for path in data_paths:
+        bd, hd = _show_yaml(root, base, path), _show_yaml(root, head, path)
+        base_c.update(_records(bd, "claims")); head_c.update(_records(hd, "claims"))
+        base_a.update(_records(bd, "source_assessments")); head_a.update(_records(hd, "source_assessments"))
+        base_e.update(_records(bd, "claim_evidence_assessments")); head_e.update(_records(hd, "claim_evidence_assessments"))
+
+    claim_changes = []
+    for cid in sorted(set(base_c) | set(head_c)):
+        bc, hc = base_c.get(cid), head_c.get(cid)
+        if bc and hc:
+            ti = sorted(k for k in _TRIGGER_INPUTS if bc.get(k) != hc.get(k))
+            claim_changes.append({"id": cid, "status": "M", "base_hi": bc.get("high_impact"),
+                                  "head_hi": hc.get("high_impact"), "trigger_inputs_changed": ti})
+        elif hc and not bc:
+            claim_changes.append({"id": cid, "status": "A", "base_hi": None,
+                                  "head_hi": hc.get("high_impact"), "trigger_inputs_changed": []})
+
+    assessment_changes = []
+    for sid in sorted(set(base_a) | set(head_a)):
+        ba, ha = base_a.get(sid), head_a.get(sid)
+        if ba and ha:  # content_changed via the frozen record_hash → catches ALL in-place edits
+            assessment_changes.append({"id": sid, "status": "M",
+                                       "content_changed": vs.record_hash(ba) != vs.record_hash(ha)})
+        elif ha and not ba:
+            assessment_changes.append({"id": sid, "status": "A", "content_changed": False})
+        elif ba and not ha:
+            assessment_changes.append({"id": sid, "status": "D", "content_changed": False})
+
+    cea_changes = []  # the layer a source upgrade actually benefits a claim through (DATA_MODEL §4)
+    for eid in sorted(set(base_e) | set(head_e)):
+        be, he = base_e.get(eid), head_e.get(eid)
+        if be and he:
+            benefit = (be.get("stance") != he.get("stance")
+                       or be.get("information_credibility") != he.get("information_credibility"))
+            cea_changes.append({"id": eid, "status": "M", "benefit_changed": benefit})
+        elif he and not be:
+            cea_changes.append({"id": eid, "status": "A", "benefit_changed": True})
+
+    return claim_changes, assessment_changes, cea_changes
 
 
 # ----------------------------- pure evaluation (unit-testable) -----------------------------
-def evaluate(changed, claim_changes, assessment_changes, attested: bool):
-    """Pure reward-hack logic given the diff data. Returns (exit_code, findings)."""
+def evaluate(changed, claim_changes, assessment_changes, cea_changes, attested: bool):
+    """Pure reward-hack logic given the diff data. Returns (exit_code, findings, cleared)."""
     findings, cleared = [], []
     oracle = sorted({p for s, p in changed if classify_path(p) == "ORACLE"})
     data_md = sorted({p for s, p in changed if classify_path(p) == "DATA" and s in ("M", "D")})
@@ -159,11 +183,11 @@ def evaluate(changed, claim_changes, assessment_changes, attested: bool):
                f"data {data_md} in the same range")
         (cleared if attested else findings).append(msg)
 
-    # R-EDIT / R-DELETE: append-only assessment governance over the range
+    # R-EDIT / R-DELETE: append-only assessment governance over the range (ANY content edit, by hash)
     for a in assessment_changes:
-        if a["status"] == "M" and a["base_reliability"] != a["head_reliability"]:
-            findings.append(f"R-EDIT in-place rating change of committed assessment {a['id']!r}: "
-                            f"{a['base_reliability']!r}→{a['head_reliability']!r} (use a superseding record)")
+        if a["status"] == "M" and a["content_changed"]:
+            findings.append(f"R-EDIT in-place edit of committed assessment {a['id']!r} (content "
+                            f"changed; a correction must be a superseding record, DATA_MODEL §14)")
         if a["status"] == "D":
             findings.append(f"R-DELETE committed assessment {a['id']!r} was deleted (append-only)")
 
@@ -175,13 +199,17 @@ def evaluate(changed, claim_changes, assessment_changes, attested: bool):
             findings.append(f"R-HI §10 trigger inputs {c['trigger_inputs_changed']} changed on existing "
                             f"claim {c['id']!r} (possible high_impact-trigger dodge)")
 
-    # R-COLLUDE: an assessment change benefiting a claim change in the same range (no adjudication)
-    a_changed = [a["id"] for a in assessment_changes if a["status"] in ("A", "M")]
-    c_changed = [c["id"] for c in claim_changes if c["status"] in ("A", "M")]
-    if a_changed and c_changed:
-        msg = (f"R-COLLUDE assessment(s) {sorted(a_changed)} changed in the same range as claim(s) "
-               f"{sorted(c_changed)} (a new/changed assessment may not benefit a same-range claim "
-               f"without a named adjudication exception)")
+    # R-COLLUDE: an assessment change benefiting a claim in the same range (no adjudication). The
+    # benefit may route through the claim record OR through the claim-evidence layer (stance/
+    # credibility), which is where a source upgrade actually changes a support verdict (§4/§13).
+    a_changed = sorted(a["id"] for a in assessment_changes if a["status"] in ("A", "M"))
+    benefit = sorted([c["id"] for c in claim_changes if c["status"] in ("A", "M")]
+                     + [e["id"] for e in cea_changes if e["status"] == "A"
+                        or (e["status"] == "M" and e["benefit_changed"])])
+    if a_changed and benefit:
+        msg = (f"R-COLLUDE assessment(s) {a_changed} changed in the same range as benefiting "
+               f"claim/claim-evidence record(s) {benefit} (a new/changed assessment may not benefit "
+               f"a same-range claim without a named adjudication exception)")
         (cleared if attested else findings).append(msg)
 
     return (1 if findings else 0), sorted(findings), sorted(cleared)
@@ -193,10 +221,10 @@ def run(root: Path, base: str, head: str):
         base_sha, head_sha = _resolve(root, base), _resolve(root, head)
         changed = _changed(root, base_sha, head_sha)
         attested = _attested(root, base_sha, head_sha)
-        claim_changes, assessment_changes = _record_changes(root, base_sha, head_sha, changed)
+        claim_changes, assessment_changes, cea_changes = _record_changes(root, base_sha, head_sha, changed)
     except GitError as e:
         return 2, [f"cannot run reward-hack gate (fail closed): {e}"], []
-    return evaluate(changed, claim_changes, assessment_changes, attested)
+    return evaluate(changed, claim_changes, assessment_changes, cea_changes, attested)
 
 
 def main(argv=None) -> int:

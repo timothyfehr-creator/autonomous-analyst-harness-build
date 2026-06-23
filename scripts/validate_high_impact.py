@@ -73,9 +73,12 @@ def check_claims(data, triggers: set[str]) -> tuple[list[str], list[str]]:
         cid = claim.get("id")
         computed, reasons = compute_high_impact(claim, triggers)
         stored = claim.get("high_impact")
-        if computed and stored is False:
-            findings.append(f"claim {cid!r}: high_impact stored false but computed true "
-                            f"({'; '.join(reasons)}) — author may not set it false (§10/V-P0-1)")
+        # §10: "a stored value is recomputed and a mismatch fails." A computed-true that is stored
+        # as anything-but-true (false OR null/unset) is the silent-downgrade vector V-P0-1 closes —
+        # `is not True` (not `is False`) so high_impact: null cannot slip past.
+        if computed and stored is not True:
+            findings.append(f"claim {cid!r}: high_impact stored {stored!r} but computed true "
+                            f"({'; '.join(reasons)}) — author may not set it false/null (§10/V-P0-1)")
         elif stored is True and not computed:
             notices.append(f"claim {cid!r}: high_impact true accepted on author's word — the "
                            f"manifest/visual (WP3.2/Ph5) and contradiction (WP2.6) legs are not "
