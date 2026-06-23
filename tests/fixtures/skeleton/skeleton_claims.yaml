@@ -3,7 +3,7 @@ claims:
   - id: clm-skeleton-crossing-modes
     text: The Skeleton Crossing supports road transport (synthetic).
     epistemic_type: FACT
-    support_status: CORROBORATED
+    support_status: SUPPORTED  # one CHECKED SUPPORTS assessment earns SUPPORTED; CORROBORATED needs >=2 independent origins (WP2.5)
     dispute_status: UNCONTESTED
     freshness_status: CURRENT
     lifecycle: REVIEWED

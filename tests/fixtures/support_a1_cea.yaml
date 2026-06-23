@@ -1,0 +1,29 @@
+schema_version: "2.0"
+claim_evidence_assessments:
+  - id: cea-fp
+    claim_id: clm-a1
+    artifact_id: evd-fp
+    support_locator: {kind: PAGE_AND_QUOTE, page: 1, quote: q}
+    support_summary: s
+    stance: SUPPORTS
+    information_credibility: 2
+    primary_evidence_kind: FIRST_PARTY_ACTION_RECORD
+    temporal_scope: {kind: TIMELESS, start: null, end: null}
+    origin_chain:
+      - {source_id: src-belligerent, artifact_id: evd-fp}
+    independence_group: ind-cea-fp
+    semantic_review: {status: CHECKED, reviewer: human:tim, reviewed_at: "2026-06-22T11:30:00Z", claim_content_hash: sha256:db72fa9306b4bd1676959872aa1bcdf3eb351e120b84e2a929557413c0257e25, artifact_hash: sha256:fd5b66dfbce950076c26e982ac4351c23a7f2a741676fec6cc9852daac9062cf, relationship_input_hash: sha256:77b3815713915cb691b8ff04f78072d2c8f149b50c07f094882e3f6a3dc09c9c}
+    supersedes: null
+  - id: cea-wire
+    claim_id: clm-a1
+    artifact_id: evd-wire
+    support_locator: {kind: PAGE_AND_QUOTE, page: 1, quote: q}
+    support_summary: s
+    stance: SUPPORTS
+    information_credibility: 2
+    temporal_scope: {kind: TIMELESS, start: null, end: null}
+    origin_chain:
+      - {source_id: src-belligerent, artifact_id: evd-wire}
+    independence_group: ind-cea-wire
+    semantic_review: {status: CHECKED, reviewer: human:tim, reviewed_at: "2026-06-22T11:30:00Z", claim_content_hash: sha256:bd1aec6d76a0595d7d93812cc099800a4fdecaa2ee111c332d9f8f9cb961d049, artifact_hash: sha256:d2c73dedbfd81619de22d53c22c6b38f052b75f156390935327baa06fbab04eb, relationship_input_hash: sha256:841a18d707d4ddc17bcf8faf2ba1691bdcb2d179d6f5a2280d43b4c5eced0ff5}
+    supersedes: null

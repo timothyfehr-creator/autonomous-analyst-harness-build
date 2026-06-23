@@ -3,7 +3,7 @@ claims:
   - id: clm-fact-1
     text: The Example Crossing supports both road and rail traffic.
     epistemic_type: FACT
-    support_status: CORROBORATED
+    support_status: UNVERIFIED  # no co-loaded evidence in this fixture → earns no support (WP2.5-honest)
     dispute_status: UNCONTESTED
     freshness_status: CURRENT
     lifecycle: REVIEWED
