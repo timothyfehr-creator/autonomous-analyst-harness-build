@@ -21,11 +21,14 @@ DATA_MODEL §5/§14, IMPLEMENTATION_PLAN WP2.4):
   - R-CLM-12 claim supersession integrity (no self-supersede / orphan / cycle; one active leaf)
              via the shared supersession helper, over the merged claim set.
 
+  - R-CLM-3  INFERENCE premise graph is acyclic (no claim is transitively its own premise) —
+             owner-ratified into Constitution §4 (2026-06-23);
+  - R-CLM-9/10  a DURABLE `review_by` / VOLATILE `expires_at` does not precede `created_at`
+             (clock-free; owner-ratified into Constitution §6.5 / DATA_MODEL §5.1).
+
 DEFERRED — NOT enforced (by design):
-  - premise ACYCLICITY and review_by/expires_at >= created_at ORDERING are NOT in the governing
-    docs (Constitution §13: gate-driving rules must live in the oracle). Surfaced for ratification,
-    not silently codified. `scenario_id` has no registry to resolve against (presence is schema-
-    checked; no registry invented). The earned support VALUE → WP2.5; conflict → WP2.6; the
+  - `scenario_id` has no registry to resolve against (presence is schema-checked; no registry
+    invented). The earned support VALUE → WP2.5; conflict → WP2.6; the
     freshness CLOCK (now()-relative) → WP2.7; cross-COMMIT in-place edits of REVIEWED claims →
     the reward-hack/git-range gate (WP2.2c family); high_impact recompute → WP2.2a; semantic
     displacement → the WP3.3 refuter.
@@ -41,6 +44,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))  # sibling import
+import schema_defs  # noqa: E402  (iso_instant for the ratified date-ordering checks)
 import supersession  # noqa: E402
 import validate_schema as vs  # noqa: E402
 
@@ -74,6 +78,33 @@ def _ids_from(path, collection, field="id"):
     return {r.get(field) for r in (data.get(collection) or []) if isinstance(r, dict)}
 
 
+def _premise_cycles(claims) -> list[str]:
+    """Owner-ratified (Constitution §4): INFERENCE premise_claim_ids must form a DAG — no claim is
+    transitively its own premise. A cycle must run entirely through INFERENCE claims (a FACT/
+    ASSUMPTION premise is a sink), so detect cycles over the inference-only premise subgraph."""
+    inf = {c.get("id"): [p for p in (c.get("premise_claim_ids") or []) if isinstance(p, str)]
+           for c in claims if c.get("epistemic_type") == "INFERENCE"}
+    adj = {k: [p for p in v if p in inf] for k, v in inf.items()}
+    color, findings, reported = {}, [], set()
+
+    def dfs(node, path):
+        color[node] = 1  # gray (on the current stack)
+        for nxt in adj.get(node, []):
+            if color.get(nxt) == 1:
+                cyc = frozenset(path[path.index(nxt):] + [node]) if nxt in path else frozenset([node])
+                if cyc not in reported:
+                    reported.add(cyc)
+                    findings.append(f"INFERENCE premise cycle: {sorted(cyc)} (no claim may be its own premise)")
+            elif color.get(nxt, 0) == 0:
+                dfs(nxt, path + [node])
+        color[node] = 2  # black (done)
+
+    for n in adj:
+        if color.get(n, 0) == 0:
+            dfs(n, [])
+    return sorted(findings)
+
+
 def check_claims_integrity(claims, clm_ids, clm_types, prd_ids, ceas) -> list[str]:
     """Cross-record/cross-file integrity findings for the schema-clean merged claim set."""
     findings = []
@@ -86,6 +117,16 @@ def check_claims_integrity(claims, clm_ids, clm_types, prd_ids, ceas) -> list[st
                     findings.append(f"claim {cid!r} premise {pid!r} is not a clm- id")
                 elif pid not in clm_ids:
                     findings.append(f"claim {cid!r} premise {pid!r} does not resolve to a known claim")
+        # ratified date-ordering coherence (clock-free; the now-relative freshness state is WP2.7)
+        created = schema_defs.iso_instant(c.get("created_at"))
+        if c.get("stability") == "DURABLE":
+            rb = schema_defs.iso_instant(c.get("review_by"))
+            if created is not None and rb is not None and rb < created:
+                findings.append(f"claim {cid!r} review_by {c.get('review_by')!r} precedes created_at {c.get('created_at')!r}")
+        if c.get("stability") == "VOLATILE":
+            ex = schema_defs.iso_instant(c.get("expires_at"))
+            if created is not None and ex is not None and ex < created:
+                findings.append(f"claim {cid!r} expires_at {c.get('expires_at')!r} precedes created_at {c.get('created_at')!r}")
         if et == "PROJECTION":
             if c.get("projection_kind") == "FALSIFIABLE":
                 pred = c.get("prediction_id")
@@ -112,6 +153,8 @@ def check_claims_integrity(claims, clm_ids, clm_types, prd_ids, ceas) -> list[st
             findings.append(f"claim-evidence assessment {a.get('id')!r} is active on ASSUMPTION claim "
                             f"{claim_id!r} — an assumption carries no evidence link (DATA_MODEL §4)")
 
+    # R-CLM-3 (ratified): INFERENCE premise graph must be acyclic
+    findings += _premise_cycles(claims)
     # R-CLM-12: claim supersession chain integrity (no partition — a chain is any component)
     findings += supersession.check_supersession(claims, label="claim")
     return sorted(findings)

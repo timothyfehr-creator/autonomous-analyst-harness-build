@@ -105,7 +105,9 @@ needs a source"):
   explicit temporal + stability semantics.
 - **INFERENCE** — a conclusion from premise claims; cites `premise_claim_ids` and states
   reasoning. Cheap by design (this is where interesting reads live). Never laundered as a
-  sourced observation.
+  sourced observation. Its `premise_claim_ids` must resolve to existing claims and form a
+  directed acyclic graph — a claim may not be (transitively) its own premise (no circular
+  reasoning). *(Owner-ratified structural invariant, 2026-06-23.)*
 - **ASSUMPTION** — an unverified premise; carries no evidence, states rationale and the
   consequence if false. Cheap by design.
 - **PROJECTION** — a modeled/hypothetical future; a falsifiable one links to a prediction
@@ -175,6 +177,10 @@ disagree; duplicate republication cannot satisfy both sides; credible mixed stan
 **§6.5 Freshness** derives from the claim-specific temporal scope of checked assessments,
 not from when you revisited the record. Volatile claims declare `expires_at`/a profile;
 durable claims declare `review_by`; history uses event time. **No single global default.**
+A declared `review_by` (durable) or `expires_at` (volatile) must not precede the claim's
+`created_at` — you cannot schedule review or expiry before the record exists. This is a
+**clock-free structural coherence check**, not a freshness-clock (now-relative) judgment;
+the now-relative `REVIEW_DUE`/`STALE` derivation is separate. *(Owner-ratified, 2026-06-23.)*
 
 **§6.6 Right-sizing for solo use (the merge's proportionality rule).** Tier 1 may operate
 at coarse granularity — stance + independence group + exact locator are required;

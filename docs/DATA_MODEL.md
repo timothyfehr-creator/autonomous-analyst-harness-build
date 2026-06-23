@@ -148,7 +148,9 @@ evidence:
 Required fields: `id`, `source_id`, `artifact_type`, `title`, `canonical_locator`,
 `content_hash`, `published_at`, `retrieved_at`. `snapshot_ref` is required where the
 locator is mutable, access-controlled, signed, or likely to disappear. `occurred_at` is
-used when the documented event time differs from publication time.
+used when the documented event time differs from publication time. `retrieved_at` must not
+precede `published_at` (you cannot retrieve before publication); `occurred_at` is not
+ordered (embargo/forward-dating is legitimate). *(Owner-ratified structural check, 2026-06-23.)*
 
 `artifact_type` is one of:
 
@@ -286,7 +288,8 @@ mismatch.
 
 Facts require explicit temporal semantics. Durable claims require `review_by`; volatile
 claims require `expires_at` or a named `freshness_profile`; append-only history requires
-an event time.
+an event time. A declared `review_by`/`expires_at` must not precede `created_at` (clock-free
+coherence; the now-relative freshness state is separate). *(Owner-ratified, 2026-06-23.)*
 
 ### 5.2 Inference
 

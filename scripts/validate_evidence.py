@@ -14,7 +14,8 @@ check can't (DATA_MODEL §3, §1; Constitution §3):
     artifact (DATA_MODEL §14 "Artifacts are immutable by content hash; a changed object is a new
     artifact") — a finding (format is already the schema's `hash` type);
   - R-EVD-5 date coherence: `retrieved_at` not before `published_at` (you cannot retrieve before
-    publication). `occurred_at` ordering is NOT enforced (embargo/forward-dating is legitimate).
+    publication) — owner-ratified into DATA_MODEL §3 (2026-06-23). `occurred_at` ordering is NOT
+    enforced (embargo/forward-dating is legitimate).
 
 Schema runs first (unparseable→2, shape-broken→1 without integrity). The source registry is
 required to resolve references: a missing/unreadable/duplicate-key sources file → exit 2 (§13

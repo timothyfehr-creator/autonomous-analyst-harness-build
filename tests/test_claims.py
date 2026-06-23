@@ -85,6 +85,28 @@ def test_claim_two_active_leaves_invalid():
     assert code == 1 and any("active leaves" in x for x in f), f
 
 
+# ---- owner-ratified structural invariants (2026-06-23) ----
+def test_premise_cycle_invalid():
+    code, f = _run("clm_premise_cycle.yaml")
+    assert code == 1 and any("premise cycle" in x for x in f), f
+
+
+def test_premise_dag_passes():
+    # an acyclic INFERENCE premise chain (i1<-i2<-fact) is fine
+    code, _ = _run("clm_premise_dag_ok.yaml")
+    assert code == 0
+
+
+def test_review_by_before_created_invalid():
+    code, f = _run("clm_review_before_created.yaml")
+    assert code == 1 and any("review_by" in x and "precedes created_at" in x for x in f), f
+
+
+def test_expires_at_before_created_invalid():
+    code, f = _run("clm_expires_before_created.yaml")
+    assert code == 1 and any("expires_at" in x and "precedes created_at" in x for x in f), f
+
+
 def test_canonical_mixed_passes_with_prediction_registry():
     # claims_valid_mixed has clm-prj-1 -> prd-example-reopen; resolves against the companion registry
     code, _ = _run("claims_valid_mixed.yaml")
