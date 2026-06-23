@@ -117,6 +117,36 @@ def test_first_party_excluded_from_independence():
     assert vsup.compute_support([fp, wire])[0] == "SUPPORTED"
 
 
+def test_a1_first_party_with_DISTINCT_origin_cannot_be_second_origin():
+    # MUST-FIX regression (the A1 kill C3 had no distinguishing test): a belligerent's FIRST_PARTY
+    # record at one origin + a single genuinely-independent source at ANOTHER origin must NOT reach
+    # CORROBORATED — the first-party record is excluded from the independence tally, so this is 1
+    # counting origin, not 2. (With C3 disabled this returns CORROBORATED — the mutant this kills.)
+    fp = {"primary_evidence_kind": "FIRST_PARTY_ACTION_RECORD", "information_credibility": 1,
+          "origin_chain": [{"source_id": "src-belligerent"}]}
+    indep = {"primary_evidence_kind": None, "information_credibility": 2,
+             "origin_chain": [{"source_id": "src-independent"}]}
+    assert vsup.compute_support([fp, indep])[0] == "SUPPORTED"
+
+
+def test_floor_rejects_out_of_domain_credibility():
+    # should-fix: credibility 0 / negatives are out of the {1..6} domain and must NOT clear the floor
+    def cea(origin, cred):
+        return {"primary_evidence_kind": "OFFICIAL_PRIMARY_DOCUMENT", "information_credibility": cred,
+                "origin_chain": [{"source_id": origin}]}
+    assert vsup.compute_support([cea("src-a", 0), cea("src-b", 5)])[0] == "SUPPORTED"
+    assert vsup.compute_support([cea("src-a", 2), cea("src-b", 5)])[0] == "CORROBORATED"  # in-domain still works
+
+
+def test_null_id_assessment_does_not_crash():
+    # should-fix: a malformed cea with id:null (and no supersedes) must not raise — fail-closed shape
+    ceas = [{"id": None, "claim_id": "clm-x", "artifact_id": "evd-x", "stance": "SUPPORTS",
+             "semantic_review": {"status": "CHECKED"}},
+            {"id": "cea-ok", "claim_id": "clm-x", "artifact_id": "evd-x", "stance": "SUPPORTS",
+             "semantic_review": {"status": "CHECKED"}, "supersedes": None}]
+    vsup.active_supports_by_claim(ceas)  # must not raise KeyError
+
+
 def test_r4_standing_invariant_unassessed_cannot_corroborate():
     # a chain lacking a numeric credibility <=3 cannot contribute to CORROBORATED (Tier-1 cap)
     def cea(origin, cred):

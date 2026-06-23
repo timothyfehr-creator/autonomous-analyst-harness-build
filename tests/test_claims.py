@@ -107,6 +107,16 @@ def test_expires_at_before_created_invalid():
     assert code == 1 and any("expires_at" in x and "precedes created_at" in x for x in f), f
 
 
+def test_null_id_cea_does_not_crash_rclm5():
+    # WP2.5-review hardening (same latent bug): an id:null cea must not crash R-CLM-5's supersession
+    import validate_claims as _vc
+    _vc.check_claims_integrity(
+        [{"id": "clm-asm", "epistemic_type": "ASSUMPTION"}],
+        {"clm-asm"}, {"clm-asm": "ASSUMPTION"}, set(),
+        [{"id": None, "claim_id": "clm-asm", "artifact_id": "evd-x", "semantic_review": {"status": "CHECKED"}},
+         {"id": "cea-ok", "claim_id": "clm-asm", "artifact_id": "evd-x", "semantic_review": {"status": "CHECKED"}, "supersedes": None}])  # must not raise
+
+
 def test_canonical_mixed_passes_with_prediction_registry():
     # claims_valid_mixed has clm-prj-1 -> prd-example-reopen; resolves against the companion registry
     code, _ = _run("claims_valid_mixed.yaml")

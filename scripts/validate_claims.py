@@ -139,10 +139,13 @@ def check_claims_integrity(claims, clm_ids, clm_types, prd_ids, ceas) -> list[st
     # `superseded` must be PARTITION-scoped: only a SAME-(claim_id, artifact_id) edge deactivates a
     # cea (a cea chain is per claim-artifact pair, DATA_MODEL §4). A flat global set would let a
     # throwaway cross-pair `supersedes` pointer mask a genuinely-active assessment on an assumption.
-    cea_by_id = {a.get("id"): a for a in ceas}
+    cea_by_id = {a.get("id"): a for a in ceas if a.get("id") is not None}
     cea_key = lambda a: (a.get("claim_id"), a.get("artifact_id"))  # noqa: E731
-    superseded = {a["supersedes"] for a in ceas
-                  if a.get("supersedes") in cea_by_id and cea_key(a) == cea_key(cea_by_id[a["supersedes"]])}
+    superseded = set()
+    for a in ceas:
+        sup = a.get("supersedes")
+        if sup is not None and sup in cea_by_id and cea_key(a) == cea_key(cea_by_id[sup]):
+            superseded.add(sup)
     for a in ceas:
         claim_id = a.get("claim_id")
         if clm_types.get(claim_id) != "ASSUMPTION":

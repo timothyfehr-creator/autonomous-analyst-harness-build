@@ -63,18 +63,23 @@ def _origin0(a):
 
 
 def _is_floor(a) -> bool:
-    """A credibility-floor clearer: integer information_credibility <= 3 (not bool; UNASSESSED fails)."""
+    """A credibility-floor clearer: integer information_credibility in the DOMAIN {1..3} (not bool;
+    UNASSESSED and out-of-domain 0/negative fail — the gate reads the cea raw, so guard the domain)."""
     cred = a.get("information_credibility")
-    return isinstance(cred, int) and not isinstance(cred, bool) and cred <= 3
+    return isinstance(cred, int) and not isinstance(cred, bool) and 1 <= cred <= 3
 
 
 def active_supports_by_claim(ceas):
     """Map claim_id -> [active CHECKED SUPPORTS cea]. Active = un-superseded leaf of its
-    (claim_id, artifact_id) chain (partition-scoped: only a same-pair edge deactivates)."""
-    by_id = {a.get("id"): a for a in ceas}
+    (claim_id, artifact_id) chain (partition-scoped: only a same-pair edge deactivates). Tolerant of
+    a malformed cea with a null/absent id or supersedes — no crash (fail-closed, not KeyError)."""
+    by_id = {a.get("id"): a for a in ceas if a.get("id") is not None}
     key = lambda a: (a.get("claim_id"), a.get("artifact_id"))  # noqa: E731
-    superseded = {a["supersedes"] for a in ceas
-                  if a.get("supersedes") in by_id and key(a) == key(by_id[a["supersedes"]])}
+    superseded = set()
+    for a in ceas:
+        sup = a.get("supersedes")
+        if sup is not None and sup in by_id and key(a) == key(by_id[sup]):
+            superseded.add(sup)
     out = defaultdict(list)
     for a in ceas:
         sr = a.get("semantic_review") if isinstance(a.get("semantic_review"), dict) else {}
