@@ -1,0 +1,6 @@
+schema_version: "2.0"
+groups:
+  - id: grp-bad
+    title: Should not be citable
+    citable: true
+    member_ids: [src-reuters]

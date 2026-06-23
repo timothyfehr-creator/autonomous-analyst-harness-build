@@ -25,6 +25,7 @@ from pathlib import Path
 import yaml
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(Path(__file__).resolve().parent))  # for sibling schema_defs import
 KNOWN_VERSIONS = {"2.0"}
 
 # Per-record-type schemas registered by WP1.2–1.6: collection_name -> spec dict
@@ -110,9 +111,15 @@ def validate_record(rec: dict, spec: dict) -> list[str]:
         if field not in rec:
             continue
         v = rec[field]
+        if v is None:
+            continue  # null is a valid "unset"; enum checks still catch null-where-enum-required
         if typ == "id":
             if not is_id(v, spec.get("prefix", "")):
                 findings.append(f"field {field!r}: invalid id {v!r} (expected prefix {spec.get('prefix','')!r})")
+        elif typ.startswith("ref:"):
+            refpref = typ[4:]
+            if not is_id(v, refpref):
+                findings.append(f"field {field!r}: {v!r} must reference an id with prefix {refpref!r}")
         elif typ == "datetime":
             if not is_iso_datetime(v):
                 findings.append(f"field {field!r}: invalid datetime {v!r} (need ISO date or ...T..Z)")
@@ -129,22 +136,25 @@ def validate_record(rec: dict, spec: dict) -> list[str]:
 
 
 def validate_envelope(data) -> list[str]:
-    """Structure findings (collection shape, per-record version). Version itself handled upstream."""
+    """Structure findings: every non-version key is a list collection; no per-record version;
+    registered collections are validated record-by-record. A file may hold more than one
+    collection (e.g. sources.yaml = sources + groups)."""
     findings = []
     collections = [k for k in data if k != "schema_version"]
-    if len(collections) != 1:
-        return [f"envelope must have exactly one collection besides schema_version, found {sorted(collections)}"]
-    name = collections[0]
-    coll = data[name]
-    if not isinstance(coll, list):
-        return [f"collection {name!r} must be a list"]
-    for i, rec in enumerate(coll):
-        if isinstance(rec, dict) and "schema_version" in rec:
-            findings.append(f"per-record schema_version prohibited (collection {name!r}, record {i})")
-    if name in SCHEMAS:
+    if not collections:
+        return ["envelope has no collection besides schema_version"]
+    for name in sorted(collections):
+        coll = data[name]
+        if not isinstance(coll, list):
+            findings.append(f"collection {name!r} must be a list")
+            continue
         for i, rec in enumerate(coll):
-            for f in validate_record(rec, SCHEMAS[name]):
-                findings.append(f"{name}[{i}]: {f}")
+            if isinstance(rec, dict) and "schema_version" in rec:
+                findings.append(f"per-record schema_version prohibited (collection {name!r}, record {i})")
+        if name in SCHEMAS:
+            for i, rec in enumerate(coll):
+                for f in validate_record(rec, SCHEMAS[name]):
+                    findings.append(f"{name}[{i}]: {f}")
     return sorted(findings)
 
 
@@ -181,6 +191,15 @@ def main(argv=None) -> int:
     if code == 0:
         print("OK — schema/envelope checks clean.")
     return code
+
+
+# Load per-record schema definitions registered by WP1.2+ (graceful if absent, e.g. at WP1.1).
+try:
+    import schema_defs
+    for _name, _spec in schema_defs.COLLECTIONS.items():
+        register_schema(_name, _spec)
+except ImportError:
+    pass
 
 
 if __name__ == "__main__":

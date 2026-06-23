@@ -1,0 +1,12 @@
+schema_version: "2.0"
+source_assessments:
+  - id: sas-bad-ref
+    source_id: grp-russian-appointed-officials
+    scope: x
+    reliability: C
+    sample_definition: y
+    sample_size: 3
+    rationale: z
+    assessed_by: human:tim
+    assessed_at: "2026-06-22"
+    supersedes: null

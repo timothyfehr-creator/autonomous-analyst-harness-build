@@ -178,6 +178,27 @@ regardless, since it is a discipline, not a gated build step.
 - Separate review: PASS (mutation-tested the golden vector; confirmed framework-only scope).
 - Commit: see git log. Next: WP1.2 (source schemas).
 
+### WP1.2 — Source / group / assessment schemas (shape) [DONE]
+
+- Shipped: `scripts/schema_defs.py` (SOURCE / GROUP / SOURCE_ASSESSMENT specs + `COLLECTIONS`).
+  `validate_schema.py` changes: **multi-collection envelope** (a file may hold >1 collection,
+  e.g. `sources.yaml` = sources + groups), a **`ref:<prefix>` field type** (a `grp-` where a
+  `src-` is required fails), **null-skip** in type checks (null = valid unset; enum still catches
+  null-in-enum), and a graceful `schema_defs` auto-load. `tests/test_source_schema.py` (10 tests).
+- Acceptance: real `factbase/sources.yaml` (29 `src-` + 2 non-citable `grp-`) + empty
+  `source_assessments.yaml` → 0; citable-true group / grp-as-source_id / per-record version /
+  missing field / bad enum / free-text reliability note → 1; `pytest` → 82 passed (R1 golden
+  vector intact).
+- Discharged: shape source/group/assessment validation; `citable` must be `false` (non-citable
+  groups); free-text reliability note on a source entity rejected (closed-schema unknown-field).
+- Deferred to WP2.1/2.2 (cross-record integrity — honestly noted, not silently dropped):
+  supersession-chain validation, append-only/in-place-edit enforcement, `member_ids` resolution.
+  Watch-items (reviewer): an unregistered extra list-collection passes shape-only (WP2.x may
+  reject unknown collection names); `id: null` passes shape (value-presence is WP2.x).
+- Oracle-data changes: none. Migration impact: none. Separate review: PASS (probed the envelope
+  generalization is a safe broadening, not a weakening).
+- Commit: see git log. Next: WP1.3 (claim schemas + `high_impact` field).
+
 ## Phase checklist
 
 ### Phase 0 — Governance and scaffold
@@ -190,7 +211,7 @@ regardless, since it is a discipline, not a gated build step.
 ### Phase 1 — Closed schemas and migration *(gate cleared 2026-06-22; WP1.7 deferred)*
 
 - [x] WP1.1 Envelope validator and schema registry — **DONE**
-- [ ] WP1.2 Source entities, groups, and assessments
+- [x] WP1.2 Source entities, groups, and assessments — **DONE**
 - [ ] WP1.3 Type-specific claim schema
 - [ ] WP1.4 Evidence artifact and claim-evidence assessment schemas
 - [ ] WP1.5 Prediction and append-only event schemas
