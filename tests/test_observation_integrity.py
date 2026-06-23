@@ -76,6 +76,31 @@ def test_existing_same_class_recast_is_wp16_shape_not_wp28():
     assert vs.main([str(FIX / "obs_unit_recast_no_transformation.yaml")]) == 1
 
 
+def test_self_referential_derived_from_cannot_self_certify():
+    # review should-fix: a cross-class recast whose derived_from points at its own id traces to no
+    # supplying record — must fail (the A5 self-certification escape)
+    code, f = _run("obs_a5_self_derived.yaml")
+    assert code == 1 and any("derived_from cycle" in x for x in f), f
+
+
+def test_derivation_cycle_caught_unit():
+    # a transitive 2-cycle (a→b→a) also self-certifies → flagged
+    obs = [{"id": "obs-a", "value_type": "NUMBER", "derived_from": ["obs-b"]},
+           {"id": "obs-b", "value_type": "NUMBER", "derived_from": ["obs-a"]}]
+    assert vo._derivation_cycles(obs)
+
+
+def test_in_file_duplicate_id_caught():
+    # the sole intra-file dup-id catcher (validate_schema only rejects dup KEYS, not dup id VALUES)
+    code, f = _run("obs_dup_id.yaml")
+    assert code == 1 and any("duplicate id 'obs-dup'" in x for x in f), f
+
+
+def test_cross_file_duplicate_id_caught():
+    code, f = vo.validate_observations([FIX / "obs_same_class_recast.yaml", FIX / "obs_same_class_recast.yaml"])
+    assert code == 1 and any("duplicate id" in x for x in f), f
+
+
 def test_check_units():
     vocab = schema_defs.UNIT_VOCABULARY
     # cross-class no df → finding; same-class → none; resolving df → none

@@ -27,7 +27,8 @@ not-in-vocab). Arithmetic correctness of a declared transformation is the WP3.3 
 Deferred (flagged): observation→claim / observation→cea existence resolution + the OPEN
 epistemic_type==FACT and cea-ACTIVE/CHECKED questions (general obs integrity, not the A5 kill).
 Fail-closed: an empty/unreadable unit vocabulary → exit 2 (no dimensional map; §13), checked BEFORE
-the per-file loop; an unreadable/dup-key observation registry → exit 2; empty observations → 0.
+the per-file loop; a missing/unreadable observation registry → exit 2; a duplicate-key file → exit 1
+(the schema layer's DuplicateKey path — still non-zero/gate-blocking); empty observations → 0.
 Exit codes: 0 / 1 / 2.
 """
 from __future__ import annotations
@@ -61,9 +62,37 @@ def load_observations_union(paths):
     return merged, sorted(dup)
 
 
+def _derivation_cycles(observations) -> list[str]:
+    """A derived_from graph must be acyclic and self-free — §6.3 requires derived_from to resolve
+    'to a record', and a self-loop / cycle supplies no external supplier (it would let a cross-class
+    A5 recast self-certify). Mirrors R-CLM-3 premise acyclicity / R-CLM-12 self-supersede."""
+    adj = {o.get("id"): [d for d in (o.get("derived_from") or []) if isinstance(d, str)] for o in observations}
+    color, findings, reported = {}, [], set()
+
+    def dfs(node, path):
+        color[node] = 1
+        for nxt in adj.get(node, []):
+            if nxt not in adj:
+                continue  # unresolved parent → R-OBS-1 flags it; not a cycle node
+            if color.get(nxt) == 1:
+                cyc = frozenset(path[path.index(nxt):] + [node]) if nxt in path else frozenset([node])
+                if cyc not in reported:
+                    reported.add(cyc)
+                    findings.append(f"observation derived_from cycle: {sorted(cyc)} (a derivation may "
+                                    f"not trace to itself — derived_from must resolve to a supplying record)")
+            elif color.get(nxt, 0) == 0:
+                dfs(nxt, path + [node])
+        color[node] = 2
+
+    for n in adj:
+        if color.get(n, 0) == 0:
+            dfs(n, [])
+    return sorted(findings)
+
+
 def check_observations(observations, obs_ids) -> list[str]:
-    """R-OBS-1 derived_from resolution + R-OBS-2 the A5 cross-class dimensional check."""
-    findings = []
+    """R-OBS-1 derived_from resolution (+ self/cycle guard) + R-OBS-2 the A5 cross-class dimensional check."""
+    findings = list(_derivation_cycles(observations))
     vocab = schema_defs.UNIT_VOCABULARY
     for o in observations:
         oid = o.get("id")
