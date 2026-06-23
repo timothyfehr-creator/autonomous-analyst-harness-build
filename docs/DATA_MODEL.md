@@ -43,6 +43,15 @@ Canonical hashes are calculated from normalized UTF-8 JSON with sorted keys and 
 fields explicitly identified as mutable state or computed output. The implementation must
 publish the exact canonicalization rules before any hash is relied upon.
 
+> **Phase-1 gate fixes (applied 2026-06-22, per the updated Constitution).** The schemas below
+> gain these fields when their Phase-1 WP builds them — the binding rule lives in the
+> Constitution; this records the field shapes:
+> - claim-evidence assessment: `primary_evidence_kind` (closed enum; Constitution §6.1a, V-P1-4).
+> - claim: `high_impact` becomes a **computed** field, recomputed on validation (§10, V-P0-1).
+> - observation: `unit` drawn from a closed `unit_vocabulary` + `source_value`/`source_unit`
+>   and a checkable `transformation`/`derived_from` for any unit/denominator change (§6.3, V-P1-5).
+> - support gate: a credibility floor and the Tier-1→`SUPPORTED` cap (§6.1b/§6.6, V-P1-10/F3).
+
 ## 1. Source registry
 
 Source entities are neutral identities. Reliability does not live here.

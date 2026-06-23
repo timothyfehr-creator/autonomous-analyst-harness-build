@@ -140,6 +140,19 @@ assessed `A`–`C` in scope**. Source type alone confers nothing. *(This is the 
 old exploit: a single low-reliability official statement can never reach CORROBORATED, but
 it CAN serve as a primary record of its own first-party action.)*
 
+**§6.1a Authoritative-primary is a closed kind (V-P1-4).** "Authoritative primary evidence" is
+not free-text: a chain claimed as primary declares a `primary_evidence_kind ∈
+{FIRST_PARTY_ACTION_RECORD, AUTHORITATIVE_DATASET, DIRECT_SENSOR_CAPTURE,
+OFFICIAL_PRIMARY_DOCUMENT}`. A `FIRST_PARTY_ACTION_RECORD` by an interested belligerent (a
+government/military source on a contested kinetic claim) is a primary record of *its own* claim
+but **may not also satisfy the independent-group requirement** — `CORROBORATED` still needs a
+genuinely separate origin.
+
+**§6.1b Corroboration has a credibility floor (V-P1-10).** `CORROBORATED` requires at least one
+corroborating chain to clear a **credibility floor** (`information_credibility ≤ 3` on its
+checked assessment). Two low-credibility (`5`–`6`) assessments agreeing — e.g. two amplifier
+accounts repeating one rumour — cannot reach `CORROBORATED`.
+
 **§6.2 Exact support.** Every checked assessment names the exact passage/cell/frame.
 Quantitative claims point to the exact number or a deterministic derivation; a URL is not
 enough. The gate checks presence/binding/consistency; a human or different-model reviewer
@@ -148,7 +161,12 @@ checks whether the cited material *actually* supports the claim (displacement).
 **§6.3 Structured observations.** Any chartable/reusable value is a typed observation
 (value, unit, denominator/basis for rates, temporal scope, geography, uncertainty, claim id,
 checked assessment ids, immutable extraction). Visuals and calculations consume observation
-IDs **only**.
+IDs **only**. Numeric observations declare their `unit` from a closed **`unit_vocabulary`**
+(each entry carries a dimensional class for a dimensional check) and record the literal
+`source_value` + `source_unit` as it appears at the locator; any value reported in a different
+unit or denominator must be a declared, checkable `transformation` from `source_value`, with
+`derived_from` resolving the denominator to a record. A bare absolute number recast as a share
+(no `derived_from`, no `transformation`) fails. (V-P1-5)
 
 **§6.4 Conflict.** `CONTESTED` requires independent credible positions that materially
 disagree; duplicate republication cannot satisfy both sides; credible mixed stances on an
@@ -163,7 +181,11 @@ at coarse granularity — stance + independence group + exact locator are requir
 information credibility (`1`–`6`) and full three-hash semantic-review binding are
 **optional at Tier 1 and required only at Tier 2 / baseline promotion**. This keeps routine
 recording cheap enough to actually do, and concentrates the heavy ceremony where it pays
-off. A tool too tedious to use fails as surely as one too credulous.
+off. A tool too tedious to use fails as surely as one too credulous. **But Tier 1 caps support
+at SUPPORTED (F3):** a claim recorded without information-credibility scoring and full `CHECKED`
+three-hash binding can reach `SUPPORTED` but **never `CORROBORATED`** — corroboration always
+requires the full §6.1 conditions regardless of tier. §6.6 lowers the cost of *recording*,
+never the bar for *corroboration*.
 
 ## §7 — Visible status in answers
 
@@ -203,6 +225,15 @@ observation/visual transforms. Reviewer independence is recorded:
 `HUMAN` · `MIXED`. Baseline/high-impact claims require `DIFFERENT_MODEL`/`HUMAN`/`MIXED`.
 *(Running a different-model review — as you did across these plans — is exactly this
 stronger form.)*
+
+**`high_impact` is gate-computed (V-P0-1).** `high_impact` is not author-set. The gate sets it
+`true` — and the author may not set it false — if **any** hold: the claim's topics intersect
+{casualties, attribution, territorial-control}; or it feeds a manifest, a shared visual, or a
+prediction; or it contradicts a prior recorded claim. A stored value is recomputed and a
+mismatch fails. The refuter carries a `high_impact` field and **must contest** a
+`high_impact: false` on any claim meeting these conditions — closing the circularity where the
+strongest control (the §10 reviewer + refuter) could be switched off by the very field that
+triggers it. This is a `gate-computed high_impact` rule.
 
 ## §11 — Forecast integrity and calibration
 

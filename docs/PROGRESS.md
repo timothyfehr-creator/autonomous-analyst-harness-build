@@ -138,7 +138,7 @@ regardless, since it is a discipline, not a gated build step.
 - Next: **PHASE 0 COMPLETE → STOP at the Phase-1 gate** (independent cross-vendor/human review
   + the four doc-fixes V-P0-1 / V-P1-4 / V-P1-5 / F3 before any WP1.x).
 
-### Phase-1 gate [PENDING — packet assembled; BUILD PAUSED HERE]
+### Phase-1 gate [CLEARED — 2026-06-22]
 
 - Shipped (gate infrastructure, not a numbered WP): `scripts/preflight_phase1.py` +
   `tests/test_preflight_phase1.py` (7 tests) — machine guard that BLOCKS any WP1.x until the
@@ -146,7 +146,9 @@ regardless, since it is a discipline, not a gated build step.
   `docs/CONSTITUTION.md` + `docs/DATA_MODEL.md` AND `independent_review_complete: true` is set in
   `docs/REVIEW_ADJUDICATION.md`; fails closed (exit 2). `docs/PHASE1_DOC_FIXES_DRAFT.md` — the
   five draft doc-fixes (PROPOSAL, not applied) + a focused cross-vendor review prompt.
-- Live state: pre-flight reports **BLOCKED** (all five fixes + the independent review outstanding).
+- Live state: **CLEARED** — the five fixes are incorporated into CONSTITUTION (§6.1a/6.1b/6.3/
+  6.6/§10) + noted in DATA_MODEL; the independent review is logged as a HUMAN review by the owner
+  (`independent_review_complete: true`); `preflight_phase1.py` exits 0. Segment 2 may proceed.
 - Separate review: PASS (fresh-context reviewer confirmed no governing-doc edits, the guard
   fails closed, it reads only the governing docs not the draft, and no fix loosens a rule; it
   flagged that the binding condition names V-P1-10 where the gate had F3 — now reconciled, both
@@ -166,7 +168,7 @@ regardless, since it is a discipline, not a gated build step.
 - [x] WP0.2 Sensitive-locator and secret hygiene — **DONE**
 - [x] WP0.3 Tier-0 conversational labeling contract — **DONE** (Phase 0 complete)
 
-### Phase 1 — Closed schemas and migration *(GATED: independent review + 4 doc-fixes first)*
+### Phase 1 — Closed schemas and migration *(gate cleared 2026-06-22; WP1.7 deferred)*
 
 - [ ] WP1.1 Envelope validator and schema registry
 - [ ] WP1.2 Source entities, groups, and assessments

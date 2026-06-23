@@ -1,8 +1,10 @@
 ---
 schema_version: "1.0"
 external_review_complete: true
-review_model: "claude-opus-4-8 — NON-INDEPENDENT (same model family as a v3 co-author); cross-vendor/human pass DEFERRED to before Phase 1 per governance note below"
+review_model: "claude-opus-4-8 — NON-INDEPENDENT (same model family as a v3 co-author); the independent review required before Phase 1 was completed as a HUMAN review (see below)"
 reviewed_at: "2026-06-22"
+independent_review_complete: true
+independent_review_by: "human:tim — conceptual review + approval of the 5 Phase-1 doc-fixes (V-P0-1, V-P1-4, V-P1-5, V-P1-10, F3) on 2026-06-22; a cross-vendor AI pass was offered and waived for a private single-user tool (§10 accepts HUMAN review)"
 open_p0_p1: 0
 governance_status: READY
 ---
@@ -89,6 +91,14 @@ evidence-chain findings (V-P0-1, V-P1-4, V-P1-5, V-P1-10), **must complete befor
 (WP1.x) begins**. Phase 1 is the evidence-chain rigor layer where a missed Claude blind spot
 actually bites. `READY` here authorizes Phase 0 only.
 
+**✅ PHASE-1 GATE CLEARED (2026-06-22).** The binding condition is satisfied: the independent
+review was completed as a **HUMAN review** (the repo owner conceptually reviewed and approved
+the five high-leverage doc-fixes — §10 accepts `HUMAN` review), and all five fixes (V-P0-1,
+V-P1-4, V-P1-5, V-P1-10, F3) are now incorporated into `docs/CONSTITUTION.md` (and noted in
+`docs/DATA_MODEL.md`), each carrying its pre-flight anchor token. `scripts/preflight_phase1.py`
+now exits 0. Segment 2 (Phases 1–3 → Milestone A) is unblocked. A cross-vendor AI pass was
+offered and waived for a private single-user tool; it remains available as defence-in-depth.
+
 **What `open_p0_p1: 0` means here:** every finding below is *adjudicated* (disposition +
 governing change + WP + proving test). It does **not** mean the `PLANNED_FIX` changes are
 implemented — those are tracked in their named WPs.
@@ -97,17 +107,17 @@ implemented — those are tracked in their named WPs.
 
 | ID | Sev | Disposition | Governing change | WP / proving test |
 |---|---:|---|---|---|
-| V-P0-1 | P0 | PLANNED_FIX | Make `high_impact` gate-computed (topics∩{casualties,attribution,control} or feeds manifest/visual/prediction ⇒ true); refuter gains a `high_impact`/`load-bearing` field it must contest (Constitution §10, DATA_MODEL §5/§10) | WP2.2 / WP3.3: contested-topic claim with author `high_impact:false` is raised and `answer` fails without the §10 reviewer class |
+| V-P0-1 | P0 | RESOLVED_IN_DESIGN | Make `high_impact` gate-computed (topics∩{casualties,attribution,control} or feeds manifest/visual/prediction ⇒ true); refuter gains a `high_impact`/`load-bearing` field it must contest (Constitution §10, DATA_MODEL §5/§10) | WP2.2 / WP3.3: contested-topic claim with author `high_impact:false` is raised and `answer` fails without the §10 reviewer class |
 | V-P1-1 | P1 | PLANNED_FIX | Specify a light Tier-1 worked path (credibility + CHECKED-hashing optional per §6.6); implement the recurrence backstop (`fact.py recurrence`) — see queued change #1 | new WP + CONVERSATION.md: a Tier-1 fixture reaches `SUPPORTED` without credibility/three-hash binding; recurrence report lists repeated unrecorded assertions |
 | V-P1-2 | P1 | RESOLVED_IN_DESIGN | **Fixed in this commit:** N10 disposition corrected to a valid enum; F1–F6 logged here; `REVIEW_PROMPT.md`→v3 + Tier-0 docs attached | WP0.0: `check_review_adjudication.py` rejects an out-of-enum disposition; all P0/P1 carry disposition+WP+test |
 | V-P1-3 | P1 | PLANNED_FIX | Define the private overlay (fields/paths confined to git-ignored `private/`); add `geodata/` + named-person assessments to the WP0.2 scan; add a redaction/secret gate before any push; soften the GitHub recommendation in START_HERE | WP0.2: a committed `geodata/*.geojson` and a private-overlay field in a tracked assessment are flagged |
-| V-P1-4 | P1 | PLANNED_FIX | Define `primary_evidence_kind` (closed enum); a first-party belligerent action-record may NOT also satisfy the independent-group leg (Constitution §6.1) | WP2.5: A1 YAML (RU-MoD claim + 1 wire relay, two declared groups) → CORROBORATED fails |
-| V-P1-5 | P1 | PLANNED_FIX | Closed `unit` vocabulary + dimensional check; require `source_value`/`source_unit`; `transformation` grammar with `derived_from` resolving denominators to records (Constitution §6.3) | WP2.8 / WP1.6: A5 bpd-as-share observation with `derived_from:[]` → fails; tonnes/day-as-/year → fails |
+| V-P1-4 | P1 | RESOLVED_IN_DESIGN | Define `primary_evidence_kind` (closed enum); a first-party belligerent action-record may NOT also satisfy the independent-group leg (Constitution §6.1) | WP2.5: A1 YAML (RU-MoD claim + 1 wire relay, two declared groups) → CORROBORATED fails |
+| V-P1-5 | P1 | RESOLVED_IN_DESIGN | Closed `unit` vocabulary + dimensional check; require `source_value`/`source_unit`; `transformation` grammar with `derived_from` resolving denominators to records (Constitution §6.3) | WP2.8 / WP1.6: A5 bpd-as-share observation with `derived_from:[]` → fails; tonnes/day-as-/year → fails |
 | V-P1-6 | P1 | PLANNED_FIX | Anchor head commits to the set+count of locked prediction IDs; `score` fails closed on a non-superset chain; VOID events must cite an evidence artifact; report void-rate (Constitution §11) | WP6.1–6.3 *(Phase 6)*: A8 fresh-chain-missing-an-ID → `score` exits non-zero |
 | V-P1-7 | P1 | PLANNED_FIX | Ship a golden canonicalization vector in WP1.1 before any downstream hash is relied on; make WP2.2's reward-hack gate diff across a commit range, not one commit | WP1.1 / WP2.2: frozen `{yaml→normalized-json→sha256}` fixture; a two-commit split of oracle-data + benefiting claim is flagged |
 | V-P1-8 | P1 | PLANNED_FIX | Selection-scope guard (a durable design/capacity claim answering an operability query must pair with the live-state claim or be marked "DESIGN FACT, NOT CURRENT STATE"); propagate supersession to dependents (Constitution §8) | WP4.1 / WP4.3: A3 durable claim standing alone as an operability answer → fails |
 | V-P1-9 | P1 | PLANNED_FIX | Validate CRS against coordinate magnitude; bind geometry to a coordinate-anchored locator (reject quote-only); declared crop/annotation spec fields (Constitution §12) | WP5.1/5.3/5.5 *(Phase 5)*: A6 CONTROL_AREA-typed route centerline with a quote-only locator → fails |
-| V-P1-10 | P1 | PLANNED_FIX | Either gate `information_credibility` (credible floor for CORROBORATED) or demote it to optional metadata (Constitution §6.1/§6.6) | WP2.5: two credibility-6 assessments cannot reach CORROBORATED |
+| V-P1-10 | P1 | RESOLVED_IN_DESIGN | Either gate `information_credibility` (credible floor for CORROBORATED) or demote it to optional metadata (Constitution §6.1/§6.6) | WP2.5: two credibility-6 assessments cannot reach CORROBORATED |
 | V-P1-11 | P1 | PLANNED_FIX | Cut WP7.2 (model entailment — a stated non-goal) to the candidate backlog; make Phases 5–7 conditional on a demonstrated demand trigger recorded in PROGRESS | IMPLEMENTATION_PLAN edit; PROGRESS records the trigger before Phase 5/6 WPs start |
 
 ### Self-pass F1–F6 — now formally logged (per V-P1-2)
@@ -116,7 +126,7 @@ implemented — those are tracked in their named WPs.
 |---|---:|---|---|---|
 | F1 | P1 | PLANNED_FIX | Tier-0 forced-escalation friction + recurrence backstop | incorporated as V-P1-1 (see its proving test) |
 | F2 | P1 | PLANNED_FIX | `high_impact`/`load-bearing` self-assignment; refuter must contest | incorporated as V-P0-1 (see its proving test) |
-| F3 | P2 | PLANNED_FIX | §6.1/§6.6: Tier-1 without credibility/CHECKED caps support at `SUPPORTED`; `CORROBORATED` always needs full §6.1 | fixture: Tier-1-no-credibility requesting CORROBORATED → fail; at SUPPORTED → pass |
+| F3 | P2 | RESOLVED_IN_DESIGN | §6.1/§6.6: Tier-1 without credibility/CHECKED caps support at `SUPPORTED`; `CORROBORATED` always needs full §6.1 | fixture: Tier-1-no-credibility requesting CORROBORATED → fail; at SUPPORTED → pass |
 | F4 | P2 | PLANNED_FIX | WP0.1 `conversational` mode emits a loud "unverified by design" notice, never `PASS` | WP0.1: mode output contains the notice and never the token `PASS` |
 | F5 | P2 | ACCEPTED_WITH_LIMITS | Treat Milestone B as probable terminal; Phases 5–7 demand-gated | incorporated as V-P1-11; PROGRESS records the demand trigger |
 | F6 | P2 | ACCEPTED_WITH_LIMITS | Solo author-reviewer `CHECKED` rubber-stamping | Accepted-limitations #2/#3; sampling re-review of CHECKED assessments |
