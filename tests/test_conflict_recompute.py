@@ -88,3 +88,22 @@ def test_compute_dispute():
     assert vcon.compute_dispute([]) == "UNKNOWN"
     # an UNASSESSED-credibility refuter is not 'credible' → no contest
     assert vcon.compute_dispute([a("SUPPORTS", "src-a"), a("REFUTES", "src-b", cred="UNASSESSED")]) == "UNCONTESTED"
+    # review should-fix: a null-origin opposer must not manufacture a contest (the -{None} strips,
+    # reachable today — the schema doesn't type origin-link source_ids as non-null)
+    assert vcon.compute_dispute([a("SUPPORTS", "src-a"), a("REFUTES", None)]) == "UNCONTESTED"
+    assert vcon.compute_dispute([a("SUPPORTS", None), a("REFUTES", "src-b")]) == "UNCONTESTED"
+    # review watch: out-of-domain (>6) and bool credibility are not 'credible' (the gate reads cea raw)
+    assert vcon.compute_dispute([a("SUPPORTS", "src-a"), a("REFUTES", "src-b", cred=7)]) == "UNCONTESTED"
+    assert vcon.compute_dispute([a("SUPPORTS", "src-a"), a("REFUTES", "src-b", cred=True)]) == "UNCONTESTED"
+
+
+def test_projection_and_assumption_claims_skipped():
+    # review watch: the FACT/INFERENCE epistemic_type guard — a PROJECTION/ASSUMPTION is skipped
+    # even when the cea holds a real independent conflict (support axis / type bans are other WPs)
+    conflict_ceas = [
+        {"id": "s", "claim_id": "clm-p", "artifact_id": "e1", "stance": "SUPPORTS",
+         "information_credibility": 2, "origin_chain": [{"source_id": "src-a"}], "semantic_review": {"status": "CHECKED"}},
+        {"id": "r", "claim_id": "clm-p", "artifact_id": "e2", "stance": "REFUTES",
+         "information_credibility": 2, "origin_chain": [{"source_id": "src-b"}], "semantic_review": {"status": "CHECKED"}, "supersedes": None}]
+    proj = {"id": "clm-p", "epistemic_type": "PROJECTION", "dispute_status": "UNCONTESTED"}
+    assert vcon.check_conflict([proj], conflict_ceas) == []
