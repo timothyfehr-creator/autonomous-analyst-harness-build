@@ -1,0 +1,22 @@
+schema_version: "2.0"
+analyses:
+  - id: ana-x
+    lifecycle: ANSWER
+    question: What transport modes use the crossing?
+    context_pack_id: ctx-x
+    context_pack_hash: sha256:4444444444444444444444444444444444444444444444444444444444444444
+    output_path: outputs/ana-x.md
+    output_hash: sha256:4444444444444444444444444444444444444444444444444444444444444444
+    claim_markers:
+      c1:
+        claim_id: clm-x
+        claim_hash: sha256:4444444444444444444444444444444444444444444444444444444444444444
+    claim_evidence_assessment_refs:
+      - {id: cea-x, record_hash: sha256:4444444444444444444444444444444444444444444444444444444444444444}
+    artifact_refs:
+      - {id: clm-x, content_hash: sha256:4444444444444444444444444444444444444444444444444444444444444444}
+    observation_refs: []
+    prediction_refs: []
+    visual_refs: []
+    required_refuter_class: HUMAN_OR_DIFFERENT_MODEL
+    manifest_hash: sha256:4444444444444444444444444444444444444444444444444444444444444444

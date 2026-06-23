@@ -38,6 +38,11 @@ def test_category_observation_valid():
     assert vs.main([str(FIX / "obs_category_valid.yaml")]) == 0
 
 
+def test_category_unit_must_be_null_invalid():
+    # a non-numeric (CATEGORY) observation may not carry a unit
+    assert vs.main([str(FIX / "obs_category_unit_set.yaml")]) == 1
+
+
 def test_empty_observation_registry_valid():
     assert vs.main([str(ROOT / "factbase" / "observations.yaml")]) == 0
 

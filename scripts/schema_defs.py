@@ -421,6 +421,146 @@ GEOGRAPHY_SCHEMA = {
     "extra": _geography_extra,
 }
 
+# ---- answer/output layer (WP1.6): analysis manifest + refuter + visual (§9–§11) ----
+# Shape only: hash-bound ref entries, markers, verdict records. The cross-record RESOLUTION
+# (refuter set-equality coverage vs manifest, marker↔answer agreement, hash matching) is Phase-3.
+ANALYSIS_LIFECYCLE = {"DRAFT", "ANSWER"}
+REQUIRED_REFUTER_CLASS = {"HUMAN_OR_DIFFERENT_MODEL"}  # only documented token (§9); expand if specified
+REVIEWER_CLASS = {"SAME_MODEL_FRESH_CONTEXT", "DIFFERENT_MODEL", "HUMAN", "MIXED"}  # §-independence
+VERDICT = {"SURVIVES", "REVISE", "DOWNGRADE", "REJECT"}  # §10 explicit
+CHECK_RESULT = {"PASS", "FAIL", "NOT_APPLICABLE"}        # PASS/NOT_APPLICABLE shown; FAIL is the third
+VISUAL_TYPE = {"CHART", "TIMELINE", "MAP", "SCHEMATIC"}  # §11 explicit
+
+
+def _check_ref_list(value, id_prefix, hash_field, label):
+    """A hash-bound reference list: each entry is exactly {id: <prefix>id, <hash_field>: sha256}."""
+    if not isinstance(value, list):
+        return [f"{label} must be a list"]
+    f = []
+    for i, e in enumerate(value):
+        if not isinstance(e, dict):
+            f.append(f"{label}[{i}] must be a mapping with id + {hash_field}"); continue
+        eid = e.get("id")
+        if not (isinstance(eid, str) and eid.startswith(id_prefix)):
+            f.append(f"{label}[{i}].id must be a {id_prefix} id")
+        h = e.get(hash_field)
+        if not (isinstance(h, str) and _HASH_RE.match(h)):
+            f.append(f"{label}[{i}].{hash_field} must be sha256:<64 hex>")
+        unexpected = set(e) - {"id", hash_field}
+        if unexpected:
+            f.append(f"{label}[{i}] has unexpected keys {sorted(unexpected)}")
+    return f
+
+
+def _analysis_extra(rec):
+    f = []
+    markers = rec.get("claim_markers")
+    if not isinstance(markers, dict):
+        f.append("claim_markers must be a mapping of marker -> {claim_id, claim_hash}")
+    else:
+        for mk, mv in sorted(markers.items()):
+            if not isinstance(mv, dict):
+                f.append(f"claim_marker {mk!r} must be a mapping"); continue
+            if not (isinstance(mv.get("claim_id"), str) and mv["claim_id"].startswith("clm-")):
+                f.append(f"claim_marker {mk!r}.claim_id must be a clm- id")
+            if not (isinstance(mv.get("claim_hash"), str) and _HASH_RE.match(mv.get("claim_hash", ""))):
+                f.append(f"claim_marker {mk!r}.claim_hash must be sha256:<64 hex>")
+            unexpected = set(mv) - {"claim_id", "claim_hash"}
+            if unexpected:
+                f.append(f"claim_marker {mk!r} has unexpected keys {sorted(unexpected)}")
+    f += _check_ref_list(rec.get("claim_evidence_assessment_refs"), "cea-", "record_hash",
+                         "claim_evidence_assessment_refs")
+    f += _check_ref_list(rec.get("artifact_refs"), "evd-", "content_hash", "artifact_refs")
+    f += _check_ref_list(rec.get("observation_refs"), "obs-", "record_hash", "observation_refs")
+    f += _check_ref_list(rec.get("prediction_refs"), "prd-", "record_hash", "prediction_refs")
+    f += _check_ref_list(rec.get("visual_refs"), "vis-", "record_hash", "visual_refs")
+    return sorted(f)
+
+
+ANALYSIS_SCHEMA = {
+    "prefix": "ana-",
+    "required": {"id", "lifecycle", "question", "context_pack_id", "context_pack_hash",
+                 "output_path", "output_hash", "claim_markers", "claim_evidence_assessment_refs",
+                 "artifact_refs", "observation_refs", "prediction_refs", "visual_refs",
+                 "required_refuter_class", "manifest_hash"},
+    "optional": set(),
+    "enums": {"lifecycle": ANALYSIS_LIFECYCLE, "required_refuter_class": REQUIRED_REFUTER_CLASS},
+    "types": {"id": "id", "context_pack_id": "ref:ctx-", "context_pack_hash": "hash",
+              "output_hash": "hash", "manifest_hash": "hash"},
+    "extra": _analysis_extra,
+}
+
+
+def _refuter_extra(rec):
+    f = []
+    for fld in ("reviewed_claim_ids", "reviewed_assessment_ids",
+                "alternative_hypotheses", "disconfirming_searches", "unresolved_gaps"):
+        if not isinstance(rec.get(fld), list):
+            f.append(f"{fld} must be a list")
+    verds = rec.get("verdicts")
+    if not (isinstance(verds, list) and verds):
+        f.append("refuter requires a non-empty verdicts list")
+    else:
+        for i, vd in enumerate(verds):
+            if not isinstance(vd, dict):
+                f.append(f"verdicts[{i}] must be a mapping"); continue
+            if not (isinstance(vd.get("claim_id"), str) and vd["claim_id"].startswith("clm-")):
+                f.append(f"verdicts[{i}].claim_id must be a clm- id")
+            if vd.get("verdict") not in VERDICT:
+                f.append(f"verdicts[{i}].verdict {vd.get('verdict')!r} not in {sorted(VERDICT)}")
+            for ck in ("displacement_check", "independence_check", "freshness_check",
+                       "observation_check", "reasoning_check"):
+                if vd.get(ck) not in CHECK_RESULT:
+                    f.append(f"verdicts[{i}].{ck} must be PASS/FAIL/NOT_APPLICABLE")
+    return sorted(f)
+
+
+REFUTER_SCHEMA = {
+    "prefix": "ref-",
+    "required": {"id", "analysis_id", "manifest_hash", "output_hash", "reviewer_class", "reviewer",
+                 "reviewed_at", "reviewed_claim_ids", "reviewed_assessment_ids", "verdicts",
+                 "alternative_hypotheses", "disconfirming_searches", "unresolved_gaps"},
+    "optional": set(),
+    "enums": {"reviewer_class": REVIEWER_CLASS},
+    "types": {"id": "id", "analysis_id": "ref:ana-", "manifest_hash": "hash", "output_hash": "hash",
+              "reviewed_at": "datetime"},
+    "extra": _refuter_extra,
+}
+
+
+def _visual_extra(rec):
+    f = []
+    for fld, pref in (("input_claim_refs", "clm-"),
+                      ("input_claim_evidence_assessment_refs", "cea-"),
+                      ("input_observation_refs", "obs-"),
+                      ("input_prediction_refs", "prd-"),
+                      ("input_geography_refs", "geo-")):
+        f += _check_ref_list(rec.get(fld), pref, "record_hash", fld)
+    if not isinstance(rec.get("data_bindings"), dict):
+        f.append("data_bindings must be a mapping")
+    if not isinstance(rec.get("filters"), list):
+        f.append("filters must be a list")
+    vt = rec.get("visual_type")
+    if vt == "CHART" and not (isinstance(rec.get("input_observation_refs"), list) and rec.get("input_observation_refs")):
+        f.append("a CHART requires non-empty input_observation_refs (charts consume observations)")
+    if vt == "MAP" and not (isinstance(rec.get("input_geography_refs"), list) and rec.get("input_geography_refs")):
+        f.append("a MAP requires non-empty input_geography_refs (maps consume geography ids)")
+    return sorted(f)
+
+
+VISUAL_SCHEMA = {
+    "prefix": "vis-",
+    "required": {"id", "visual_type", "title", "as_of", "input_claim_refs",
+                 "input_claim_evidence_assessment_refs", "input_observation_refs",
+                 "input_prediction_refs", "input_geography_refs", "data_bindings", "transformation",
+                 "filters", "aggregation", "missing_data_policy", "output_path", "renderer",
+                 "renderer_version", "spec_hash"},
+    "optional": set(),
+    "enums": {"visual_type": VISUAL_TYPE},
+    "types": {"id": "id", "as_of": "datetime", "spec_hash": "hash"},
+    "extra": _visual_extra,
+}
+
 COLLECTIONS = {
     "sources": SOURCE_SCHEMA,
     "groups": GROUP_SCHEMA,
@@ -432,6 +572,9 @@ COLLECTIONS = {
     "observations": OBSERVATION_SCHEMA,
     "geography": GEOGRAPHY_SCHEMA,
     "unit_vocabulary": UNIT_VOCAB_ENTRY_SCHEMA,
+    "analyses": ANALYSIS_SCHEMA,
+    "refuters": REFUTER_SCHEMA,
+    "visuals": VISUAL_SCHEMA,
 }
 
 # JSONL append-only event logs keyed by the log-file stem (substring-matched against filenames).

@@ -1,0 +1,23 @@
+schema_version: "2.0"
+visuals:
+  - id: vis-x
+    visual_type: CHART
+    title: Throughput
+    as_of: "2026-06-22"
+    input_claim_refs:
+      - {id: clm-x, record_hash: sha256:4444444444444444444444444444444444444444444444444444444444444444}
+    input_claim_evidence_assessment_refs:
+      - {id: cea-x, record_hash: sha256:4444444444444444444444444444444444444444444444444444444444444444}
+    input_observation_refs:
+      - {id: obs-x, record_hash: sha256:4444444444444444444444444444444444444444444444444444444444444444}
+    input_prediction_refs: []
+    input_geography_refs: []
+    data_bindings: {series: obs-x}
+    transformation: identity
+    filters: []
+    aggregation: none
+    missing_data_policy: error
+    output_path: outputs/vis-x.svg
+    renderer: matplotlib
+    renderer_version: planned
+    spec_hash: sha256:4444444444444444444444444444444444444444444444444444444444444444

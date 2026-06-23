@@ -1,0 +1,24 @@
+schema_version: "2.0"
+refuters:
+  - id: ref-x
+    analysis_id: ana-x
+    manifest_hash: sha256:4444444444444444444444444444444444444444444444444444444444444444
+    output_hash: sha256:4444444444444444444444444444444444444444444444444444444444444444
+    reviewer_class: HUMAN
+    reviewer: human:tim
+    reviewed_at: "2026-06-22T13:00:00Z"
+    reviewed_claim_ids: [clm-x]
+    reviewed_assessment_ids: [cea-x]
+    verdicts:
+      - claim_id: clm-x
+        verdict: MAYBE
+        displacement_check: PASS
+        independence_check: PASS
+        freshness_check: PASS
+        observation_check: NOT_APPLICABLE
+        reasoning_check: NOT_APPLICABLE
+        notes: owner record and reference report agree
+    alternative_hypotheses: []
+    disconfirming_searches:
+      - {query: crossing only road no rail, result: no contrary artifact}
+    unresolved_gaps: []
