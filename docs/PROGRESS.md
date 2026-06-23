@@ -448,6 +448,23 @@ same-origin-both-sides A-exploit, first fixture). Refactor: factored stance-agno
   records composition must run validate_schema + validate_claim_evidence on claim_evidence.yaml
   BEFORE validate_conflict. **PHASE 2: 6/8 WPs done.** Next: WP2.7 (freshness, injectable clock).
 
+### WP2.7 — Freshness gate (injectable clock) [DONE]
+
+Design-wf (critic APPROVE) → gate (38ecc32) → review PASS → hardening. `scripts/validate_freshness.py`
+recomputes `freshness_status` from (epistemic_type, stability, dates, `--as-of`) and rejects
+**bidirectionally**: non-FACT→NOT_APPLICABLE; DURABLE→REVIEW_DUE iff as_of≥review_by (inclusive)
+else CURRENT; VOLATILE+expires_at→STALE iff as_of≥expires_at else CURRENT; VOLATILE+only-profile→
+exit 2 (no registry); APPEND_ONLY_HISTORY→CURRENT. `--as-of` REQUIRED (no wall-clock; absent/bad →
+exit 2). SUPERSEDED/REJECTED excluded. Reuses iso_instant.
+- Owner-flaggable defaults (for the summary): bidirectional reject (catches false-STALE suppression),
+  inclusive boundary, STALE/NOT_APPLICABLE/APPEND_ONLY_HISTORY labels, --as-of-required.
+- Review PASS; hardened the inclusive-boundary + nodate fail-close coverage (a >=→> mutant slipped).
+  16+3 tests; full suite **328**; Phase-1 gate PASS; dogfood (empty/skeleton/claims_valid_mixed) at
+  the pinned --as-of 2026-06-23 → 0; no fixture force-rewritten.
+- **Records-mode note (carry to WP2.x):** validate_claims (R-CLM-9/10 clock-free ordering) must run
+  BEFORE validate_freshness; standalone gate does not compose it. **PHASE 2: 7/8 WPs done.** Next:
+  WP2.8 (observation/unit_vocabulary dimensional → kills A5).
+
 ## Phase checklist
 
 ### Phase 0 — Governance and scaffold
@@ -477,7 +494,7 @@ same-origin-both-sides A-exploit, first fixture). Refactor: factored stance-agno
 - [x] WP2.4 Type-specific claim integrity — **DONE**
 - [x] WP2.5 Support and corroboration gate — **DONE** (kills A1; V-P1-4 + V-P1-10 + F3)
 - [x] WP2.6 Conflict and stance gate — **DONE** (CONTESTED recompute; same-origin-both-sides kill)
-- [ ] WP2.7 Freshness and supersession gate
+- [x] WP2.7 Freshness and supersession gate — **DONE** (injectable clock; bidirectional)
 - [ ] WP2.8 Structured observation integrity
 - [ ] Phase 2 `records` composition acceptance
 
