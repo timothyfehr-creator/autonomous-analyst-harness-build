@@ -1,0 +1,16 @@
+schema_version: "2.0"
+claims:
+  - id: clm-bad
+    text: x
+    epistemic_type: ASSUMPTION
+    rationale: r
+    consequence_if_false: c
+    support_status: SUPPORTED
+    dispute_status: UNKNOWN
+    freshness_status: NOT_APPLICABLE
+    lifecycle: CANDIDATE
+    stability: VOLATILE
+    topics: [x]
+    high_impact: false
+    created_at: "2026-06-22T12:00:00Z"
+    supersedes: null

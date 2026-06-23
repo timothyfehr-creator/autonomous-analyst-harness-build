@@ -129,9 +129,14 @@ def validate_record(rec: dict, spec: dict) -> list[str]:
         elif typ == "integer":
             if isinstance(v, bool) or not isinstance(v, int):
                 findings.append(f"field {field!r}: expected integer, got {type(v).__name__}")
+        elif typ == "boolean":
+            if not isinstance(v, bool):
+                findings.append(f"field {field!r}: expected boolean, got {type(v).__name__}")
     for field, allowed_vals in sorted(spec.get("enums", {}).items()):
         if field in rec and rec[field] not in allowed_vals:
-            findings.append(f"field {field!r}: {rec[field]!r} not in enum {sorted(allowed_vals)}")
+            findings.append(f"field {field!r}: {rec[field]!r} not in enum {sorted(allowed_vals, key=str)}")
+    if "extra" in spec and isinstance(rec, dict):
+        findings += spec["extra"](rec)  # variant-specific / cross-field rules
     return sorted(findings)
 
 

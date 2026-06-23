@@ -199,6 +199,25 @@ regardless, since it is a discipline, not a gated build step.
   generalization is a safe broadening, not a weakening).
 - Commit: see git log. Next: WP1.3 (claim schemas + `high_impact` field).
 
+### WP1.3 — Type-specific claim schemas + high_impact (shape) [DONE]
+
+- Shipped: `validate_schema.py` (added a `boolean` type + an `extra` per-record validator hook).
+  `schema_defs.py` `CLAIM_SCHEMA` + `_claim_extra` variant rules (INFERENCE → premises + reasoning;
+  ASSUMPTION → rationale + consequence + support `UNVERIFIED`; PROJECTION FALSIFIABLE →
+  `prediction_id` / SCENARIO → `scenario_id`; FACT → `temporal` + DURABLE → `review_by` / VOLATILE
+  → expiry / HISTORY → `event_time`, **FACT-scoped**) + multi-axis status enums + `high_impact`
+  required boolean (V-P0-1 **shape** half; the gate-recompute is WP2.2). `tests/test_claim_schema.py`
+  (11 tests).
+- Acceptance: valid mixed-type → 0; inference-no-premises / assumption-supported / falsifiable-no-
+  prediction / durable-no-review_by / volatile-no-expiry / bad-enum / high_impact-not-bool /
+  unknown-field → 1 (each fails for its named reason); empty baseline+live claims.yaml → 0;
+  `pytest` → 93 passed (R1/R2 intact).
+- Discharged: V-P0-1 schema half; §4 type-specific contracts; §5 multi-axis status.
+- Oracle-data changes: none. Migration impact: none. Separate review: PASS (FACT-scoping probed;
+  every fixture fails for the right reason; no recompute/gate logic leaked).
+- Commit: see git log. Next: WP1.4 (evidence + claim-evidence + `primary_evidence_kind`; close the
+  WP1.1 line-ending watch-item for artifact-content hashing).
+
 ## Phase checklist
 
 ### Phase 0 — Governance and scaffold
@@ -212,7 +231,7 @@ regardless, since it is a discipline, not a gated build step.
 
 - [x] WP1.1 Envelope validator and schema registry — **DONE**
 - [x] WP1.2 Source entities, groups, and assessments — **DONE**
-- [ ] WP1.3 Type-specific claim schema
+- [x] WP1.3 Type-specific claim schema — **DONE**
 - [ ] WP1.4 Evidence artifact and claim-evidence assessment schemas
 - [ ] WP1.5 Prediction and append-only event schemas
 - [ ] WP1.6 Observation, analysis, refuter, geography, baseline-event, and visual schemas

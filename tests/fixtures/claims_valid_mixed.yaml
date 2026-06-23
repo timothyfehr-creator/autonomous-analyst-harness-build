@@ -1,0 +1,61 @@
+schema_version: "2.0"
+claims:
+  - id: clm-fact-1
+    text: The Example Crossing supports both road and rail traffic.
+    epistemic_type: FACT
+    support_status: CORROBORATED
+    dispute_status: UNCONTESTED
+    freshness_status: CURRENT
+    lifecycle: REVIEWED
+    stability: DURABLE
+    temporal: {kind: TIMELESS, valid_as_of: null, valid_from: null, valid_to: null, event_time: null}
+    review_by: "2027-06-22"
+    expires_at: null
+    freshness_profile: null
+    topics: [transport]
+    high_impact: false
+    created_at: "2026-06-22T12:00:00Z"
+    supersedes: null
+  - id: clm-inf-1
+    text: Damage to both modes would create a larger disruption than one mode alone.
+    epistemic_type: INFERENCE
+    premise_claim_ids: [clm-fact-1]
+    reasoning: Both modes provide partially substitutable capacity.
+    support_status: SUPPORTED
+    dispute_status: UNKNOWN
+    freshness_status: NOT_APPLICABLE
+    lifecycle: CANDIDATE
+    stability: VOLATILE
+    topics: [logistics]
+    high_impact: false
+    created_at: "2026-06-22T12:00:00Z"
+    supersedes: null
+  - id: clm-asm-1
+    text: Repair resources remain available during the modeled period.
+    epistemic_type: ASSUMPTION
+    rationale: The scenario does not model simultaneous repair-yard disruption.
+    consequence_if_false: Recovery time would be materially longer.
+    support_status: UNVERIFIED
+    dispute_status: UNKNOWN
+    freshness_status: NOT_APPLICABLE
+    lifecycle: CANDIDATE
+    stability: VOLATILE
+    topics: [scenario]
+    high_impact: false
+    created_at: "2026-06-22T12:00:00Z"
+    supersedes: null
+  - id: clm-prj-1
+    text: The crossing will resume limited road operation before 2026-08-01.
+    epistemic_type: PROJECTION
+    projection_kind: FALSIFIABLE
+    prediction_id: prd-example-reopen
+    scenario_id: null
+    support_status: UNVERIFIED
+    dispute_status: UNKNOWN
+    freshness_status: NOT_APPLICABLE
+    lifecycle: REVIEWED
+    stability: VOLATILE
+    topics: [forecast]
+    high_impact: false
+    created_at: "2026-06-22T12:00:00Z"
+    supersedes: null
