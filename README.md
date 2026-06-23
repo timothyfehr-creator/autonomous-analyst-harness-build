@@ -1,7 +1,7 @@
-# Analyst Harness
+# Analyst Harness v3
 
 A private, single-user research system for following a live, disinformation-heavy
-conflict without rebuilding the same facts from scratch every session.
+conflict (Russia/Ukraine) without rebuilding the same facts from scratch every session.
 
 It has four jobs:
 
@@ -12,46 +12,78 @@ It has four jobs:
 4. generate charts, timelines, maps, and schematics from records rather than model memory.
 
 > **Green means the requested checks genuinely ran and the recorded relationships are
-> coherent. It never means reality signed the YAML.**
+> coherent. It never means reality signed the YAML.** A passing gate is coherent
+> bookkeeping, not a truth certificate.
 
-## v3 — rigor is opt-in (read this first)
+## Status
 
-v3 merges this design with a second one (see [MERGE_NOTES.md](MERGE_NOTES.md)) and adds the
-thing that keeps it usable: **three tiers of rigor, default lightweight.**
+**Phases 0–2 are built and green; Phase 3 (the answer/refuter loop) is not yet written.**
+
+| Layer | State |
+|---|---|
+| Phase 0 — scaffold, review-adjudication gate, sensitive-scan, Tier-0 contract | **built** (WP0.0–0.3) |
+| Phase 1 — closed record schemas + golden canonicalization vector | **built** (WP1.1–1.6) |
+| Phase 2 — 8 record-integrity gates + `records` composition + exit gate | **built** (WP2.1–2.8) |
+| Phase 3 — `draft` / `answer` modes + refuter coverage | **planned, not built** |
+| Phases 4–7 — baseline memory, visuals, forecast calibration, semantic assist | **planned** |
+
+- **359 tests pass** (`pytest`). The two machine phase-gates — `scripts/gate_phase1_exit.py`
+  and `scripts/gate_phase2_exit.py` — both exit `0`.
+- Governance is **READY (ACCEPTED_WITH_LIMITS)** — see `docs/REVIEW_ADJUDICATION.md` and
+  `docs/PROGRESS.md`. The cold review that cleared it was a *non-independent same-model pass*;
+  a genuinely independent cross-vendor/human review of the P0 corroboration / `high_impact`
+  surface (gates WP2.5 / WP2.2 / the Phase-3 refuter) is **recommended defence-in-depth and has
+  not yet been performed**. It no longer blocks the build, but it is an honest open limit.
+
+This is a working harness, not a finished product. The unbuilt modes fail closed (exit `2`),
+never silently pass.
+
+## Quickstart
+
+Requires Python 3.11+.
+
+```bash
+python3 -m venv .venv
+.venv/bin/pip install -r requirements-dev.txt
+.venv/bin/python -m pytest                          # 359 tests
+.venv/bin/python scripts/verify.py --mode scaffold  # governance + scaffold check → exit 0
+```
+
+`--mode scaffold` checks the governing documents, the review-adjudication state, the runtime
+directories, and dependency availability. `--mode records` composes the Phase-2 integrity gates
+over the factbase, but the seed factbase ships **empty of claims by design**, so on a clean
+checkout it fails closed (exit `2`, "empty factbase") — that is the correct, honest result, not
+a bug. See `tests/` for synthetic fixtures that exercise the gates end to end.
+
+## Exit-code contract
+
+Every gate and mode obeys one contract (AGENTS.md §13, `docs/TOOLING.md`):
+
+| Code | Meaning |
+|---|---|
+| `0` | clean — the requested checks ran and found no findings |
+| `1` | findings in otherwise-valid input (e.g. an over-claimed support status) |
+| `2` | cannot run / unavailable — missing input, empty factbase, or a not-yet-built mode (**fail closed**) |
+
+`SKIP` is never `PASS`. An inactive control returns `2`, not a quiet `0`.
+
+## The tier model — rigor is opt-in
+
+Three tiers of rigor, default lightweight (Constitution §1):
 
 - **Tier 0 — Conversational (default, most questions):** a direct answer with honest labels
   (fact / inference / assumption / projection + a coarse confidence), speculation encouraged
-  and badged, one self-refute line. **No records, no manifest, no refuter.** Useful on day
-  zero. This is the everyday mode.
-- **Tier 1 — Recorded:** worth keeping → a candidate claim + evidence + assessment.
-- **Tier 2 — Committed answer:** worth depending on → the full chain below.
+  and badged, one self-refute line. **No records, no manifest, no refuter.** This is the
+  everyday mode. It is a discipline, not software — usable on day zero. See
+  `docs/CONVERSATION.md`. `verify.py --mode conversational` prints a notice and is *never* a
+  gate PASS.
+- **Tier 1 — Recorded:** worth keeping → a candidate claim + evidence + assessment, validated
+  by the Phase-1/2 schema and integrity gates.
+- **Tier 2 — Committed answer:** worth depending on → the full chain below, bound to exact
+  hashes and a required refuter (Phase 3).
 
-The four jobs below are the machinery for Tiers 1–2. They exist so that *when you commit a
-claim*, the rigor is there — **not** so that every question must pay for it. The design's
-first priority is that answers stay useful and interesting; see Constitution §1.
-
-## What changed in v2 (the rigorous core, retained in v3)
-
-The first design treated a source identity as if it were evidence and used source type as
-a rough reliability proxy. A low-reliability official statement could therefore qualify
-a claim as confirmed merely by existing. Neat, fast, and wrong.
-
-v2 replaces that shortcut:
-
-- source **type** and assessed **reliability** are separate;
-- an exact evidence artifact records what was actually retrieved;
-- append-only claim-evidence assessments record the support locator, stance, credibility,
-  temporal scope, origin chain, independence group, and semantic review for one claim;
-- corroboration counts independent information origins, not outlet logos;
-- claim type, support, dispute, freshness, lifecycle, and stability are separate axes;
-- structured observations bind chartable values to exact claims and checked support, so
-  renderers never mine numbers from prose;
-- analysis manifests bind answers to record IDs and hashes;
-- refuter coverage is checked against the manifest and output hash, not accepted as a
-  cheerful boolean;
-- predictions are locked in an append-only hash chain anchored outside mutable Git history;
-- baseline facts and visuals now have explicit policies, tools, tests, and recurring-task
-  skills.
+The heavy chain is escalation, not the price of speaking. Never silently force it onto a casual
+question.
 
 ## Architecture
 
@@ -78,152 +110,129 @@ flowchart LR
     O --> Q[Refuter bound to output hash]
 ```
 
-A source entity is not evidence. An artifact is the exact article, statement, report,
-post, dataset, image, or video retrieved. A claim-evidence assessment records which part
-of that artifact bears on one atomic claim and how. The separation matters: the same
-report can support one claim, refute another, and be irrelevant to a third.
+The separations are load-bearing and the gates enforce them: source **type** is not assessed
+**reliability**; reliability is not information **credibility**; an artifact is not a claim
+verdict; a claim is not a chart datum; corroboration counts independent information *origins*
+(collapsed by `origin_chain[0]`), not outlet logos; same-model fresh-context review is not
+independent review; Git history is not an immutable prediction anchor.
 
 ## Honest verification modes
 
-| Mode | Establishes |
-|---|---|
-| `scaffold` | governance, required files, dependencies, and schema availability |
-| `records` | source, artifact, assessment, claim, observation, conflict, and freshness integrity |
-| `draft` | records plus analysis-manifest and projection-link integrity |
-| `answer` | draft plus output binding, visual hashes, and required refuter review |
+| Mode | Establishes | State |
+|---|---|---|
+| `conversational` | Tier-0 notice — UNVERIFIED BY DESIGN, never a PASS | **available** |
+| `scaffold` | governance, required files, dependencies, schema availability | **available** |
+| `records` | source, artifact, assessment, claim, support, conflict, freshness, observation integrity | **available** |
+| `draft` | records plus analysis-manifest and projection-link integrity | planned (Phase 3) |
+| `answer` | draft plus output binding, visual hashes, and required refuter review | planned (Phase 3) |
 
 None proves semantic truth. Exact support locators and adversarial review make judgment
 inspectable; they do not automate it into existence.
 
-## Value milestones
+## Commands
 
-The plan has deliberate stop points. A personal tool that needs a small civil service to
-operate will be bypassed precisely when the question is interesting.
+**Available now:**
 
-1. **After Phase 3 — trustworthy private answers:** exact evidence, answer binding, and
-   refutation work end to end.
-2. **After Phase 4 — reusable research memory:** baseline queries and context packs start
-   paying back prior verification effort.
-3. **After Phase 5 — visual tools:** charts, timelines, maps, and schematics are available
-   on request from validated records.
-4. **After Phase 6 — forecast measurement:** locked predictions, benchmarks, and
-   calibration views begin accumulating evidence about performance.
+```bash
+.venv/bin/python -m pytest                                   # full suite (359)
+.venv/bin/python scripts/verify.py --mode conversational     # Tier-0 notice (exit 0, not a PASS)
+.venv/bin/python scripts/verify.py --mode scaffold           # governance + scaffold (exit 0/2)
+.venv/bin/python scripts/verify.py --mode records --as-of 2026-06-23T00:00:00Z  # integrity composition (exit 0/1/2)
+.venv/bin/python scripts/gate_phase1_exit.py                 # Phase-1 machine gate (exit 0/2)
+.venv/bin/python scripts/gate_phase2_exit.py                 # Phase-2 machine gate (exit 0/2)
+```
 
-Phase 7 is optional semantic and retrieval assistance. It exists only if usage proves the
-simpler system inadequate.
+**Planned (not yet built — these scripts/modes do not exist yet):**
 
-## Baseline fact repository
+```bash
+.venv/bin/python scripts/verify.py --mode draft              # Phase 3 (WP3.1)
+.venv/bin/python scripts/verify.py --mode answer --analysis ana-001  # Phase 3 (WP3.4)
+# scripts/fact.py        — query / context / candidate / assess / promote / supersede (Phase 4)
+# scripts/prediction.py  — lock / resolve / score (Phase 6)
+# scripts/visual.py      — validate / render / inspect (Phase 5)
+```
 
-The repository has three compartments:
+Canonical commands use `.venv/bin/python`; there is no split-brain `python` vs `python3`
+documentation.
 
-- **Durable facts** — stable geography, definitions, and structural facts. Inclusion test:
-  would the proposition have been equally true a year ago and remain true a year from now?
-- **Append-only history** — dated events that remain true but whose list grows.
-- **Live facts** — current state, kept outside the baseline and expired aggressively.
+## What this public repository contains
 
-Historical casualty totals, current force counts, and similar moving estimates do not
-become durable merely because their dates are old. They remain dated, contested claims.
+This repo is published as the **build artifact and method**: the validation framework, the
+governance/design documents, synthetic test fixtures, and an empty seed factbase. It contains
+**no live OSINT research corpus**.
 
-Real research is seeded only after the record and support gates exist. Candidate claims
-are retrieved, assessed, reviewed, and promoted; they are never dictated from model
-memory and blessed retrospectively.
+- The factbase ships **empty of claims, evidence, observations, and predictions**. The only
+  populated file is `factbase/sources.yaml` — neutral public source *identity* metadata
+  (organization names and official URLs), with **no reliability grades or method notes**.
+- All fixtures under `tests/` are **synthetic** — coherent shapes that exercise the gates, not
+  real intelligence.
+- Real research is seeded only after the record and support gates exist and only through the
+  retrieve→assess→review→promote path — never dictated from model memory and blessed
+  retrospectively (CLAUDE.md, `docs/CONSTITUTION.md`).
+- `scripts/sensitive_scan.py` guards against tracked secrets, signed URLs, private document IDs,
+  local paths, and named-person reliability notes. Signed URLs and sensitive method notes belong
+  in the git-ignored `private/` overlay, never in tracked YAML.
 
-## Visuals
-
-Visuals are views of records, not new sources of facts.
-
-- Charts consume typed observation IDs, including units, denominators, scope, and
-  uncertainty.
-- Maps use real geometry records, coordinate reference systems, and cached basemaps.
-- Schematics use explicit nodes and edges and may be conceptual without pretending to be
-  geographic.
-- Every render emits a metadata sidecar and normalized data sidecar, then passes a
-  post-render inspection step.
-
-This is a private tool, so the design does not obsess over publication theatre. It does
-retain the accuracy controls that protect the only reader who matters: the one making the
-decision.
-
-## Data handling
-
-The repository aggregates conflict OSINT and can contain public identities, sensitive
-locators, collection patterns, and contextual reliability assessments.
-
-- **Private by default.** Do not publish or casually sync the repository.
-- Source identities remain neutral. Reliability assessments are scoped, append-only, and
-  separated from the identity registry.
-- Signed URLs, private document IDs, local paths, and sensitive method notes belong in an
-  ignored encrypted/private overlay, never tracked YAML.
-- Public/redacted export is a separate future mode, not an optimistic `git push`.
+If this harness is ever used against a live corpus, that corpus stays local and private; a
+public/redacted export would be a separate, explicitly threat-modeled mode, not an optimistic
+`git push`.
 
 ## Repository map
 
 ```text
-README.md
-AGENTS.md
-CLAUDE.md
-IMPLEMENTATION_PLAN.md
-REVISION_NOTES.md
-VALIDATION_REPORT.md
+README.md  AGENTS.md  CLAUDE.md  LICENSE  requirements-dev.txt  IMPLEMENTATION_PLAN.md
+scripts/                      # 20 scripts
+  verify.py                   #   unified mode ladder (conversational/scaffold/records/...)
+  validate_schema.py          #   Phase-1 closed-schema envelope + canonicalization vector
+  schema_defs.py              #   per-record closed schemas + vocabularies
+  validate_*.py               #   Phase-2 integrity gates (sources, evidence, claim_evidence,
+                              #     claims, support, conflict, freshness, observations, ...)
+  check_reward_hack.py        #   cross-commit reward-hack tripwire
+  supersession.py             #   shared one-active-leaf / cycle helper
+  gate_phase1_exit.py         #   Phase-1 machine exit gate
+  gate_phase2_exit.py         #   Phase-2 machine exit gate
+  check_review_adjudication.py / preflight_phase1.py / sensitive_scan.py
+tests/                        # 232 files (incl. 206 synthetic fixtures); pytest suite
+  fixtures/skeleton/          #   Milestone-A synthetic assembly oracle
+config/
+  high_impact_triggers.yaml   # high_impact recompute trigger oracle
+  unit_vocabulary.yaml        # observation unit vocabulary + dimensional classes
 docs/
-  CONSTITUTION.md
-  DATA_MODEL.md
-  KNOWLEDGE.md
-  TOOLING.md
-  EXAMPLE_WORKFLOW.md
-  PROGRESS.md
-  REVIEW_ADJUDICATION.md
-  RED_TEAM_BRIEF.md
-  REVIEW_PROMPT.md
-factbase/
-  README.md
-  sources.yaml
-  source_assessments.yaml
-  evidence.yaml
-  claim_evidence.yaml
-  observations.yaml
-  predictions.yaml
-  prediction_events.jsonl
-  geography.yaml
-  baseline_events.jsonl
-  baseline/claims.yaml
-  live/claims.yaml
+  CONSTITUTION.md  DATA_MODEL.md  TOOLING.md  KNOWLEDGE.md  CONVERSATION.md
+  EXAMPLE_WORKFLOW.md  PROGRESS.md  REVIEW_ADJUDICATION.md
+  (build/review process artifacts: REVIEW_PROMPT, RED_TEAM_BRIEF, REVIEW_V3_*, START_PROMPT,
+   PHASE1_DOC_FIXES_DRAFT)
+factbase/                     # empty seed factbase (sources.yaml has neutral identity only)
+  README.md  sources.yaml  source_assessments.yaml  evidence.yaml  claim_evidence.yaml
+  observations.yaml  predictions.yaml  geography.yaml  baseline/claims.yaml  live/claims.yaml
+  *.jsonl                     #   append-only prediction/baseline event logs
 skills/
-  fact-repository/SKILL.md
-  visuals/SKILL.md
+  fact-repository/SKILL.md  visuals/SKILL.md   # phase-gated recurring-task skills
+schemas/  analyses/  outputs/  visuals/specs/  private/   # runtime dirs (gitkept)
 ```
 
-## Planned commands
+## Key documents
 
-```bash
-.venv/bin/python scripts/verify.py --mode scaffold
-.venv/bin/python scripts/verify.py --mode records
-.venv/bin/python scripts/verify.py --mode draft
-.venv/bin/python scripts/verify.py --mode answer --analysis ana-001
+- **`docs/CONSTITUTION.md`** — the contract: the tier model (§1), the data-model separations,
+  and the accepted limits (§15). Start here to understand *why* the gates exist.
+- **`docs/DATA_MODEL.md`** — the closed record schemas, ID namespaces, and the
+  `origin_chain[0]` / credibility / unit-vocabulary conventions the gates enforce.
+- **`docs/EXAMPLE_WORKFLOW.md`** — a worked Tier-2 walkthrough from question to refuted answer.
+- **`docs/PROGRESS.md`** — the live build ledger (read before touching code).
+- **`docs/TOOLING.md`** — setup and the exit-code reference.
+- **`AGENTS.md` / `CLAUDE.md`** — contributor and agent guidance, including the non-goals below.
 
-.venv/bin/python scripts/fact.py query --topic crimea-logistics
-.venv/bin/python scripts/fact.py context --topic crimea-logistics --output context.yaml
-.venv/bin/python scripts/fact.py candidate --topic crimea-logistics --text "..."
-.venv/bin/python scripts/fact.py assess --claim clm-001 --evidence evd-001
-.venv/bin/python scripts/fact.py review-due
-.venv/bin/python scripts/fact.py refresh --claim clm-001
-.venv/bin/python scripts/fact.py promote --claim clm-001 --review ref-001
-.venv/bin/python scripts/fact.py supersede --claim clm-001 --replacement clm-002
+## Non-goals
 
-.venv/bin/python scripts/prediction.py lock prd-001
-.venv/bin/python scripts/prediction.py resolve prd-001 --outcome true
-.venv/bin/python scripts/prediction.py score
+This is a single-user tool; it prefers useful, lightweight controls over enterprise ceremony.
+Unless a named work package is active, it does **not** build:
 
-.venv/bin/python scripts/visual.py validate visuals/specs/vis-001.yaml
-.venv/bin/python scripts/visual.py render visuals/specs/vis-001.yaml
-.venv/bin/python scripts/visual.py inspect visuals/specs/vis-001.yaml
-```
+- autonomous web retrieval or monitoring;
+- truth scoring (it makes judgment inspectable; it does not automate it);
+- a vector database or semantic-search layer;
+- publication cartography or a public release pipeline;
+- Centaur / adversary-simulation integration.
 
-Canonical local commands use `.venv/bin/python`; there is no split-brain `python` versus
-`python3` documentation.
+## License
 
-## Status
-
-**Design package only. No implementation code exists.** The v2 governance package is
-intentionally blocked pending one cold external adversarial review and adjudication of
-any new P0/P1 findings. See `docs/PROGRESS.md` and `docs/REVIEW_ADJUDICATION.md`.
+MIT — see [LICENSE](LICENSE).

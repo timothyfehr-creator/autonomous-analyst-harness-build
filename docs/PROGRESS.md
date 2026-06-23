@@ -18,7 +18,7 @@ after every work package.
 
 ## Current state
 
-**Phase 0 authorized — v3 cold review complete + adjudicated; governance READY (ACCEPTED_WITH_LIMITS, 2026-06-22). WP0.0 may begin. No code exists yet.**
+**Phases 0–2 COMPLETE (2026-06-23) — 359 tests green; both machine phase-gates (`scripts/gate_phase1_exit.py`, `scripts/gate_phase2_exit.py`) exit 0. Governance READY (ACCEPTED_WITH_LIMITS). The Phase-1 preflight gate is CLEARED (see below). Phase 3 (`draft`/`answer` + refuter → Milestone A) is next.**
 
 v3 merges two v2 designs (see `MERGE_NOTES.md`): it keeps the rigorous evidence-chain /
 multi-axis data model and adds the **three-tier rigor model** (Constitution §1) so the
@@ -31,9 +31,13 @@ the GPT v2 base: the tier framing in the constitution and plan, **WP0.3** (the T
 (`docs/REVIEW_V3_COLD_claude-opus-4-8.md`, 74/100; 1 P0 + ~11 P1; all nine A1–A9 exploits
 slipped past the planned gates) and every P0/P1 is adjudicated in
 `docs/REVIEW_ADJUDICATION.md`. The review was a **non-independent Claude pass**, accepted with
-limits to unblock **Phase 0 only**; a genuinely independent cross-vendor/human pass on the P0 +
-top P1s is a **binding gate before Phase 1**. The day-zero **Tier-0** mode remains usable
-regardless, since it is a discipline, not a gated build step.
+limits. The Phase-1 preflight gate's `independent_review_complete` token was subsequently
+satisfied by the **owner logging a HUMAN review** (not an independent cross-vendor pass), so the
+build proceeded through Phases 1–2. **An honest open limit remains:** a genuinely independent
+cross-vendor/human review of the now-BUILT P0 surface — the corroboration and `high_impact`
+gates (WP2.5 / WP2.2 / the Phase-3 refuter) — is **recommended defence-in-depth and has not yet
+been performed**. It no longer blocks the build, but it is not closed. The day-zero **Tier-0**
+mode remains usable regardless, since it is a discipline, not a gated build step.
 
 ### Governance [DONE — READY w/ limits]
 
@@ -578,9 +582,12 @@ witnesses mutation-proven load-bearing.
 
 ## Open blockers
 
-1. **Phase 1 gate:** a genuinely independent cross-vendor (GPT-5.5-Pro/Gemini)/human pass on
-   the P0 + top P1s, plus doc-incorporation of V-P0-1 / V-P1-4 / V-P1-5 / V-P1-10, must complete
-   before any WP1.x begins. (Phase 0 is authorized.)
+1. **Independent P0 review (recommended, not yet done — no longer build-blocking):** the
+   Phase-1 preflight gate is CLEARED (the five doc-fixes V-P0-1 / V-P1-4 / V-P1-5 / V-P1-10 / F3
+   are incorporated and the `independent_review_complete` token was set by the owner's HUMAN
+   review), so Phases 1–2 are built. What remains open is a genuinely *independent cross-vendor*
+   (GPT-5.5-Pro/Gemini)/human review of the now-BUILT corroboration and `high_impact` gates
+   (WP2.5 / WP2.2 / the Phase-3 refuter). It is recommended defence-in-depth, not a gate.
 2. Several v3 findings are `PLANNED_FIX` — adjudicated, not yet implemented — tracked in their
    named WPs in `docs/REVIEW_ADJUDICATION.md`.
 
