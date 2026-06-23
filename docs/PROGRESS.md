@@ -297,6 +297,25 @@ regardless, since it is a discipline, not a gated build step.
   scope creep (dimensional/coverage/resolution all deferred); unit_vocabulary fail-closed + self-
   validating; oracle/factbase untouched. Full suite 160; gate PASS. Next: Phase 2 (WP2.1 →).
 
+### WP2.1 — Source registry integrity gate [DONE]
+
+- Shipped: `scripts/validate_sources.py` — the first Phase-2 integrity gate (DAG root). Schema first
+  (`vs.validate_file`: unparseable→2, shape-broken→1 without integrity), then cross-record integrity
+  on a clean parse: global ID uniqueness across sources+groups (one namespace), group `member_ids`
+  resolve to a known `src-` (not `grp-`), active-window coherence. Read-only. `tests/test_source_
+  integrity.py` (8 tests) + `src_*` fixtures.
+- Scope: the "group ID may not stand where a source is required" rule is deferred to the CONSUMING
+  gates (WP2.2–2.3); WP2.1 keeps the registry itself coherent. `citable:false` stays at the schema.
+- Acceptance: valid registry + **real `factbase/sources.yaml` (29 sources, 2 groups)** → 0;
+  dup-id / unresolved-member / member-is-group / inverted-window → 1; schema-broken → 1 (schema
+  layer, integrity not run); unparseable → 2. Full suite 168.
+- Separate review: PASS — gate confirmed READ-ONLY (factbase byte-unchanged), layering correct,
+  exit-2 never downgraded, no scope creep. Review found two non-load-bearing tests (a backstopping
+  rule masked the named one); FIXED — added a dup-only fixture + assert the specific finding message
+  (tamper-evidence verified: neutering the prefix branch now fails its test).
+- Oracle/factbase changes: none. Commit: see git log. Next: WP2.2 (assessment governance +
+  `high_impact` gate-recompute V-P0-1 + the same-change reward-hack gate across a commit range).
+
 ## Phase checklist
 
 ### Phase 0 — Governance and scaffold
@@ -320,7 +339,7 @@ regardless, since it is a discipline, not a gated build step.
 
 ### Phase 2 — Source, artifact, assessment, claim, and observation integrity
 
-- [ ] WP2.1 Source registry integrity
+- [x] WP2.1 Source registry integrity — **DONE**
 - [ ] WP2.2 Source-assessment governance
 - [ ] WP2.3 Artifact integrity and claim-evidence governance
 - [ ] WP2.4 Type-specific claim integrity

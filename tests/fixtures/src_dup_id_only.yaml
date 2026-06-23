@@ -1,0 +1,8 @@
+schema_version: "2.0"
+sources:
+  - id: src-dup
+    title: First
+    source_type: NEWSWIRE
+  - id: src-dup
+    title: Second
+    source_type: NEWS_OUTLET
