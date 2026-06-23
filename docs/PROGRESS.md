@@ -352,6 +352,35 @@ review (verdict FIX_REQUIRED → all confirmed findings fixed-forward, re-review
   (DATA_MODEL §2/§14, IMPLEMENTATION_PLAN WP2.2 incl. the social-source-upgrade fixture).
 - Next: WP2.3 (artifact integrity + claim-evidence governance).
 
+### WP2.3 — Evidence-artifact integrity + claim-evidence governance [DONE]
+
+Designed via a design workflow (critic APPROVE), built solo, then adversarially reviewed by a
+worktree-isolated multi-agent review (verdict **PASS**, no must-fix; 2 should-fix + watch items
+closed under boil-the-lake). Five commits.
+
+- 2.3b-0 (d569544) — extracted `scripts/supersession.py` (one-active-leaf union-find), made it
+  partition-aware, repointed WP2.2b at it (behavior-preserving).
+- 2.3a (279857e) — `scripts/validate_evidence.py`: artifact id uniqueness; `source_id` RESOLVES to
+  a known `src-` (cross-file vs sources.yaml — WP2.1 deferred this here); content-hash uniqueness
+  (two artifacts sharing a hash = one artifact); date coherence; group-as-source defensive (the
+  schema's `ref:src-` already rejects `grp-` here — reachable case is origin_chain in 2.3b).
+- 2.3b (8544a89) — `scripts/validate_claim_evidence.py`: cea id uniqueness; claim_id/artifact_id
+  resolution; origin_chain source resolution + the REACHABLE group-as-source; one active leaf per
+  `(claim_id, artifact_id)` chain + no cross-pair supersede edge; CHECKED `artifact_hash` ==
+  resolved evidence `content_hash`. Cross-file fail-closed (any missing registry → exit 2).
+- Hardening (f25a8a7) — `schema_defs.iso_instant` replaces the lexical date compare in R-EVD-5 AND
+  `_prediction_extra` (the lexical compare false-positived on date-only-vs-datetime + fractional
+  widths, rejecting legal input); `superseded` set made partition-aware (sounds the shared helper);
+  +6 coverage/regression tests (dup-id, origin artifact resolution, baseline+live claims union,
+  date no-false-positive).
+- DEFERRED (explicit): cea-on-ASSUMPTION → WP2.4; `claim_content_hash`/`relationship_input_hash`
+  equality (verified not reproducible from `record_hash` — would false-fail); terminal-origin
+  independence-group multi-group → WP2.5/2.6; stance/credibility VALUES → WP2.5; conflict → WP2.6;
+  cross-commit evidence immutability → a future WP2.2c-family gap (tracked in the gate docstring).
+- Acceptance: full suite **253 green**; Phase-1 gate PASS; gates dogfood the empty factbase +
+  the Milestone-A skeleton (CHECKED artifact_hash matches) at exit 0. Oracle/factbase changes: none.
+- Next: WP2.4 (type-specific claim integrity — also owns the deferred cea-on-ASSUMPTION rule).
+
 ## Phase checklist
 
 ### Phase 0 — Governance and scaffold
@@ -377,7 +406,7 @@ review (verdict FIX_REQUIRED → all confirmed findings fixed-forward, re-review
 
 - [x] WP2.1 Source registry integrity — **DONE**
 - [x] WP2.2 Source-assessment governance + high_impact recompute + reward-hack gate — **DONE**
-- [ ] WP2.3 Artifact integrity and claim-evidence governance
+- [x] WP2.3 Artifact integrity and claim-evidence governance — **DONE**
 - [ ] WP2.4 Type-specific claim integrity
 - [ ] WP2.5 Support and corroboration gate
 - [ ] WP2.6 Conflict and stance gate
