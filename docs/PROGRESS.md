@@ -270,6 +270,33 @@ regardless, since it is a discipline, not a gated build step.
 - Commit: see git log. Next: WP1.6 (observation `unit_vocabulary` + analysis/refuter/geography/
   baseline/visual schemas — fattest WP, sub-commits allowed; SURFACE `unit_vocabulary` to owner).
 
+### WP1.6 — Observation + geography + analysis/refuter/visual; Phase-1 freeze [DONE]
+
+- 1.6a (5ba5ab8): `config/unit_vocabulary.yaml` (owner-editable unit→dimensional-class registry,
+  self-validating; the one domain call surfaced at the freeze checkpoint). OBSERVATION_SCHEMA
+  (obs-, V-P1-5 schema half: numeric obs bind `source_value`/`source_unit` + a vocabulary `unit`
+  and must DECLARE a transformation for any unit/denominator recast — correctness + the dimensional
+  A5 kill stay WP2.8). GEOGRAPHY_SCHEMA (geo-: geometry by ref+hash, EPSG crs, GeoJSON type,
+  spatial_semantics). 20 tests.
+- 1.6b (f570977): ANALYSIS_SCHEMA (ana-), REFUTER_SCHEMA (ref-), VISUAL_SCHEMA (vis-) + a shared
+  `_check_ref_list` enforcing CLOSED hash-bound ref entries. Shape only — refuter set-equality
+  coverage, marker↔answer agreement, cross-record hash resolution stay Phase 3. 15 tests
+  (+ the review-found CATEGORY-unit-null coverage fixture).
+- Phase-1 exit gate (a5f75b1): `scripts/gate_phase1_exit.py` — three fail-closed witnesses (R1
+  golden vector second copy · R5 skeleton composes through every schema · seeds clean), exit 0/2,
+  mutation-proven load-bearing. Milestone-A synthetic skeleton `tests/fixtures/skeleton/` (13
+  files, one referentially-consistent chain; synthetic/fixtures-only, format-valid placeholder
+  hashes — real record_hash at the Phase-2 hash gate) + `test_milestone_a_skeleton.py` (validates,
+  pins oracle completeness, checks internal coherence).
+- Epistemic notes: enums normalized from prose (geometry_type GeoJSON set, spatial_semantics §12,
+  CHECK_RESULT's FAIL, ANALYSIS_LIFECYCLE {DRAFT,ANSWER}) are doc-grounded; `REQUIRED_REFUTER_CLASS`
+  is the single documented token `{HUMAN_OR_DIFFERENT_MODEL}` — a Phase-3 WATCH-ITEM to widen if a
+  weaker tiered required-class token is ever introduced (inline `expand if specified` flag).
+- Separate review (WP1.6, both sub-commits): PASS — 15/15 new detectors mutation-proven load-bearing
+  (one coverage gap found + fixed: CATEGORY-unit-null); fields faithful to §6/§9/§10/§11/§12; no
+  scope creep (dimensional/coverage/resolution all deferred); unit_vocabulary fail-closed + self-
+  validating; oracle/factbase untouched. Full suite 160; gate PASS. Next: Phase 2 (WP2.1 →).
+
 ## Phase checklist
 
 ### Phase 0 — Governance and scaffold
@@ -284,10 +311,12 @@ regardless, since it is a discipline, not a gated build step.
 - [x] WP1.1 Envelope validator and schema registry — **DONE**
 - [x] WP1.2 Source entities, groups, and assessments — **DONE**
 - [x] WP1.3 Type-specific claim schema — **DONE**
-- [ ] WP1.4 Evidence artifact and claim-evidence assessment schemas
-- [ ] WP1.5 Prediction and append-only event schemas
-- [ ] WP1.6 Observation, analysis, refuter, geography, baseline-event, and visual schemas
-- [ ] WP1.7 Migration framework
+- [x] WP1.4 Evidence artifact and claim-evidence assessment schemas — **DONE**
+- [x] WP1.5 Prediction and append-only event schemas — **DONE** (baseline-event folded in here)
+- [x] WP1.6 Observation, analysis, refuter, geography, and visual schemas — **DONE** (1.6a + 1.6b)
+- [x] Phase-1 exit gate + Milestone-A skeleton oracle — **DONE** (gate PASS)
+- [ ] WP1.7 Migration framework — **DEFERRED** (no v1 data; out of Segment-2 scope)
+- **PHASE 1 COMPLETE — schema layer frozen 2026-06-22.** 160 tests; `gate_phase1_exit.py` PASS.
 
 ### Phase 2 — Source, artifact, assessment, claim, and observation integrity
 
