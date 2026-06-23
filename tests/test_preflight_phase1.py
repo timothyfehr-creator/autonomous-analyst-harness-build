@@ -68,6 +68,19 @@ def test_cli_blocked_returns_2(tmp_path):
     assert pf.main(["--root", str(root)]) == 2
 
 
+def test_wrapped_anchor_token_still_matches(tmp_path):
+    # a soft-wrapped anchor (line break inside the phrase) must still be detected
+    (tmp_path / "docs").mkdir(parents=True)
+    const = "# C\n" + "\n".join(
+        (t.replace(" ", "\n", 1) if t == "caps support at SUPPORTED" else t) for t in ALL_TOKENS)
+    (tmp_path / "docs" / "CONSTITUTION.md").write_text(const, encoding="utf-8")
+    (tmp_path / "docs" / "DATA_MODEL.md").write_text("# D\n", encoding="utf-8")
+    (tmp_path / "docs" / "REVIEW_ADJUDICATION.md").write_text(
+        "---\nindependent_review_complete: true\n---\n", encoding="utf-8")
+    code, blockers = pf.preflight(tmp_path)
+    assert code == 0, blockers
+
+
 def test_real_repo_runs_cleanly():
     # state-independent: the gate is either cleared (0) or blocked (2); never crashes.
     code, _blockers = pf.preflight(ROOT)

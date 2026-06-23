@@ -61,12 +61,17 @@ def _independent_review_done(root: Path) -> bool:
     return isinstance(fm, dict) and fm.get("independent_review_complete") is True
 
 
+def _norm(s: str) -> str:
+    # collapse all whitespace so a soft-wrapped anchor phrase still matches (markdown prose wraps)
+    return re.sub(r"\s+", " ", s)
+
+
 def preflight(root: Path):
     """Return (exit_code, blockers). 0 = gate cleared; 2 = blocked / fail closed."""
     blockers = []
-    gov = _governing_text(root)
+    gov = _norm(_governing_text(root))
     for fid, token in REQUIRED_TOKENS.items():
-        if token not in gov:
+        if _norm(token) not in gov:
             blockers.append(f"doc-fix {fid} not yet in governing docs (missing anchor: {token!r})")
     if not _independent_review_done(root):
         blockers.append("independent cross-vendor/human review not logged "
