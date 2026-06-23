@@ -9,9 +9,46 @@ Grows WP-by-WP: WP1.2 sources/groups/assessments; WP1.3 claims; WP1.4 evidence/c
 WP1.5 predictions/events; WP1.6 observations/etc.
 """
 
+import pathlib
 import re
 
+import yaml as _yaml  # for loading the owner-editable unit_vocabulary config
+
 _HASH_RE = re.compile(r"^sha256:[0-9a-f]{64}$")  # mirrors validate_schema (no import → no cycle)
+
+# ---- owner-editable unit vocabulary (Constitution §6.3, V-P1-5) ----
+# Loaded from config/unit_vocabulary.yaml (data, not code). Missing/unreadable → empty, so numeric
+# observations fail closed (their unit can't be found) — the safe direction.
+DIMENSIONAL_CLASSES = {
+    "FLOW_VOLUME_RATE", "MASS_RATE", "MASS", "VOLUME", "LENGTH", "AREA",
+    "COUNT_RATE", "COUNT", "DIMENSIONLESS", "DURATION",
+}
+_UNIT_VOCAB_PATH = pathlib.Path(__file__).resolve().parent.parent / "config" / "unit_vocabulary.yaml"
+
+
+def _load_unit_vocabulary():
+    """unit token -> dimensional class, from the config registry. Empty on any read error."""
+    try:
+        doc = _yaml.safe_load(_UNIT_VOCAB_PATH.read_text(encoding="utf-8")) or {}
+    except OSError:
+        return {}
+    entries = doc.get("unit_vocabulary", [])
+    if not isinstance(entries, list):
+        return {}
+    return {e["unit"]: e.get("dimensional_class")
+            for e in entries if isinstance(e, dict) and "unit" in e}
+
+
+UNIT_VOCABULARY = _load_unit_vocabulary()
+
+# The config file is itself a self-validating registry (run validate_schema on it):
+UNIT_VOCAB_ENTRY_SCHEMA = {
+    "prefix": "",  # entries are unit tokens, not prefixed ids
+    "required": {"unit", "dimensional_class"},
+    "optional": set(),
+    "enums": {"dimensional_class": DIMENSIONAL_CLASSES},
+    "types": {},
+}
 
 SOURCE_TYPES = {
     "GOVERNMENT", "MILITARY", "SECURITY_SERVICE", "INTERGOVERNMENTAL", "NEWSWIRE",
@@ -280,6 +317,110 @@ BASELINE_EVENT_SCHEMA = {
     "extra": _baseline_event_extra,
 }
 
+# ---- structured observations (WP1.6): typed chartable values + V-P1-5 schema half (§6, §6.3) ----
+VALUE_TYPES = {"NUMBER", "INTEGER", "CATEGORY", "BOOLEAN", "INTERVAL"}
+RECORD_LIFECYCLE = {"ACTIVE", "SUPERSEDED"}  # §6/§12 show ACTIVE + supersession; REJECTED not used here
+
+
+def _observation_extra(rec):
+    """Shape + V-P1-5 schema half. Numeric obs bind source_value/source_unit + a vocabulary unit and
+    must DECLARE a transformation for any unit/denominator recast. The transformation's CORRECTNESS
+    and the dimensional-class check (the A5 kill) are WP2.8 integrity, not here."""
+    f = []
+    ceas = rec.get("claim_evidence_assessment_ids")
+    if not (isinstance(ceas, list) and ceas):
+        f.append("observation requires a non-empty claim_evidence_assessment_ids list")
+    elif not all(isinstance(x, str) and x.startswith("cea-") for x in ceas):
+        f.append("claim_evidence_assessment_ids must all be cea- ids")
+    ex = rec.get("extraction")
+    if not isinstance(ex, dict):
+        f.append("observation requires an extraction block")
+    else:
+        for k in ("method", "extractor", "extracted_at", "source_locator_hash"):
+            if not ex.get(k):
+                f.append(f"extraction requires {k}")
+        slh = ex.get("source_locator_hash")
+        if slh and not _HASH_RE.match(str(slh)):
+            f.append("extraction.source_locator_hash must be sha256:<64 hex>")
+    ts = rec.get("temporal_scope")
+    if not (isinstance(ts, dict) and ts.get("kind") in TEMPORAL_SCOPE_KIND):
+        f.append("observation requires a temporal_scope with a valid kind")
+    df = rec.get("derived_from")
+    df_list = df if isinstance(df, list) else []
+    if not isinstance(df, list):
+        f.append("derived_from must be a list (possibly empty)")
+    elif not all(isinstance(x, str) and x.startswith("obs-") for x in df):
+        f.append("derived_from entries must be obs- ids")
+    vt = rec.get("value_type")
+    if vt in ("NUMBER", "INTEGER"):
+        sv = rec.get("source_value")
+        if isinstance(sv, bool) or not isinstance(sv, (int, float)):
+            f.append("numeric observation requires a numeric source_value")
+        su, un = rec.get("source_unit"), rec.get("unit")
+        if su not in UNIT_VOCABULARY:
+            f.append(f"source_unit {su!r} not in unit_vocabulary")
+        if un not in UNIT_VOCABULARY:
+            f.append(f"unit {un!r} not in unit_vocabulary")
+        if su in UNIT_VOCABULARY and un in UNIT_VOCABULARY and su != un and not rec.get("transformation"):
+            f.append("a unit differing from source_unit requires a declared transformation")
+        if rec.get("denominator") is not None and not (rec.get("transformation") and df_list):
+            f.append("a denominator (share/rate) requires a transformation and a non-empty derived_from")
+        v = rec.get("value")
+        if isinstance(v, bool) or not isinstance(v, (int, float)):
+            f.append("numeric observation value must be numeric")
+    elif vt == "CATEGORY" and rec.get("unit") is not None:
+        f.append("CATEGORY observation unit must be null")
+    return sorted(f)
+
+
+OBSERVATION_SCHEMA = {
+    "prefix": "obs-",
+    "required": {"id", "claim_id", "claim_evidence_assessment_ids", "value_type", "value", "unit",
+                 "denominator", "basis", "temporal_scope", "extraction", "derived_from",
+                 "transformation", "lifecycle", "supersedes"},
+    "optional": {"geography_id", "uncertainty", "source_value", "source_unit"},
+    "enums": {"value_type": VALUE_TYPES, "lifecycle": RECORD_LIFECYCLE},
+    "types": {"id": "id", "claim_id": "ref:clm-", "supersedes": "ref:obs-",
+              "geography_id": "ref:geo-"},
+    "extra": _observation_extra,
+}
+
+# ---- geography records (WP1.6): real geometry by reference + hash + provenance (§12) ----
+# geometry_type = GeoJSON geometries (doc shows POINT); spatial_semantics = §12's enumeration.
+GEOMETRY_TYPES = {"POINT", "LINESTRING", "POLYGON", "MULTIPOINT", "MULTILINESTRING",
+                  "MULTIPOLYGON", "GEOMETRYCOLLECTION"}
+SPATIAL_SEMANTICS = {"EVENT_LOCATION", "STRUCTURE_CENTROID", "ROUTE_CENTERLINE",
+                     "ADMIN_BOUNDARY", "CONTROL_AREA", "OTHER"}
+
+
+def _geography_extra(rec):
+    f = []
+    ceas = rec.get("claim_evidence_assessment_ids")
+    if not (isinstance(ceas, list) and ceas):
+        f.append("geography requires a non-empty claim_evidence_assessment_ids list")
+    elif not all(isinstance(x, str) and x.startswith("cea-") for x in ceas):
+        f.append("claim_evidence_assessment_ids must all be cea- ids")
+    crs = rec.get("crs")
+    if not (isinstance(crs, str) and crs.startswith("EPSG:")):
+        f.append("crs must be an EPSG code (e.g. EPSG:4326)")
+    if not rec.get("geometry_ref"):
+        f.append("geography requires a geometry_ref")
+    return sorted(f)
+
+
+GEOGRAPHY_SCHEMA = {
+    "prefix": "geo-",
+    "required": {"id", "title", "geometry_type", "spatial_semantics", "crs", "geometry_ref",
+                 "geometry_hash", "geometry_claim_id", "claim_evidence_assessment_ids",
+                 "valid_from", "valid_to", "lifecycle", "supersedes"},
+    "optional": set(),
+    "enums": {"geometry_type": GEOMETRY_TYPES, "spatial_semantics": SPATIAL_SEMANTICS,
+              "lifecycle": RECORD_LIFECYCLE},
+    "types": {"id": "id", "geometry_hash": "hash", "geometry_claim_id": "ref:clm-",
+              "supersedes": "ref:geo-", "valid_from": "datetime", "valid_to": "datetime"},
+    "extra": _geography_extra,
+}
+
 COLLECTIONS = {
     "sources": SOURCE_SCHEMA,
     "groups": GROUP_SCHEMA,
@@ -288,6 +429,9 @@ COLLECTIONS = {
     "evidence": EVIDENCE_SCHEMA,
     "claim_evidence_assessments": CLAIM_EVIDENCE_SCHEMA,
     "predictions": PREDICTION_SCHEMA,
+    "observations": OBSERVATION_SCHEMA,
+    "geography": GEOGRAPHY_SCHEMA,
+    "unit_vocabulary": UNIT_VOCAB_ENTRY_SCHEMA,
 }
 
 # JSONL append-only event logs keyed by the log-file stem (substring-matched against filenames).

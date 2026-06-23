@@ -1,0 +1,24 @@
+schema_version: "2.0"
+observations:
+  - id: obs-x-flow
+    claim_id: clm-x
+    claim_evidence_assessment_ids: [cea-x]
+    value_type: NUMBER
+    value: 100000
+    unit: m3/day
+    denominator: null
+    basis: crude throughput at the metering point
+    source_value: 100000
+    source_unit: bpd
+    temporal_scope: {kind: AS_OF, start: "2026-06-22T00:00:00Z", end: null}
+    geography_id: geo-x
+    uncertainty: null
+    extraction:
+      method: HUMAN
+      extractor: human:tim
+      extracted_at: "2026-06-22T12:10:00Z"
+      source_locator_hash: sha256:3333333333333333333333333333333333333333333333333333333333333333
+    derived_from: []
+    transformation: null
+    lifecycle: ACTIVE
+    supersedes: null

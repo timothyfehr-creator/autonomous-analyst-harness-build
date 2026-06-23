@@ -1,0 +1,15 @@
+schema_version: "2.0"
+geography:
+  - id: geo-x-crossing
+    title: Example Crossing location
+    geometry_type: POINT
+    spatial_semantics: STRUCTURE_CENTROID
+    crs: WGS84
+    geometry_ref: geodata/geo-x-crossing.geojson
+    geometry_hash: sha256:3333333333333333333333333333333333333333333333333333333333333333
+    geometry_claim_id: clm-x-location
+    claim_evidence_assessment_ids: [cea-x-map]
+    valid_from: null
+    valid_to: null
+    lifecycle: ACTIVE
+    supersedes: null

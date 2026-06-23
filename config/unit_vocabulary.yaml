@@ -1,0 +1,31 @@
+schema_version: "2.0"
+# Closed unit vocabulary for numeric observations (Constitution §6.3, V-P1-5).
+# OWNER-EDITABLE: this is the one domain call flagged at the Phase-1 schema-freeze checkpoint.
+# Each entry binds a unit token to a dimensional class; WP2.8 uses the class for the dimensional
+# check (a MASS_RATE value may not be charted as MASS, etc.). A numeric observation's `unit` and
+# `source_unit` must be a `unit` listed here, or the observation fails closed.
+# Extend as real claims arrive — adding a unit is a low-risk, append-only edit (factbase empty).
+unit_vocabulary:
+  - {unit: bpd,          dimensional_class: FLOW_VOLUME_RATE}
+  - {unit: barrels/day,  dimensional_class: FLOW_VOLUME_RATE}
+  - {unit: m3/day,       dimensional_class: FLOW_VOLUME_RATE}
+  - {unit: tonnes/day,   dimensional_class: MASS_RATE}
+  - {unit: kg/day,       dimensional_class: MASS_RATE}
+  - {unit: tonnes,       dimensional_class: MASS}
+  - {unit: kg,           dimensional_class: MASS}
+  - {unit: barrels,      dimensional_class: VOLUME}
+  - {unit: m3,           dimensional_class: VOLUME}
+  - {unit: km,           dimensional_class: LENGTH}
+  - {unit: m,            dimensional_class: LENGTH}
+  - {unit: km2,          dimensional_class: AREA}
+  - {unit: sorties/day,  dimensional_class: COUNT_RATE}
+  - {unit: strikes/day,  dimensional_class: COUNT_RATE}
+  - {unit: persons/day,  dimensional_class: COUNT_RATE}
+  - {unit: count,        dimensional_class: COUNT}
+  - {unit: units,        dimensional_class: COUNT}
+  - {unit: rounds,       dimensional_class: COUNT}
+  - {unit: persons,      dimensional_class: COUNT}
+  - {unit: percent,      dimensional_class: DIMENSIONLESS}
+  - {unit: ratio,        dimensional_class: DIMENSIONLESS}
+  - {unit: days,         dimensional_class: DURATION}
+  - {unit: hours,        dimensional_class: DURATION}
