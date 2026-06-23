@@ -61,6 +61,30 @@ def test_rejected_cea_on_assumption_passes():
     assert code == 0
 
 
+def test_crosspair_supersedes_does_not_mask_assumption_cea():
+    # review regression: a throwaway cea on a DIFFERENT (claim,artifact) pair carrying
+    # `supersedes: cea-asm` must NOT mask the genuinely-active assumption cea (partition-scoped)
+    code, f = _run("clm_assumption_and_fact.yaml", cea=FIX / "cea_crosspair_mask.yaml")
+    assert code == 1 and any("active on ASSUMPTION claim 'clm-asm'" in x for x in f), f
+
+
+def test_same_pair_superseded_rejected_leaf_clean():
+    # exercises the superseded branch: a same-pair chain whose only leaf is REJECTED -> no active
+    # assessment on the assumption -> clean
+    code, _ = _run("clm_assumption_and_fact.yaml", cea=FIX / "cea_assumption_superseded_clean.yaml")
+    assert code == 0
+
+
+def test_claim_orphan_supersedes_invalid():
+    code, f = _run("clm_supersede_orphan.yaml")
+    assert code == 1 and any("supersedes 'clm-ghost' which does not resolve" in x for x in f), f
+
+
+def test_claim_two_active_leaves_invalid():
+    code, f = _run("clm_two_active_leaves.yaml")
+    assert code == 1 and any("active leaves" in x for x in f), f
+
+
 def test_canonical_mixed_passes_with_prediction_registry():
     # claims_valid_mixed has clm-prj-1 -> prd-example-reopen; resolves against the companion registry
     code, _ = _run("claims_valid_mixed.yaml")

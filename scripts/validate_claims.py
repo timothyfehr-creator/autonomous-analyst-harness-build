@@ -94,8 +94,14 @@ def check_claims_integrity(claims, clm_ids, clm_types, prd_ids, ceas) -> list[st
             if c.get("support_status") == "CORROBORATED":
                 findings.append(f"claim {cid!r} is a PROJECTION and may not carry fact-grade support_status CORROBORATED")
 
-    # R-CLM-5: an ACTIVE claim-evidence assessment on an ASSUMPTION claim is invalid
-    superseded = {c.get("supersedes") for c in ceas if c.get("supersedes")}
+    # R-CLM-5: an ACTIVE claim-evidence assessment on an ASSUMPTION claim is invalid.
+    # `superseded` must be PARTITION-scoped: only a SAME-(claim_id, artifact_id) edge deactivates a
+    # cea (a cea chain is per claim-artifact pair, DATA_MODEL §4). A flat global set would let a
+    # throwaway cross-pair `supersedes` pointer mask a genuinely-active assessment on an assumption.
+    cea_by_id = {a.get("id"): a for a in ceas}
+    cea_key = lambda a: (a.get("claim_id"), a.get("artifact_id"))  # noqa: E731
+    superseded = {a["supersedes"] for a in ceas
+                  if a.get("supersedes") in cea_by_id and cea_key(a) == cea_key(cea_by_id[a["supersedes"]])}
     for a in ceas:
         claim_id = a.get("claim_id")
         if clm_types.get(claim_id) != "ASSUMPTION":
