@@ -218,6 +218,27 @@ regardless, since it is a discipline, not a gated build step.
 - Commit: see git log. Next: WP1.4 (evidence + claim-evidence + `primary_evidence_kind`; close the
   WP1.1 line-ending watch-item for artifact-content hashing).
 
+### WP1.4 — Evidence + claim-evidence schemas + primary_evidence_kind (shape) [DONE]
+
+- Shipped: `validate_schema.py` (added a `hash` type `sha256:<64hex>` + a **bool-enum guard** so a
+  bool can't satisfy an int enum, e.g. `information_credibility: true` is rejected — reviewer-found
+  hardening). `schema_defs.py` EVIDENCE_SCHEMA (+ `_evidence_extra`: a signed/mutable
+  `canonical_locator` needs a `snapshot_ref` or stripped params) and CLAIM_EVIDENCE_SCHEMA (+
+  `_cea_extra`: non-empty locator/summary/origin/independence; valid `temporal_scope.kind`; a
+  CHECKED `semantic_review` binds all three hashes) + `primary_evidence_kind` enum (V-P1-4 **shape**,
+  optional). `tests/test_evidence_schema.py` (12 tests).
+- Acceptance: complete artifact + unreviewed assessment → 0; one artifact SUPPORTS A / REFUTES B → 0;
+  signed-URL-no-snapshot / source-is-group / empty-summary / reviewed-missing-hash / unknown-field /
+  bad-hash / bad-primary-kind / bool-credibility → 1; empty evidence + claim_evidence logs → 0;
+  `pytest` → 105 passed (R1/R2 intact).
+- Discharged: V-P1-4 schema half; §3 artifact-not-evidence; §4 assessment shape; §6.1–6.2
+  CHECKED-binds-hashes (shape).
+- Line-ending watch-item (from WP1.1): `content_hash` is **recorded** here, not computed — artifact
+  content line-ending normalization belongs to a future capture/snapshot tool, not a schema WP.
+- Oracle-data changes: none. Migration impact: none. Separate review: PASS (schemas exact to §3/§4;
+  every cross-field rule probed; the bool-enum quirk hardened + tested).
+- Commit: see git log. Next: WP1.5 (prediction + append-only event schemas).
+
 ## Phase checklist
 
 ### Phase 0 — Governance and scaffold

@@ -9,6 +9,8 @@ Grows WP-by-WP: WP1.2 sources/groups/assessments; WP1.3 claims; WP1.4 evidence/c
 WP1.5 predictions/events; WP1.6 observations/etc.
 """
 
+import re
+
 SOURCE_TYPES = {
     "GOVERNMENT", "MILITARY", "SECURITY_SERVICE", "INTERGOVERNMENTAL", "NEWSWIRE",
     "NEWS_OUTLET", "RESEARCH_INSTITUTE", "NGO", "DATA_PROVIDER", "SOCIAL_ACCOUNT", "OTHER",
@@ -106,9 +108,91 @@ CLAIM_SCHEMA = {
     "extra": _claim_extra,
 }
 
+# ---- evidence + claim-evidence assessment (WP1.4): + primary_evidence_kind (V-P1-4 shape) ----
+ARTIFACT_TYPES = {"ARTICLE", "OFFICIAL_STATEMENT", "REPORT", "DATASET", "POST", "IMAGE",
+                  "VIDEO", "AUDIO", "MAP", "DOCUMENT", "OTHER"}
+STANCE = {"SUPPORTS", "REFUTES", "MIXED", "CONTEXT_ONLY"}
+INFO_CREDIBILITY = {1, 2, 3, 4, 5, 6, "UNASSESSED"}
+PRIMARY_EVIDENCE_KIND = {"FIRST_PARTY_ACTION_RECORD", "AUTHORITATIVE_DATASET",
+                         "DIRECT_SENSOR_CAPTURE", "OFFICIAL_PRIMARY_DOCUMENT"}
+TEMPORAL_SCOPE_KIND = {"TIMELESS", "AT_TIME", "AS_OF", "INTERVAL", "EVENT"}
+SEMANTIC_REVIEW_STATUS = {"UNCHECKED", "CHECKED", "REJECTED"}
+
+_SIGNED_URL_RE = re.compile(
+    r"[?&](x-amz-signature|x-amz-credential|awsaccesskeyid|signature|expires|sig|token"
+    r"|access_token|api_key|apikey|auth_token)=", re.I)
+
+
+def _evidence_extra(rec):
+    """A signed/mutable canonical_locator must be canonicalized or carry a snapshot_ref (§3)."""
+    f = []
+    loc = rec.get("canonical_locator")
+    if isinstance(loc, str) and _SIGNED_URL_RE.search(loc) and not rec.get("snapshot_ref"):
+        f.append("signed/mutable canonical_locator requires a snapshot_ref (or strip the auth params)")
+    return sorted(f)
+
+
+EVIDENCE_SCHEMA = {
+    "prefix": "evd-",
+    "required": {"id", "source_id", "artifact_type", "title", "canonical_locator",
+                 "content_hash", "published_at", "retrieved_at"},
+    "optional": {"snapshot_ref", "occurred_at", "language"},
+    "enums": {"artifact_type": ARTIFACT_TYPES},
+    "types": {"id": "id", "source_id": "ref:src-", "content_hash": "hash",
+              "published_at": "datetime", "occurred_at": "datetime", "retrieved_at": "datetime"},
+    "extra": _evidence_extra,
+}
+
+
+def _cea_extra(rec):
+    """Non-empty locator/summary/origin/independence; a CHECKED review binds all three hashes (§6.1-6.2)."""
+    f = []
+    if not rec.get("support_locator"):
+        f.append("assessment requires a non-empty support_locator")
+    if not rec.get("support_summary"):
+        f.append("assessment requires a non-empty support_summary")
+    if not (isinstance(rec.get("origin_chain"), list) and rec.get("origin_chain")):
+        f.append("assessment requires a non-empty origin_chain")
+    if not rec.get("independence_group"):
+        f.append("assessment requires an independence_group")
+    ts = rec.get("temporal_scope")
+    if not (isinstance(ts, dict) and ts.get("kind") in TEMPORAL_SCOPE_KIND):
+        f.append("assessment requires a temporal_scope with a valid kind")
+    sr = rec.get("semantic_review")
+    if not isinstance(sr, dict):
+        f.append("assessment requires a semantic_review block")
+    else:
+        status = sr.get("status")
+        if status not in SEMANTIC_REVIEW_STATUS:
+            f.append(f"semantic_review.status {status!r} invalid")
+        if status == "CHECKED":
+            for h in ("claim_content_hash", "artifact_hash", "relationship_input_hash"):
+                if not sr.get(h):
+                    f.append(f"CHECKED semantic_review requires {h}")
+            for m in ("reviewer", "reviewed_at"):
+                if not sr.get(m):
+                    f.append(f"CHECKED semantic_review requires {m}")
+    return sorted(f)
+
+
+CLAIM_EVIDENCE_SCHEMA = {
+    "prefix": "cea-",
+    "required": {"id", "claim_id", "artifact_id", "support_locator", "support_summary",
+                 "stance", "information_credibility", "temporal_scope", "origin_chain",
+                 "independence_group", "semantic_review", "supersedes"},
+    "optional": {"primary_evidence_kind"},
+    "enums": {"stance": STANCE, "information_credibility": INFO_CREDIBILITY,
+              "primary_evidence_kind": PRIMARY_EVIDENCE_KIND},
+    "types": {"id": "id", "claim_id": "ref:clm-", "artifact_id": "ref:evd-",
+              "supersedes": "ref:cea-"},
+    "extra": _cea_extra,
+}
+
 COLLECTIONS = {
     "sources": SOURCE_SCHEMA,
     "groups": GROUP_SCHEMA,
     "source_assessments": SOURCE_ASSESSMENT_SCHEMA,
     "claims": CLAIM_SCHEMA,
+    "evidence": EVIDENCE_SCHEMA,
+    "claim_evidence_assessments": CLAIM_EVIDENCE_SCHEMA,
 }

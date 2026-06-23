@@ -87,6 +87,7 @@ def load_yaml_strict(path: Path):
 # ----------------------------- primitives -----------------------------
 _DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 _DATETIME_RE = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$")
+_HASH_RE = re.compile(r"^sha256:[0-9a-f]{64}$")
 
 
 def is_iso_datetime(s) -> bool:
@@ -132,9 +133,19 @@ def validate_record(rec: dict, spec: dict) -> list[str]:
         elif typ == "boolean":
             if not isinstance(v, bool):
                 findings.append(f"field {field!r}: expected boolean, got {type(v).__name__}")
+        elif typ == "hash":
+            if not (isinstance(v, str) and _HASH_RE.match(v)):
+                findings.append(f"field {field!r}: invalid hash {v!r} (need sha256:<64 hex>)")
     for field, allowed_vals in sorted(spec.get("enums", {}).items()):
-        if field in rec and rec[field] not in allowed_vals:
-            findings.append(f"field {field!r}: {rec[field]!r} not in enum {sorted(allowed_vals, key=str)}")
+        if field not in rec:
+            continue
+        val = rec[field]
+        bad = val not in allowed_vals
+        # a bool can't satisfy a non-bool enum (Python True==1 / False==0 would falsely match)
+        if isinstance(val, bool) and not any(isinstance(a, bool) for a in allowed_vals):
+            bad = True
+        if bad:
+            findings.append(f"field {field!r}: {val!r} not in enum {sorted(allowed_vals, key=str)}")
     if "extra" in spec and isinstance(rec, dict):
         findings += spec["extra"](rec)  # variant-specific / cross-field rules
     return sorted(findings)

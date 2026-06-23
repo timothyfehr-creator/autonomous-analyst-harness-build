@@ -1,0 +1,27 @@
+schema_version: "2.0"
+evidence:
+  - id: evd-owner-record
+    source_id: src-reuters
+    artifact_type: REPORT
+    title: Example regional transport infrastructure
+    canonical_locator: https://reference.example.invalid/reports/infrastructure
+    snapshot_ref: snapshots/evd-owner-record.pdf
+    content_hash: sha256:0000000000000000000000000000000000000000000000000000000000000000
+    published_at: "2025-09-01T00:00:00Z"
+    occurred_at: null
+    retrieved_at: "2026-06-22T08:20:00Z"
+    language: en
+claim_evidence_assessments:
+  - id: cea-report-to-claim
+    claim_id: clm-fact-1
+    artifact_id: evd-owner-record
+    support_locator: {kind: PAGE_AND_QUOTE, page: 14, quote: The crossing carries both modes.}
+    support_summary: The report confirms both transport modes.
+    stance: SUPPORTS
+    information_credibility: 2
+    temporal_scope: {kind: TIMELESS, start: null, end: null}
+    origin_chain:
+      - {source_id: src-reuters, artifact_id: evd-owner-record}
+    independence_group: ind-reuters-report
+    semantic_review: {status: UNCHECKED, reviewer: null, reviewed_at: null, claim_content_hash: null, artifact_hash: null, relationship_input_hash: null}
+    supersedes: null
