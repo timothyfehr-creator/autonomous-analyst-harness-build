@@ -324,6 +324,13 @@ def answer_check(root: Path, analysis_id, as_of):
     ana = live.analyses.get(analysis_id)
     if ana is None:
         return 2, lines + [f"  [answer] analysis {analysis_id!r} not found — fail closed."]
+    # A committed answer must COMMIT to at least one claim. Empty claim_markers is a degenerate
+    # "answer that cites nothing" — it would make the refuter's set-equality vacuously satisfied and
+    # switch off the independence floor (Milestone-A P0 review). Reject it.
+    if not (isinstance(ana.get("claim_markers"), dict) and ana["claim_markers"]):
+        code = max(code, 1)
+        lines.append("  [answer] a committed answer must cite at least one claim — claim_markers is "
+                     "empty (a refuter would then review nothing). Mark the load-bearing claims.")
     oc, of = v_out.validate_output(ana, live, root, block_unmarked=True)
     lines += [f"  [output] {x}" for x in of]
     if oc == 2:

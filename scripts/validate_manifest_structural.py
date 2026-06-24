@@ -52,7 +52,17 @@ def validate_manifest_structural(analysis: dict, live: al.Live):
                            "content_hash", live.artifact_ref_hash, "artifact")
     f += al.check_ref_list(analysis.get("visual_refs"), live.visuals,
                            "record_hash", live.visual_ref_hash, "visual")
-    # 3. manifest self-hash consistency (tamper-evident over the whole manifest record)
+    # 3. every claim the answer LEANS ON via a cited observation must itself be a marked claim — else
+    # a load-bearing claim feeds the answer (and triggers the §10 high_impact "feeds a manifest" leg)
+    # without being covered/contested by the refuter (Milestone-A P0 review: the feeding-leg seam).
+    marked = {mv.get("claim_id") for mv in markers.values() if isinstance(mv, dict)}
+    for ref in analysis.get("observation_refs") or []:
+        obs = live.observations.get(ref.get("id")) if isinstance(ref, dict) else None
+        if isinstance(obs, dict) and obs.get("claim_id") not in marked:
+            f.append(f"observation {ref.get('id')!r} backs claim {obs.get('claim_id')!r}, which is "
+                     f"not a marked claim — a claim the answer leans on must be cited + marked "
+                     f"(so the refuter covers + contests it)")
+    # 4. manifest self-hash consistency (tamper-evident over the whole manifest record)
     if analysis.get("manifest_hash") != vs.record_hash(analysis, exclude=("manifest_hash",)):
         f.append("manifest_hash is self-inconsistent (record_hash(analysis, exclude=manifest_hash) differs)")
     return (1 if f else 0), sorted(f)

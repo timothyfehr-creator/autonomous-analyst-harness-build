@@ -162,6 +162,17 @@ def test_survives_verdict_cannot_carry_failed_check():
     assert vr.validate_refuter(ok, ana, _live(), TRIG) == (0, [])
 
 
+def test_required_refuter_class_enforced():
+    # Milestone-A P0 review: the manifest's declared required_refuter_class was decorative. A
+    # DIFFERENT_MODEL refuter satisfies HUMAN_OR_DIFFERENT_MODEL; SAME_MODEL does not.
+    ana = {**_ana(["clm-n"], ["cea-1"]), "required_refuter_class": "HUMAN_OR_DIFFERENT_MODEL"}
+    ref = _ref(["clm-n"], ["cea-1"], reviewer_class="SAME_MODEL_FRESH_CONTEXT")
+    code, f = vr.validate_refuter(ref, ana, _live(), TRIG)
+    assert code == 1 and any("does not satisfy the manifest's required_refuter_class" in x for x in f)
+    assert vr.validate_refuter(_ref(["clm-n"], ["cea-1"], reviewer_class="DIFFERENT_MODEL"),
+                               ana, _live(), TRIG) == (0, [])
+
+
 def test_skeleton_refuter_passes_integration():
     claim = vs.load_yaml_strict(SK / "skeleton_claims.yaml")["claims"][0]
     obs = vs.load_yaml_strict(SK / "skeleton_observations.yaml")["observations"][0]

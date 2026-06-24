@@ -69,6 +69,12 @@ def validate_refuter(refuter: dict, analysis: dict, live: al.Live, triggers=None
     if manifest_claims and refuter.get("reviewer_class") == "SAME_MODEL_FRESH_CONTEXT":
         f.append("reviewer_class SAME_MODEL_FRESH_CONTEXT is not independent (§10): a committed "
                  "answer's claims feed the manifest and require HUMAN / DIFFERENT_MODEL / MIXED")
+    # ...and the manifest's OWN declared bar must actually be met (it was decorative before — the
+    # Milestone-A P0 review found required_refuter_class was never enforced).
+    if analysis.get("required_refuter_class") == "HUMAN_OR_DIFFERENT_MODEL" \
+            and refuter.get("reviewer_class") not in INDEPENDENT:
+        f.append(f"reviewer_class {refuter.get('reviewer_class')!r} does not satisfy the manifest's "
+                 f"required_refuter_class HUMAN_OR_DIFFERENT_MODEL (needs HUMAN/DIFFERENT_MODEL/MIXED)")
 
     verdicts = {vd.get("claim_id"): vd for vd in (refuter.get("verdicts") or []) if isinstance(vd, dict)}
     # claims that carry an observation cited in the manifest (so observation_check is applicable)

@@ -126,6 +126,17 @@ def test_answer_input_lifecycle_helper():
     assert verify._answer_input_lifecycle(ana, _live([REVIEWED]))[0] == 0
 
 
+def test_answer_empty_markers_rejected(tmp_path):
+    # Milestone-A P0 review master seam: a committed answer with empty claim_markers would let a
+    # SAME_MODEL refuter review nothing. The guard must reject it (no more exit 0).
+    import re
+    fb = _stage(tmp_path)
+    t = re.sub(r"claim_markers:\n(      .*\n)+", "claim_markers: {}\n", (fb / "analyses.yaml").read_text())
+    (fb / "analyses.yaml").write_text(t)
+    code, lines = _answer(tmp_path)
+    assert code != 0 and any("must cite at least one claim" in ln for ln in lines), "\n".join(lines)
+
+
 def test_cli_answer_on_staged_root(tmp_path):
     _stage(tmp_path)
     assert verify.main(["--mode", "answer", "--root", str(tmp_path),

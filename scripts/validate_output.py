@@ -32,11 +32,14 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import validate_schema as vs  # noqa: E402
 
 MARKER_RE = re.compile(r"\[\[([A-Za-z0-9_-]+)(?:\|([A-Z][A-Z_,]*))?\]\]")
-# Lines that are genuinely NOT the author's bare assertion (headings = labels; code = literal;
-# blockquote = attributed quotation; tables = data that must come from observations; blank).
-_ALWAYS_SKIP = re.compile(r"^\s*(#{1,6}\s|>|\||```|$)")
-# List bullets CAN carry a load-bearing claim — strip the bullet and scan the claim inside it.
-_LIST_PREFIX = re.compile(r"^\s*([-*+]\s+|\d+\.\s+)")
+# Genuinely non-assertive line shapes: code fences (literal), table rows (data that must come from
+# observations), blank. Tables remain a DISCLOSED residual (a prose claim smuggled into a table cell
+# is not scanned; data belongs in observations and the manifest-coverage backstop still applies).
+_ALWAYS_SKIP = re.compile(r"^\s*(\||```|$)")
+# Prefixes that can still FRONT a load-bearing claim — strip and scan the claim inside: list bullets,
+# headings (a heading can assert: "## Russia lost 60000 troops"), and blockquotes (Milestone-A P0
+# review showed headings/blockquotes were smuggling unmarked assertions through the old skip-list).
+_LIST_PREFIX = re.compile(r"^\s*([-*+]\s+|\d+\.\s+|#{1,6}\s+|>\s*)")
 # Sentence split: after a terminator + whitespace. Grain is sentence-level (not line-level) so an
 # unmarked claim co-located with an unrelated marked claim on one line is still caught (A7).
 _SENT_SPLIT = re.compile(r"(?<=[.!?])\s+")

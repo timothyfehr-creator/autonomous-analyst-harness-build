@@ -122,6 +122,24 @@ def test_draft_malformed_manifest_does_not_crash(tmp_path):
     assert code in (1, 2)  # a finding or fail-closed — but NOT a crash
 
 
+def test_manifest_observation_backing_must_be_marked():
+    # Milestone-A P0 review (feeding-leg seam): an observation_ref whose underlying claim is not a
+    # marked claim must fail — a claim the answer leans on must be cited + marked so the refuter
+    # covers + contests it.
+    import types
+    import validate_manifest_structural as vms
+    ana = {"claim_markers": {"c1": {"claim_id": "clm-marked", "claim_hash": "h"}},
+           "claim_evidence_assessment_refs": [], "observation_refs": [{"id": "obs-1", "record_hash": "h"}],
+           "prediction_refs": [], "artifact_refs": [], "visual_refs": [], "manifest_hash": "h"}
+    live = types.SimpleNamespace(
+        claims={"clm-marked": {"id": "clm-marked"}}, cea={}, predictions={}, evidence={}, visuals={},
+        observations={"obs-1": {"id": "obs-1", "claim_id": "clm-UNMARKED"}},
+        claim_marker_hash=lambda c: "h", record_ref_hash=lambda r: "h",
+        artifact_ref_hash=lambda e: "h", visual_ref_hash=lambda v: "h")
+    code, f = vms.validate_manifest_structural(ana, live)
+    assert any("not a marked claim" in x and "obs-1" in x for x in f), f
+
+
 def test_cli_draft_on_staged_root(tmp_path):
     _stage(tmp_path)
     assert verify.main(["--mode", "draft", "--root", str(tmp_path),

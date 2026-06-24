@@ -149,6 +149,16 @@ def test_schema_rejects_traversing_output_path(tmp_path):
     assert code == 1 and any("output_path" in f and "traversal" in f for f in findings), findings
 
 
+def test_heading_and_blockquote_assertions_are_scanned(tmp_path):
+    # Milestone-A P0 review: a load-bearing assertion smuggled into a heading or blockquote was
+    # skipped by the old skip-list. It must now be scanned (BLOCKS in answer mode).
+    for prose in ("## Russia lost sixty thousand troops in May\nRoad open. [[c1]]\n",
+                  "> Russia lost sixty thousand troops in May.\nRoad open. [[c1]]\n"):
+        ana = _ana(tmp_path, prose, {"c1": {"claim_id": CID, "claim_hash": "x"}})
+        code, findings = vo.validate_output(ana, _live(), tmp_path, block_unmarked=True)
+        assert code == 1, (prose, findings)
+
+
 def test_skeleton_output_is_clean(tmp_path):
     # the real skeleton answer: stage its output + manifest, expect 0 with no warns
     import shutil
