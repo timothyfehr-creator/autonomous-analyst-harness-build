@@ -142,6 +142,16 @@ assessed `A`–`C` in scope**. Source type alone confers nothing. *(This is the 
 old exploit: a single low-reliability official statement can never reach CORROBORATED, but
 it CAN serve as a primary record of its own first-party action.)*
 
+**Independence is counted by connected component (ratified 2026-06-24).** "≥2 independence
+groups" is computed over the WHOLE provenance, not just `origin_chain[0]`: two assessments are
+ONE origin if their `origin_chain`s share **any** `source_id` (a relay/echo of one origin —
+wherever the shared source sits in the chain) **or** they declare the same `independence_group`
+(§3). The gate counts connected components under those edges; an assessment with no anchorable
+origin (no non-null chain source) is not an origin. So two outlets repeating one wire — even with
+distinct `origin_chain[0]` and distinct declared groups — collapse to one origin and cannot
+corroborate. The conflict gate (§6.4) uses the same component rule: opposing stances that trace
+to one origin are not a real contest.
+
 **§6.1a Authoritative-primary is a closed kind (V-P1-4).** "Authoritative primary evidence" is
 not free-text: a chain claimed as primary declares a `primary_evidence_kind ∈
 {FIRST_PARTY_ACTION_RECORD, AUTHORITATIVE_DATASET, DIRECT_SENSOR_CAPTURE,
@@ -240,6 +250,19 @@ mismatch fails. The refuter carries a `high_impact` field and **must contest** a
 `high_impact: false` on any claim meeting these conditions — closing the circularity where the
 strongest control (the §10 reviewer + refuter) could be switched off by the very field that
 triggers it. This is a `gate-computed high_impact` rule.
+
+**Enforcement specifics (ratified 2026-06-24, code-locked since Phase 3).** The refuter record
+carries a per-verdict `high_impact` boolean; for a claim the gate computes high-impact while it is
+stored not-true, the verdict must set it `true` and actually run the independence check (the
+contest). A `SURVIVES` verdict may not carry a `FAIL`ed check. The manifest's declared
+`required_refuter_class` is enforced against the refuter's `reviewer_class` (it was previously
+decorative). Set-equality coverage means every cited claim is *adjudicated* (has a verdict), not
+merely listed. **A committed answer must cite ≥1 claim** (a refuter cannot vacuously review an
+empty set), and **every claim the answer leans on — including a claim that backs a cited
+observation — must be a marked claim**, so the "feeds a manifest" high-impact leg cannot smuggle an
+unreviewed claim past the contest. `output_hash` binds the exact reviewed bytes; an unmarked
+load-bearing assertion blocks a committed answer (the escape is a hash-pinned, refuter-reviewed
+`narrative_exemptions` entry).
 
 ## §11 — Forecast integrity and calibration
 

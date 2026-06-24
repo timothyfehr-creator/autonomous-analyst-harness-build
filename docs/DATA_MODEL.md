@@ -43,6 +43,20 @@ Canonical hashes are calculated from normalized UTF-8 JSON with sorted keys and 
 fields explicitly identified as mutable state or computed output. The implementation must
 publish the exact canonicalization rules before any hash is relied upon.
 
+> **Hash conventions (§4, ratified 2026-06-24; code-locked by frozen tests since Phase 3).**
+> - **Claim-CONTENT hash** (what a manifest marker / semantic-review binds): `record_hash(claim)`
+>   with `CLAIM_CONTENT_EXCLUDE` removed, so re-review / refresh / supersession does NOT break a
+>   prior binding. The excluded set is exactly: `lifecycle`, `support_status`, `dispute_status`,
+>   `freshness_status`, `created_at`, `supersedes`, `review_by`, `expires_at`, `freshness_profile`.
+>   Everything else stays IN — including `high_impact` (a false→true flip *should* break a binding
+>   and force re-review, §10) and `temporal`.
+> - **Record self-hashes** (`pack_hash`, `manifest_hash`, `spec_hash`): `record_hash(record)` with
+>   the self-hash field itself excluded.
+> - **Output-text hash** (`output_hash`, the analysis/refuter binding to the answer prose): the
+>   sha256 of the RAW UTF-8 file bytes, **with NO canonicalization** — answer prose is not a record,
+>   and canonicalizing it would normalize away author-meaningful formatting. This is the one
+>   deliberate exception to the normalized-JSON rule above.
+
 > **Phase-1 gate fixes (applied 2026-06-22, per the updated Constitution).** The schemas below
 > gain these fields when their Phase-1 WP builds them — the binding rule lives in the
 > Constitution; this records the field shapes:
@@ -467,6 +481,15 @@ context_packs:
 
 Contested evidence is retained rather than collapsed. Omitted candidates and reasons are
 recorded so token limits do not masquerade as consensus.
+
+> **Context-pack schema (`ctx-`, ratified 2026-06-24; code-locked since Phase 3 / WP3.0).** A
+> closed record: `claim_refs`/`assessment_refs`/`observation_refs` bind `record_hash`,
+> `artifact_refs` bind the evidence `content_hash`, and `pack_hash = record_hash(pack,
+> exclude=pack_hash)`. Each `omitted_candidates` entry is `{id, reason}` with `reason` from the
+> **closed enum** `{STALE, SUPERSEDED, TOKEN_BUDGET, REDUNDANT, CONTESTED, OUT_OF_SCOPE}` — a free-
+> text reason cannot launder a dropped current claim as "stale." `token_budget` must be a positive
+> integer. (Draft/answer additionally recompute a `STALE` omission against the live freshness
+> clock — a false-STALE omission of a current claim fails; full topic-completeness is Phase 4.)
 
 ## 9. Analysis manifest
 

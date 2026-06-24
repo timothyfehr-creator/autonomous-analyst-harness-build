@@ -30,15 +30,18 @@ passes `--mode answer`; every structurally-expressible prior exploit fails its p
 A fresh-context **Milestone-A P0 review** (same-platform, NOT cross-vendor — `docs/REVIEW_MILESTONE_A.md`)
 found composing seams; the Phase-3 answer-loop ones were fixed-forward + regression-tested (empty-
 markers degenerate answer; unenforced `required_refuter_class`; the observation feeding-leg; the A7
-heading/blockquote skip-list). **Surfaced for owner decision (NOT changed autonomously):** (1)
-corroboration collapses independence on `origin_chain[0]` only and never reads `independence_group`
-/ the deeper chain (a Phase-2 oracle change to `validate_support` + `validate_conflict`); (2)
-`high_impact` topic matching is exact-token over a free-text `topics` list (synonyms escape — widen
-`config/high_impact_triggers.yaml` or constrain `topics`). **Pending owner ratification (code-locked
-by golden tests, not yet anchored in the governing docs):** `CLAIM_CONTENT_EXCLUDE` membership +
-the `output_hash` raw-bytes rule (DATA_MODEL §4/§9); the context-pack schema (DATA_MODEL §8); the
-refuter per-verdict `high_impact` field + the manifest-feeding leg (CONSTITUTION §10). **NEXT:**
-Phase 4 (baseline memory) is demand-gated; the recommended cross-vendor P0 pass remains open.
+heading/blockquote skip-list). **Owner follow-through SHIPPED 2026-06-24:** (1) corroboration +
+conflict independence rewritten to connected components (shared `origin_chain` source OR
+`independence_group`) — the wire-echo + buried-first-party exploits are now pinned standing
+invariants; (2) `high_impact` triggers widened with a synonym set (`losses`/`deaths`/… → casualties;
+`territory` → territorial-control) in `config/high_impact_triggers.yaml`. **Ratified into the
+governing docs 2026-06-24 (was code-locked):** `CLAIM_CONTENT_EXCLUDE` membership + the `output_hash`
+raw-bytes rule (DATA_MODEL §4); the context-pack schema + closed `omitted_candidates.reason` enum
+(DATA_MODEL §8); the refuter per-verdict `high_impact` field + `required_refuter_class` enforcement +
+the empty-markers / observation-backing answer-loop rules + the independence-by-components rule
+(CONSTITUTION §6.1/§10). The 5 preflight anchor tokens are intact (preflight exits 0). **NEXT:**
+Phase 4 (baseline memory) is demand-gated; an independent **cross-vendor** P0 review remains open —
+a bundle (`docs/REVIEW_CROSSVENDOR.md` + a zip) is prepared for the owner to run externally.
 
 v3 merges two v2 designs (see `MERGE_NOTES.md`): it keeps the rigorous evidence-chain /
 multi-axis data model and adds the **three-tier rigor model** (Constitution §1) so the
