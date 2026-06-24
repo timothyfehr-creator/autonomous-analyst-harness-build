@@ -6,8 +6,27 @@ schema_version: "2.0"
 # "territorial-control" while the binding adjudication row (REVIEW_ADJUDICATION.md V-P0-1) says
 # "control" — BOTH must trigger, so both are listed. Adding/removing a token is an oracle-data
 # change (reviewed separately, §13) — it is intentionally config, not a code constant.
+# SYNONYM EXPANSION (2026-06-24): matching is exact-token, so a casualties claim tagged `losses`
+# or `deaths` previously escaped (Milestone-A review). This is a CONSERVATIVE STARTER set the owner
+# should tune — add domain synonyms you actually use; remove any that over-trigger. (A controlled
+# `topics` vocabulary was considered and deferred; the owner chose to widen the trigger set.)
 high_impact_triggers:
+  # --- casualties + its synonyms ---
   - {token: casualties,          alias_of: null}
+  - {token: casualty,            alias_of: casualties}
+  - {token: losses,              alias_of: casualties}
+  - {token: deaths,              alias_of: casualties}
+  - {token: fatalities,          alias_of: casualties}
+  - {token: killed,              alias_of: casualties}
+  - {token: wounded,             alias_of: casualties}
+  - {token: kia,                 alias_of: casualties}
+  # --- attribution + its synonyms ---
   - {token: attribution,         alias_of: null}
+  - {token: responsibility,      alias_of: attribution}
+  # --- territorial-control + its synonyms (note: "territorial" alone did NOT match the hyphenated
+  #     canonical token, a real gap the review surfaced) ---
   - {token: territorial-control, alias_of: null}
   - {token: control,             alias_of: territorial-control}
+  - {token: territory,           alias_of: territorial-control}
+  # NB: bare `territorial` is deliberately NOT a token — too broad, and a real territorial-control
+  # claim should use `control` / `territorial-control` / `territory` (all trigger).

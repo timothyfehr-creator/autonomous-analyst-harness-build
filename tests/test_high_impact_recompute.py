@@ -32,6 +32,14 @@ def test_t1_alias_control_raises():
     assert any("'control'" in f for f in findings), findings
 
 
+def test_t1_synonym_losses_raises():
+    # Milestone-A review: a casualties claim tagged with the synonym 'losses' was escaping the
+    # exact-token match; the widened trigger set (2026-06-24) now catches it.
+    code, findings, _ = _run("hi_synonym_losses.yaml")
+    assert code == 1
+    assert any("'losses'" in f for f in findings), findings
+
+
 def test_t2_prediction_leg_raises():
     code, findings, _ = _run("hi_t2_prediction_false.yaml")
     assert code == 1
