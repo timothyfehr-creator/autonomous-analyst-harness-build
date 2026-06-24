@@ -57,6 +57,55 @@ def test_excluded_fields_do_not_affect_hash():
     assert vs.record_hash(a, ("support_status",)) == vs.record_hash(b, ("support_status",))
 
 
+# ---- WP3.0 R1 extension: the two Phase-3 hash conventions, hand-frozen ----
+# claim_content_hash = record_hash(claim, exclude=CLAIM_CONTENT_EXCLUDE). Frozen so the exclude set
+# AND the canonicalization both lock — any drift in either turns this red at the causing WP.
+_CONTENT_CLAIM = {"id": "clm-x", "text": "t", "epistemic_type": "FACT", "topics": ["a"],
+                  "high_impact": False, "stability": "DURABLE", "support_status": "SUPPORTED",
+                  "lifecycle": "REVIEWED", "created_at": "2026-01-01T00:00:00Z"}
+
+
+def test_claim_content_hash_frozen_vector():
+    assert vs.claim_content_hash(_CONTENT_CLAIM) == \
+        "sha256:01dda7c886a732805066b80b1df5cee85fc2810493de7f32cb467e420f1d3216"
+
+
+def test_claim_content_hash_excludes_status_includes_content():
+    base = vs.claim_content_hash(_CONTENT_CLAIM)
+    # ALL 9 excluded fields must be no-ops (locks every member of CLAIM_CONTENT_EXCLUDE: dropping
+    # any one from the set would make a benign re-review/refresh/supersession spuriously break a
+    # marker, and would turn THIS red). Setting an excluded field that the base lacks must still
+    # equal base — proving it is stripped.
+    import schema_defs
+    excluded_vals = {"lifecycle": "SUPERSEDED", "support_status": "CORROBORATED",
+                     "dispute_status": "CONTESTED", "freshness_status": "STALE",
+                     "created_at": "2099-01-01T00:00:00Z", "supersedes": "clm-other",
+                     "review_by": "2099-01-01T00:00:00Z", "expires_at": "2099-01-01T00:00:00Z",
+                     "freshness_profile": "volatile-7d"}
+    assert set(excluded_vals) == set(schema_defs.CLAIM_CONTENT_EXCLUDE)  # keep this test exhaustive
+    for fld, val in excluded_vals.items():
+        assert vs.claim_content_hash({**_CONTENT_CLAIM, fld: val}) == base, fld
+    # mutating real content (incl. high_impact, deliberately IN) MUST change it
+    for fld, val in [("text", "different"), ("topics", ["b"]), ("high_impact", True),
+                     ("epistemic_type", "INFERENCE"), ("stability", "VOLATILE"),
+                     ("temporal", {"kind": "TIMELESS"})]:
+        assert vs.claim_content_hash({**_CONTENT_CLAIM, fld: val}) != base, fld
+
+
+def test_output_hash_is_raw_bytes_not_canonicalized(tmp_path):
+    # output_hash = sha256(raw UTF-8 bytes), NO canonicalization — frozen vector
+    p = tmp_path / "ans.md"
+    p.write_text("committed answer.\n", encoding="utf-8")
+    assert vs.file_content_hash(p) == \
+        "sha256:b15dcb13a569352c3c995858948cefddc0958efae9c5189d3c7378ee0e198ffb"
+    # NFD and NFC of the same string hash DIFFERENTLY (proves no NFC normalization, unlike record_hash)
+    import unicodedata
+    nfc = tmp_path / "nfc.md"; nfc.write_bytes(unicodedata.normalize("NFC", "café").encode("utf-8"))
+    nfd = tmp_path / "nfd.md"; nfd.write_bytes(unicodedata.normalize("NFD", "café").encode("utf-8"))
+    assert vs.file_content_hash(nfc) != vs.file_content_hash(nfd)
+    assert vs.record_hash("café") == vs.record_hash(unicodedata.normalize("NFD", "café"))  # record_hash DOES normalize
+
+
 # ---------------- envelope validation ----------------
 def test_envelope_valid_exit0():
     assert vs.main([str(FIX / "envelope_valid.yaml")]) == 0

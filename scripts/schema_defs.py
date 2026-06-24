@@ -203,6 +203,20 @@ CLAIM_SCHEMA = {
     "extra": _claim_extra,
 }
 
+# ---- claim-CONTENT hash exclusion set (WP3.0, DATA_MODEL §4) ----
+# A marker / semantic-review binds the claim's CONTENT hash, not its full record hash, so that
+# re-reviewing or superseding a claim (which mutates these fields) does NOT silently break every
+# prior answer that cited it. Everything a review / refresh / supersession touches is EXCLUDED;
+# the semantic content (text, epistemic_type, topics, high_impact, stability, temporal,
+# premise/reasoning/rationale/projection legs, id) stays IN. `high_impact` is deliberately IN: a
+# false→true flip SHOULD break a binding and force re-review (§10). claim_content_hash =
+# validate_schema.record_hash(claim, exclude=CLAIM_CONTENT_EXCLUDE). ASSUMED — surfaced for owner
+# ratification (DATA_MODEL §4); locked for the run by a frozen test.
+CLAIM_CONTENT_EXCLUDE = frozenset({
+    "lifecycle", "support_status", "dispute_status", "freshness_status",
+    "created_at", "supersedes", "review_by", "expires_at", "freshness_profile",
+})
+
 # ---- evidence + claim-evidence assessment (WP1.4): + primary_evidence_kind (V-P1-4 shape) ----
 ARTIFACT_TYPES = {"ARTICLE", "OFFICIAL_STATEMENT", "REPORT", "DATASET", "POST", "IMAGE",
                   "VIDEO", "AUDIO", "MAP", "DOCUMENT", "OTHER"}
@@ -528,6 +542,17 @@ def _analysis_extra(rec):
     f += _check_ref_list(rec.get("observation_refs"), "obs-", "record_hash", "observation_refs")
     f += _check_ref_list(rec.get("prediction_refs"), "prd-", "record_hash", "prediction_refs")
     f += _check_ref_list(rec.get("visual_refs"), "vis-", "record_hash", "visual_refs")
+    # WP3.0: optional hash-pinned allowlist of sentences declared non-load-bearing (the A7
+    # answer-mode escape, WP3.2/3.4). Each entry is a sha256 of a normalized sentence; the refuter
+    # must echo the exact set (`exemptions_reviewed`), so clearing one costs a review.
+    exempt = rec.get("narrative_exemptions")
+    if exempt is not None:
+        if not isinstance(exempt, list):
+            f.append("narrative_exemptions must be a list of sha256 sentence hashes")
+        else:
+            for i, h in enumerate(exempt):
+                if not (isinstance(h, str) and _HASH_RE.match(h)):
+                    f.append(f"narrative_exemptions[{i}] must be sha256:<64 hex>")
     return sorted(f)
 
 
@@ -537,7 +562,7 @@ ANALYSIS_SCHEMA = {
                  "output_path", "output_hash", "claim_markers", "claim_evidence_assessment_refs",
                  "artifact_refs", "observation_refs", "prediction_refs", "visual_refs",
                  "required_refuter_class", "manifest_hash"},
-    "optional": set(),
+    "optional": {"narrative_exemptions"},
     "enums": {"lifecycle": ANALYSIS_LIFECYCLE, "required_refuter_class": REQUIRED_REFUTER_CLASS},
     "types": {"id": "id", "context_pack_id": "ref:ctx-", "context_pack_hash": "hash",
               "output_hash": "hash", "manifest_hash": "hash"},
@@ -566,6 +591,24 @@ def _refuter_extra(rec):
                        "observation_check", "reasoning_check"):
                 if vd.get(ck) not in CHECK_RESULT:
                     f.append(f"verdicts[{i}].{ck} must be PASS/FAIL/NOT_APPLICABLE")
+            # WP3.0: optional per-verdict high_impact contest field (V-P0-1 refuter half, §10). If
+            # present it must be a real boolean — the WP3.3 gate requires it true when the gate
+            # computes the claim high-impact and the stored value is not true.
+            if "high_impact" in vd and not isinstance(vd.get("high_impact"), bool):
+                f.append(f"verdicts[{i}].high_impact must be a boolean if present")
+            unexpected = set(vd) - {"claim_id", "verdict", "displacement_check", "independence_check",
+                                    "freshness_check", "observation_check", "reasoning_check",
+                                    "high_impact", "notes"}
+            if unexpected:
+                f.append(f"verdicts[{i}] has unexpected keys {sorted(unexpected)}")
+    exr = rec.get("exemptions_reviewed")
+    if exr is not None:
+        if not isinstance(exr, list):
+            f.append("exemptions_reviewed must be a list of sha256 sentence hashes")
+        else:
+            for i, h in enumerate(exr):
+                if not (isinstance(h, str) and _HASH_RE.match(h)):
+                    f.append(f"exemptions_reviewed[{i}] must be sha256:<64 hex>")
     return sorted(f)
 
 
@@ -574,7 +617,7 @@ REFUTER_SCHEMA = {
     "required": {"id", "analysis_id", "manifest_hash", "output_hash", "reviewer_class", "reviewer",
                  "reviewed_at", "reviewed_claim_ids", "reviewed_assessment_ids", "verdicts",
                  "alternative_hypotheses", "disconfirming_searches", "unresolved_gaps"},
-    "optional": set(),
+    "optional": {"exemptions_reviewed"},
     "enums": {"reviewer_class": REVIEWER_CLASS},
     "types": {"id": "id", "analysis_id": "ref:ana-", "manifest_hash": "hash", "output_hash": "hash",
               "reviewed_at": "datetime"},
@@ -615,6 +658,53 @@ VISUAL_SCHEMA = {
     "extra": _visual_extra,
 }
 
+# ---- context pack (WP3.0; DATA_MODEL §8 + EXAMPLE_WORKFLOW §9) ----
+# A deterministic snapshot of the records selected to answer a question, hash-pinned. Closed
+# `omitted_candidates.reason` enum so "token limits cannot masquerade as consensus" (§8): a dropped
+# claim must say WHY in an auditable vocabulary, not free text.
+OMITTED_REASON = {"STALE", "SUPERSEDED", "TOKEN_BUDGET", "REDUNDANT", "CONTESTED", "OUT_OF_SCOPE"}
+
+
+def _context_pack_extra(rec):
+    f = []
+    if not isinstance(rec.get("topics"), list):
+        f.append("topics must be a list")
+    for fld in ("query", "generator_version", "selection_policy"):
+        if not isinstance(rec.get(fld), str) or not rec.get(fld):
+            f.append(f"{fld} must be a non-empty string")
+    f += _check_ref_list(rec.get("claim_refs"), "clm-", "record_hash", "claim_refs")
+    f += _check_ref_list(rec.get("assessment_refs"), "cea-", "record_hash", "assessment_refs")
+    f += _check_ref_list(rec.get("artifact_refs"), "evd-", "content_hash", "artifact_refs")
+    f += _check_ref_list(rec.get("observation_refs"), "obs-", "record_hash", "observation_refs")
+    if rec.get("prediction_refs") is not None:
+        f += _check_ref_list(rec.get("prediction_refs"), "prd-", "record_hash", "prediction_refs")
+    omitted = rec.get("omitted_candidates")
+    if not isinstance(omitted, list):
+        f.append("omitted_candidates must be a list")
+    else:
+        for i, e in enumerate(omitted):
+            if not isinstance(e, dict):
+                f.append(f"omitted_candidates[{i}] must be a mapping with id + reason"); continue
+            if not isinstance(e.get("id"), str) or not e.get("id"):
+                f.append(f"omitted_candidates[{i}].id must be a non-empty string")
+            if e.get("reason") not in OMITTED_REASON:
+                f.append(f"omitted_candidates[{i}].reason {e.get('reason')!r} not in {sorted(OMITTED_REASON)}")
+            if set(e) - {"id", "reason"}:
+                f.append(f"omitted_candidates[{i}] has unexpected keys {sorted(set(e) - {'id', 'reason'})}")
+    return sorted(f)
+
+
+CONTEXT_PACK_SCHEMA = {
+    "prefix": "ctx-",
+    "required": {"id", "query", "topics", "generated_at", "generator_version", "selection_policy",
+                 "token_budget", "claim_refs", "assessment_refs", "artifact_refs",
+                 "observation_refs", "omitted_candidates", "pack_hash"},
+    "optional": {"prediction_refs"},
+    "enums": {},
+    "types": {"id": "id", "generated_at": "datetime", "token_budget": "integer", "pack_hash": "hash"},
+    "extra": _context_pack_extra,
+}
+
 COLLECTIONS = {
     "sources": SOURCE_SCHEMA,
     "groups": GROUP_SCHEMA,
@@ -626,6 +716,7 @@ COLLECTIONS = {
     "observations": OBSERVATION_SCHEMA,
     "geography": GEOGRAPHY_SCHEMA,
     "unit_vocabulary": UNIT_VOCAB_ENTRY_SCHEMA,
+    "context_packs": CONTEXT_PACK_SCHEMA,
     "analyses": ANALYSIS_SCHEMA,
     "refuters": REFUTER_SCHEMA,
     "visuals": VISUAL_SCHEMA,

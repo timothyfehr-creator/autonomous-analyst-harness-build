@@ -16,7 +16,7 @@ claim_evidence_assessments:
       status: CHECKED
       reviewer: human:tim
       reviewed_at: "2026-06-22T11:30:00Z"
-      claim_content_hash: sha256:2b52b3667061d404eae1ea6bf7db479d8dc3921552fd48ae814a56becaefc7d5
+      claim_content_hash: sha256:2c40f9910cf4a8b58621d63ff5fd4052f43cff17ed910ee7d53172664e48b0d2
       artifact_hash: sha256:2ffe16a8d8601ce0f8efdfc316256e71ac6e0b67f4c04b47f6ad16a237e01e4b
       relationship_input_hash: sha256:30d6d636688c8545c60528d8dc4db115f529cadf27af0fb0ca444eb7d02a4d68
     supersedes: null

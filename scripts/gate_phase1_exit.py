@@ -39,6 +39,13 @@ FACTBASE_SEEDS = [
     "baseline_events.jsonl", "baseline/claims.yaml", "live/claims.yaml",
 ]
 
+# WP3.0 R1 extension — second independent copy of the claim-content-hash frozen vector (the higher-
+# risk Phase-3 convention: the exclude SET could silently drift). Mirrors tests/test_schema_core.py.
+_CONTENT_CLAIM = {"id": "clm-x", "text": "t", "epistemic_type": "FACT", "topics": ["a"],
+                  "high_impact": False, "stability": "DURABLE", "support_status": "SUPPORTED",
+                  "lifecycle": "REVIEWED", "created_at": "2026-01-01T00:00:00Z"}
+_CONTENT_FROZEN = "sha256:01dda7c886a732805066b80b1df5cee85fc2810493de7f32cb467e420f1d3216"
+
 
 def _check_golden() -> list[str]:
     bad = []
@@ -49,6 +56,8 @@ def _check_golden() -> list[str]:
         want_h = "sha256:" + hashlib.sha256(expected.encode("utf-8")).hexdigest()
         if vs.record_hash(obj, exclude) != want_h:
             bad.append(f"R1 record_hash drift for {obj!r}")
+    if vs.claim_content_hash(_CONTENT_CLAIM) != _CONTENT_FROZEN:
+        bad.append("R1 claim_content_hash drift (CLAIM_CONTENT_EXCLUDE or canonicalization changed)")
     return bad
 
 

@@ -4,21 +4,21 @@ analyses:
     lifecycle: ANSWER
     question: What transport modes use the Skeleton Crossing? (synthetic)
     context_pack_id: ctx-skeleton
-    context_pack_hash: sha256:4dfd51ac6d6ba986605082da4e3fba46e4c1075c55c9ef5f7b2adb8fcd57e6ae
+    context_pack_hash: sha256:aa9b41491b1e6316cf8c895eaba64fa2cadd34f4b30404deebbf0202d690e48c
     output_path: outputs/ana-skeleton.md
-    output_hash: sha256:751842b8ec06e5e06f717b3e2c976e59dd4c45abc42ca624f53667f47f5ffe8a
+    output_hash: sha256:e3cc9ab9dcdf2582da734974709e87b9baf97c8a02b360a50a64f0d1e67742cb
     claim_markers:
       c1:
         claim_id: clm-skeleton-crossing-modes
-        claim_hash: sha256:2b52b3667061d404eae1ea6bf7db479d8dc3921552fd48ae814a56becaefc7d5
+        claim_hash: sha256:2c40f9910cf4a8b58621d63ff5fd4052f43cff17ed910ee7d53172664e48b0d2
     claim_evidence_assessment_refs:
-      - {id: cea-skeleton-owner-to-modes, record_hash: sha256:d11babd7eaf222cd8451cd939522036a125967085b8a74b8d41788e1ce89cd78}
+      - {id: cea-skeleton-owner-to-modes, record_hash: sha256:dd1d7c501ef91d97e187b2f51c943f62a227c6bb7d75964f8996845f251d5d9c}
     artifact_refs:
       - {id: evd-skeleton-owner-record, content_hash: sha256:2ffe16a8d8601ce0f8efdfc316256e71ac6e0b67f4c04b47f6ad16a237e01e4b}
     observation_refs:
-      - {id: obs-skeleton-road, record_hash: sha256:3c5b925fac0aed5a1557ca91835790dd7893a23d0bfb40af7eed36ac431c08a8}
+      - {id: obs-skeleton-road, record_hash: sha256:fd80ae0af3e1c233dd50e0d47c683e224b280b99f1d569fda8f8254475487d00}
     prediction_refs: []
     visual_refs:
-      - {id: vis-skeleton-modes, record_hash: sha256:a5266b1c7ede14770efcd4b69822e1554ffffe5b60d4fe6e2c353a83f279ca85}
+      - {id: vis-skeleton-modes, record_hash: sha256:3dd7a15a120019501bf7b81c1a4d6e659277ca872a4042409a61e99b11419a6f}
     required_refuter_class: HUMAN_OR_DIFFERENT_MODEL
-    manifest_hash: sha256:799c7306c700ca7072d541dc5ebdbd3e22efa044f2c35f3bee36448e967a2e41
+    manifest_hash: sha256:ae9c6a7a0bff12294656550a477e4c57f035a5b28d4f74e31d439787b2dfb5ee

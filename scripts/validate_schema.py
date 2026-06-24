@@ -63,6 +63,21 @@ def record_hash(obj, exclude=()) -> str:
     return "sha256:" + hashlib.sha256(canonicalize(obj, exclude).encode("utf-8")).hexdigest()
 
 
+def claim_content_hash(claim) -> str:
+    """The claim-CONTENT hash a marker / semantic-review binds (WP3.0): record_hash over the claim
+    with the lifecycle/status/refresh fields excluded (schema_defs.CLAIM_CONTENT_EXCLUDE), so a
+    re-review or supersession does not silently break a prior answer binding (DATA_MODEL §4)."""
+    import schema_defs
+    return record_hash(claim, exclude=schema_defs.CLAIM_CONTENT_EXCLUDE)
+
+
+def file_content_hash(path: Path) -> str:
+    """The output-text hash an analysis/refuter binds (WP3.0): sha256 of the RAW UTF-8 file bytes,
+    NO canonicalization — answer prose is not a record; canonicalizing it would normalize away
+    author-meaningful formatting. Frozen by a golden test (R1)."""
+    return "sha256:" + hashlib.sha256(Path(path).read_bytes()).hexdigest()
+
+
 # ----------------------------- strict YAML load -----------------------------
 class DuplicateKey(yaml.YAMLError):
     pass

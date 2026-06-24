@@ -5,14 +5,14 @@ visuals:
     title: Transport modes using the Skeleton Crossing (synthetic)
     as_of: "2026-06-22"
     input_claim_refs:
-      - {id: clm-skeleton-crossing-modes, record_hash: sha256:2b52b3667061d404eae1ea6bf7db479d8dc3921552fd48ae814a56becaefc7d5}
+      - {id: clm-skeleton-crossing-modes, record_hash: sha256:739080ebd4d74d8ff5d8cf5869cfc80637c701abf1d20930c46986f5ec550915}
     input_claim_evidence_assessment_refs:
-      - {id: cea-skeleton-owner-to-modes, record_hash: sha256:d11babd7eaf222cd8451cd939522036a125967085b8a74b8d41788e1ce89cd78}
+      - {id: cea-skeleton-owner-to-modes, record_hash: sha256:dd1d7c501ef91d97e187b2f51c943f62a227c6bb7d75964f8996845f251d5d9c}
     input_observation_refs:
-      - {id: obs-skeleton-road, record_hash: sha256:3c5b925fac0aed5a1557ca91835790dd7893a23d0bfb40af7eed36ac431c08a8}
+      - {id: obs-skeleton-road, record_hash: sha256:fd80ae0af3e1c233dd50e0d47c683e224b280b99f1d569fda8f8254475487d00}
     input_prediction_refs: []
     input_geography_refs:
-      - {id: geo-skeleton-crossing, record_hash: sha256:0350e88e824821d1fbd6a6b54197779e7331e0b80dc7f12175e35c247ddfcc7c}
+      - {id: geo-skeleton-crossing, record_hash: sha256:53ed01dd73b4ae843eaf983511aa8f38873e24d34e751727841c380715464e9a}
     data_bindings: {road_node: obs-skeleton-road}
     transformation: identity
     filters: []
@@ -21,4 +21,4 @@ visuals:
     output_path: outputs/vis-skeleton-modes.svg
     renderer: graphviz
     renderer_version: planned
-    spec_hash: sha256:a5266b1c7ede14770efcd4b69822e1554ffffe5b60d4fe6e2c353a83f279ca85
+    spec_hash: sha256:3dd7a15a120019501bf7b81c1a4d6e659277ca872a4042409a61e99b11419a6f

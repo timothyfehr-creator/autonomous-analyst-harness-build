@@ -2,8 +2,8 @@ schema_version: "2.0"
 refuters:
   - id: ref-skeleton
     analysis_id: ana-skeleton
-    manifest_hash: sha256:799c7306c700ca7072d541dc5ebdbd3e22efa044f2c35f3bee36448e967a2e41
-    output_hash: sha256:751842b8ec06e5e06f717b3e2c976e59dd4c45abc42ca624f53667f47f5ffe8a
+    manifest_hash: sha256:ae9c6a7a0bff12294656550a477e4c57f035a5b28d4f74e31d439787b2dfb5ee
+    output_hash: sha256:e3cc9ab9dcdf2582da734974709e87b9baf97c8a02b360a50a64f0d1e67742cb
     reviewer_class: HUMAN
     reviewer: human:tim
     reviewed_at: "2026-06-22T13:30:00Z"
