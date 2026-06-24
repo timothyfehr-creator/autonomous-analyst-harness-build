@@ -18,7 +18,27 @@ after every work package.
 
 ## Current state
 
-**Phases 0–2 COMPLETE (2026-06-23) — 359 tests green; both machine phase-gates (`scripts/gate_phase1_exit.py`, `scripts/gate_phase2_exit.py`) exit 0. Governance READY (ACCEPTED_WITH_LIMITS). The Phase-1 preflight gate is CLEARED (see below). Phase 3 (`draft`/`answer` + refuter → Milestone A) is next.**
+**Phases 0–3 COMPLETE — MILESTONE A reached (2026-06-23). 426 tests green; all three machine
+phase-gates (`gate_phase1_exit`, `gate_phase2_exit`, `gate_phase3_exit`) exit 0. Governance READY
+(ACCEPTED_WITH_LIMITS).** Phase 3 built the committed-answer loop: WP3.0 answer-layer oracle +
+real hash chain + `CONTEXT_PACK_SCHEMA`; WP3.1 `draft` mode (records + manifest_structural +
+context_pack); WP3.2 `validate_output` (output binding + markers + §7 status + the A7 halves);
+WP3.3 `validate_refuter` (set-equality coverage + independence floor + the V-P0-1 contest);
+WP3.4 `answer` mode + `gate_phase3_exit`. One fully synthetic question→evidence→claim→answer→refuter
+passes `--mode answer`; every structurally-expressible prior exploit fails its passing-bad fixture.
+
+A fresh-context **Milestone-A P0 review** (same-platform, NOT cross-vendor — `docs/REVIEW_MILESTONE_A.md`)
+found composing seams; the Phase-3 answer-loop ones were fixed-forward + regression-tested (empty-
+markers degenerate answer; unenforced `required_refuter_class`; the observation feeding-leg; the A7
+heading/blockquote skip-list). **Surfaced for owner decision (NOT changed autonomously):** (1)
+corroboration collapses independence on `origin_chain[0]` only and never reads `independence_group`
+/ the deeper chain (a Phase-2 oracle change to `validate_support` + `validate_conflict`); (2)
+`high_impact` topic matching is exact-token over a free-text `topics` list (synonyms escape — widen
+`config/high_impact_triggers.yaml` or constrain `topics`). **Pending owner ratification (code-locked
+by golden tests, not yet anchored in the governing docs):** `CLAIM_CONTENT_EXCLUDE` membership +
+the `output_hash` raw-bytes rule (DATA_MODEL §4/§9); the context-pack schema (DATA_MODEL §8); the
+refuter per-verdict `high_impact` field + the manifest-feeding leg (CONSTITUTION §10). **NEXT:**
+Phase 4 (baseline memory) is demand-gated; the recommended cross-vendor P0 pass remains open.
 
 v3 merges two v2 designs (see `MERGE_NOTES.md`): it keeps the rigorous evidence-chain /
 multi-axis data model and adds the **three-tier rigor model** (Constitution §1) so the
