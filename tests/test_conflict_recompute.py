@@ -24,6 +24,13 @@ def test_same_origin_both_sides_not_contested():
     assert code == 1 and any("unearned" in x for x in f), f
 
 
+def test_deep_shared_origin_not_contested():
+    # Milestone-A review: SUPPORTS + REFUTES with DISTINCT origin_chain[0] but a SHARED deeper source
+    # trace to one origin → no real contest (independence is by connected component, not origin[0]).
+    code, f = _run("conflict_deep_shared_origin_claims.yaml", "conflict_deep_shared_origin_cea.yaml")
+    assert code == 1 and any("unearned" in x for x in f), f
+
+
 def test_legit_contested_passes():
     code, _ = _run("conflict_legit_contested_claims.yaml", "conflict_legit_contested_cea.yaml")
     assert code == 0

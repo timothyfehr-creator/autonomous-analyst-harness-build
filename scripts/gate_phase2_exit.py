@@ -84,6 +84,15 @@ def _a_exploits() -> str | None:
         "conflict same-origin-both-sides":
             lambda: v_con.validate_conflict([FIX / "conflict_same_origin_both_sides_claims.yaml"],
                                             FIX / "conflict_same_origin_both_sides_cea.yaml")[0],
+        "wire-echo (shared deeper origin)":
+            lambda: v_sup.validate_support([FIX / "support_wire_echo_claims.yaml"],
+                                           FIX / "support_wire_echo_cea.yaml")[0],
+        "shared-independence-group":
+            lambda: v_sup.validate_support([FIX / "support_shared_group_claims.yaml"],
+                                           FIX / "support_shared_group_cea.yaml")[0],
+        "conflict deep-shared-origin":
+            lambda: v_con.validate_conflict([FIX / "conflict_deep_shared_origin_claims.yaml"],
+                                            FIX / "conflict_deep_shared_origin_cea.yaml")[0],
     }
     bad = [f"{name}: exit {code} (expected 1 — STANDING INVARIANT REGRESSED)"
            for name, fn in checks.items() if (code := fn()) != 1]

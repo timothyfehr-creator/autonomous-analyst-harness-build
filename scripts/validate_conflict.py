@@ -54,11 +54,15 @@ def _is_credible(a) -> bool:
 
 
 def compute_dispute(active_checked) -> str:
-    """Return UNKNOWN / UNCONTESTED / CONTESTED from a claim's active CHECKED assessments."""
+    """Return UNKNOWN / UNCONTESTED / CONTESTED from a claim's active CHECKED assessments.
+    Independence is by connected COMPONENT (shared origin_chain source OR independence_group), so two
+    assessments tracing to ONE origin cannot manufacture a contest from opposite stances — wherever
+    the shared source sits in the chain (closes the deep-shared-origin conflict exploit)."""
     credible = [a for a in active_checked if _is_credible(a)]
-    pro = {vsup._origin0(a) for a in credible if a.get("stance") == "SUPPORTS"} - {None}
-    con = {vsup._origin0(a) for a in credible if a.get("stance") in _OPPOSING} - {None}
-    contested = any(p != c for p in pro for c in con)  # distinct underlying origins on each side
+    labels = vsup.independence_labels(credible)  # None label = unanchored origin → cannot contest
+    pro = {labels[i] for i, a in enumerate(credible) if a.get("stance") == "SUPPORTS" and labels[i] is not None}
+    con = {labels[i] for i, a in enumerate(credible) if a.get("stance") in _OPPOSING and labels[i] is not None}
+    contested = any(p != c for p in pro for c in con)  # distinct independent origins on each side
     if contested:
         return "CONTESTED"
     return "UNCONTESTED" if credible else "UNKNOWN"

@@ -55,11 +55,60 @@ RECOMPUTE_TYPES = {"FACT", "INFERENCE"}  # evidence-bearing; ASSUMPTION/PROJECTI
 
 
 def _origin0(a):
-    """The UNDERLYING origin = origin_chain[0].source_id (DATA_MODEL §4: origin first, relay last)."""
+    """The UNDERLYING origin = origin_chain[0].source_id (DATA_MODEL §4: origin first, relay last).
+    Kept for reference; independence is now counted by _independence_components (which subsumes it)."""
     oc = a.get("origin_chain")
     if isinstance(oc, list) and oc and isinstance(oc[0], dict):
         return oc[0].get("source_id")
     return None
+
+
+def _chain_sources(a) -> set:
+    """Every source_id appearing ANYWHERE in an assessment's origin_chain (the full provenance, not
+    just origin_chain[0]). Used to detect a shared underlying origin / relay between two chains."""
+    oc = a.get("origin_chain")
+    if not isinstance(oc, list):
+        return set()
+    return {n.get("source_id") for n in oc if isinstance(n, dict) and n.get("source_id") is not None}
+
+
+def independence_labels(assessments) -> list:
+    """Return a component label per assessment (parallel to the input). An assessment with NO
+    anchorable origin (no non-null origin_chain source_id) gets label `None` — it never counts as an
+    independent origin and cannot manufacture a contest (mirrors the old `_origin0`-is-None strip).
+    Two ANCHORED assessments share a label (= same origin) iff their origin_chains share ANY
+    source_id (one chain echoed — wherever the shared source sits, not just [0]) OR they declare the
+    same `independence_group` (Constitution §3 / §6.1). Conflict uses the labels; corroboration the count."""
+    items = list(assessments)
+    n = len(items)
+    sources = [_chain_sources(a) for a in items]
+    anchored = [i for i in range(n) if sources[i]]
+    parent = {i: i for i in anchored}
+
+    def find(i):
+        while parent[i] != i:
+            parent[i] = parent[parent[i]]
+            i = parent[i]
+        return i
+
+    for x, i in enumerate(anchored):
+        gi = items[i].get("independence_group")
+        for j in anchored[x + 1:]:
+            same_group = gi is not None and gi == items[j].get("independence_group")
+            if same_group or (sources[i] & sources[j]):
+                parent[find(i)] = find(j)
+    labels = [None] * n
+    for i in anchored:
+        labels[i] = find(i)
+    return labels
+
+
+def independence_components(assessments) -> int:
+    """Count INDEPENDENT origins — distinct non-None component labels. A wire echoed by two outlets,
+    or two assessments in one independence_group, collapse to ONE independent origin; an unanchored
+    (null-origin) assessment counts as zero (closes the Milestone-A wire-echo + buried-first-party
+    corroboration exploits without regressing the null-origin strip)."""
+    return len({lbl for lbl in independence_labels(assessments) if lbl is not None})
 
 
 def _is_floor(a) -> bool:
@@ -100,15 +149,15 @@ def compute_support(qualifying):
     if not qualifying:
         return "UNVERIFIED", "no active CHECKED SUPPORTS assessment"
     counting = [a for a in qualifying if a.get("primary_evidence_kind") != FIRST_PARTY]  # C3 exclusion
-    origins = {_origin0(a) for a in counting if _origin0(a) is not None}
-    c1 = len(origins) >= 2
+    n_origins = independence_components(counting)  # §3/§6.1: shared chain source OR independence_group collapses
+    c1 = n_origins >= 2
     c2 = any(a.get("primary_evidence_kind") in AUTHORITATIVE_PRIMARY for a in qualifying)
     c4 = any(_is_floor(a) for a in counting)
     if c1 and c2 and c4:
         return "CORROBORATED", ""
     missing = []
     if not c1:
-        missing.append(f"only {len(origins)} independent origin(s) after first-party exclusion (need >=2)")
+        missing.append(f"only {n_origins} independent origin(s) after first-party exclusion (need >=2)")
     if not c2:
         missing.append("no authoritative-primary evidence kind")
     if not c4:

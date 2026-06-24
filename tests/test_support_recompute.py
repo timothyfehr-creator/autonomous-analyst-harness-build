@@ -24,6 +24,33 @@ def test_a1_first_party_plus_wire_not_corroborated():
     assert code == 1 and any("independent origin" in x for x in f), f
 
 
+def test_wire_echo_shared_deeper_origin_not_corroborated():
+    # Milestone-A review: two outlets with DISTINCT origin_chain[0] but a SHARED deeper source are
+    # one origin — independence is by connected component over the full chain, not origin_chain[0].
+    code, f = _run("support_wire_echo_claims.yaml", "support_wire_echo_cea.yaml")
+    assert code == 1 and any("independent origin" in x for x in f), f
+
+
+def test_shared_independence_group_not_corroborated():
+    # two assessments declaring the SAME independence_group collapse to one origin (§3/§6.1)
+    code, f = _run("support_shared_group_claims.yaml", "support_shared_group_cea.yaml")
+    assert code == 1 and any("independent origin" in x for x in f), f
+
+
+def test_independence_components_helper():
+    def a(sources, group):
+        return {"origin_chain": [{"source_id": s} for s in sources], "independence_group": group}
+    # distinct sources + distinct groups → 2 independent origins
+    assert vsup.independence_components([a(["src-a"], "g1"), a(["src-b"], "g2")]) == 2
+    # shared deeper source → 1
+    assert vsup.independence_components([a(["out-a", "wire"], "g1"), a(["out-b", "wire"], "g2")]) == 1
+    # shared independence_group → 1
+    assert vsup.independence_components([a(["src-a"], "g"), a(["src-b"], "g")]) == 1
+    # an unanchored (no source) assessment is not an origin → counts 0
+    assert vsup.independence_components([a([], "g1")]) == 0
+    assert vsup.independence_components([a(["src-a"], "g1"), a([], None)]) == 1
+
+
 def test_two_credibility6_not_corroborated():
     code, f = _run("support_twocred6_claims.yaml", "support_twocred6_cea.yaml")
     assert code == 1 and any("credibility <= 3" in x for x in f), f
