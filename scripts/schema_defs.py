@@ -553,6 +553,11 @@ def _analysis_extra(rec):
             for i, h in enumerate(exempt):
                 if not (isinstance(h, str) and _HASH_RE.match(h)):
                     f.append(f"narrative_exemptions[{i}] must be sha256:<64 hex>")
+    # output_path must be a repo-relative path with no traversal — a committed answer lives at a
+    # known, reviewable location under outputs/, never an absolute path or one escaping via `..`.
+    op = rec.get("output_path")
+    if isinstance(op, str) and (op.startswith("/") or op.startswith("~") or ".." in op.split("/")):
+        f.append(f"output_path {op!r} must be repo-relative without '..' traversal")
     return sorted(f)
 
 
