@@ -36,6 +36,8 @@ import validate_support as v_sup  # noqa: E402
 import answer_layer as al  # noqa: E402
 import validate_context_pack as v_ctx  # noqa: E402
 import validate_manifest_structural as v_man  # noqa: E402
+import validate_output as v_out  # noqa: E402
+import validate_refuter as v_ref  # noqa: E402
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 REQUIRED_DIRS = ["scripts", "tests", "tests/fixtures", "schemas", "outputs", "analyses", "visuals/specs"]
@@ -51,9 +53,7 @@ CONVERSATIONAL_NOTICE = [
     "============================================================",
 ]
 
-UNAVAILABLE = {
-    "answer": "Phase 3 (WP3.4)",
-}
+UNAVAILABLE: dict[str, str] = {}
 
 # A draft banner must never read as a verification result — deliberately avoids the token "PASS".
 DRAFT_BANNER = [
@@ -62,6 +62,16 @@ DRAFT_BANNER = [
     "Checks records integrity + manifest/context coherence + hash",
     "consistency. Does NOT run the refuter; NOT a committed answer.",
     "Exit 0 means 'structure coheres', never 'the answer is true'.",
+    "============================================================",
+]
+# An answer is a VERIFIED PRIVATE answer (refuter-checked), never a publication or truth certificate.
+ANSWER_BANNER = [
+    "============================================================",
+    "ANSWER — VERIFIED PRIVATE answer (refuter-bound), NOT TRUE.",
+    "Composes records + manifest + context + output binding +",
+    "the required refuter + input lifecycle + visuals. There is no",
+    "'release': exit 0 = 'the recorded chain is coherent and",
+    "contested', never 'the answer is true' or 'publishable'.",
     "============================================================",
 ]
 # Answer-layer registries draft/answer resolve (beyond the factbase records gates).
@@ -195,51 +205,148 @@ def _answer_layer_schema(root: Path, scope: str):
     return code, lines
 
 
-def draft_check(root: Path, analysis_id, as_of):
-    """`draft` = records (whole-factbase integrity, incl. projection→prediction links) + the
-    analysis manifest's structural integrity + its context pack (when one is referenced), scoped to
-    the selected analysis. Fail-closed: records empty/upstream-2 propagates; a REQUIRED control that
-    cannot run (selected analysis or its referenced pack missing) is exit 2. SKIP is never PASS."""
-    lines = list(DRAFT_BANNER)
+def _draft_compose(root: Path, analysis_id, as_of):
+    """The structural composition shared by draft + answer (no banner): records (whole-factbase
+    integrity, incl. projection→prediction links) + the analysis manifest's structural integrity +
+    its context pack (when one is referenced), scoped to the selected analysis. Fail-closed: records
+    empty/upstream-2 propagates; a REQUIRED control that cannot run (selected analysis or its
+    referenced pack missing) is exit 2. Returns (code, lines)."""
+    lines = []
     code, rlines = records_check(root, as_of)
     lines += rlines
     if code == 2:
-        lines.append("  [draft] records cannot run (exit 2) — draft halts, fail closed.")
+        lines.append("  [compose] records cannot run (exit 2) — halt, fail closed.")
         return 2, lines
-    sc, slines = _answer_layer_schema(root, "draft")
+    sc, slines = _answer_layer_schema(root, "compose")
     lines += slines
     if sc == 2:
-        lines.append("  [draft] an answer-layer registry cannot parse — fail closed.")
+        lines.append("  [compose] an answer-layer registry cannot parse — fail closed.")
         return 2, lines
     code = max(code, sc)
     live = al.Live(root)
     if analysis_id is None:
         lines.append("  [skip] manifest_structural / context_pack: no --analysis selected "
                      "(not required for a whole-factbase draft; a SKIP never counts as clean).")
+        return code, lines
+    ana = live.analyses.get(analysis_id)
+    if ana is None:
+        lines.append(f"  [compose] analysis {analysis_id!r} not found — a required control cannot "
+                     f"run (exit 2, fail closed).")
+        return 2, lines
+    mc, mf = v_man.validate_manifest_structural(ana, live)
+    code = max(code, mc)
+    lines += [f"  [manifest] {x}" for x in mf]
+    cpid = ana.get("context_pack_id")
+    pack = live.context_packs.get(cpid) if cpid else None
+    if cpid and pack is None:
+        lines.append(f"  [compose] analysis references context pack {cpid!r} but it does not "
+                     f"resolve — a required control cannot run (exit 2, fail closed).")
+        return 2, lines
+    if pack is not None:
+        cc, cf = v_ctx.validate_context_pack(pack, live, ana.get("context_pack_hash"))
+        code = max(code, cc)
+        lines += [f"  [context_pack] {x}" for x in cf]
     else:
-        ana = live.analyses.get(analysis_id)
-        if ana is None:
-            lines.append(f"  [draft] analysis {analysis_id!r} not found — a required control cannot "
-                         f"run (exit 2, fail closed).")
-            return 2, lines
-        mc, mf = v_man.validate_manifest_structural(ana, live)
-        code = max(code, mc)
-        lines += [f"  [manifest] {x}" for x in mf]
-        cpid = ana.get("context_pack_id")
-        pack = live.context_packs.get(cpid) if cpid else None
-        if cpid and pack is None:
-            lines.append(f"  [draft] analysis references context pack {cpid!r} but it does not "
-                         f"resolve — a required control cannot run (exit 2, fail closed).")
-            return 2, lines
-        if pack is not None:
-            cc, cf = v_ctx.validate_context_pack(pack, live, ana.get("context_pack_hash"))
-            code = max(code, cc)
-            lines += [f"  [context_pack] {x}" for x in cf]
-        else:
-            lines.append("  [skip] context_pack: analysis references no context pack.")
+        lines.append("  [skip] context_pack: analysis references no context pack.")
+    return code, lines
+
+
+def draft_check(root: Path, analysis_id, as_of):
+    """`draft` = the structural composition + the STRUCTURAL-NOT-TRUE banner."""
+    code, lines = _draft_compose(root, analysis_id, as_of)
     if code == 0:
         lines.append("  [draft] structural composition clean (records + manifest + context). "
                      "Coherent bookkeeping, NOT a truth result.")
+    return code, list(DRAFT_BANNER) + lines
+
+
+def _answer_input_lifecycle(ana: dict, live: al.Live):
+    """A committed answer may not lean on a stale/superseded/rejected/unreviewed input (§9). Checks
+    EVERY claim the answer rests on — prose markers AND the frozen context pack's claim_refs AND each
+    referenced visual's input_claim_refs (a withdrawn claim can feed the answer through any of them);
+    plus the assessments cited by the manifest and the pack."""
+    f = []
+    markers = ana.get("claim_markers") if isinstance(ana.get("claim_markers"), dict) else {}
+    claim_ids = {mv.get("claim_id") for mv in markers.values() if isinstance(mv, dict)}
+    cea_ids = {r.get("id") for r in (ana.get("claim_evidence_assessment_refs") or []) if isinstance(r, dict)}
+    pack = live.context_packs.get(ana.get("context_pack_id"))
+    if isinstance(pack, dict):
+        claim_ids |= {r.get("id") for r in (pack.get("claim_refs") or []) if isinstance(r, dict)}
+        cea_ids |= {r.get("id") for r in (pack.get("assessment_refs") or []) if isinstance(r, dict)}
+    for vref in ana.get("visual_refs") or []:
+        v = live.visuals.get(vref.get("id")) if isinstance(vref, dict) else None
+        if isinstance(v, dict):
+            claim_ids |= {r.get("id") for r in (v.get("input_claim_refs") or []) if isinstance(r, dict)}
+    for cid in sorted(c for c in claim_ids if c):
+        c = live.claims.get(cid)
+        if c is None:
+            continue
+        if c.get("lifecycle") in {"SUPERSEDED", "REJECTED", "CANDIDATE"}:
+            f.append(f"claim {cid!r} lifecycle {c.get('lifecycle')!r} — a committed answer needs "
+                     f"REVIEWED inputs (not superseded/rejected/unreviewed)")
+        if c.get("freshness_status") in {"STALE", "REVIEW_DUE"}:
+            f.append(f"claim {cid!r} is {c.get('freshness_status')} — refresh or supersede before committing")
+    for aid in sorted(a for a in cea_ids if a):
+        a = live.cea.get(aid)
+        sr = a.get("semantic_review") if isinstance(a, dict) else None
+        if isinstance(sr, dict) and sr.get("status") == "REJECTED":
+            f.append(f"assessment {aid!r} semantic_review REJECTED — cannot back a committed answer")
+    return (1 if f else 0), sorted(f)
+
+
+def _answer_visuals(ana: dict, live: al.Live):
+    """Referenced visuals: spec + spec_hash are validated by manifest_structural; render/inspection
+    is a WP5 control, so a `renderer_version: planned` visual is an ALLOWED skip (never PASS)."""
+    lines = []
+    for ref in ana.get("visual_refs") or []:
+        v = live.visuals.get(ref.get("id")) if isinstance(ref, dict) else None
+        if v is None:
+            continue  # resolution is manifest_structural's job
+        if v.get("renderer_version") == "planned":
+            lines.append(f"  [skip] visual {ref.get('id')!r}: render/inspect not landed (WP5) — "
+                         f"spec + spec_hash validated upstream, render SKIPPED (a skip is not clean).")
+    return 0, lines
+
+
+def answer_check(root: Path, analysis_id, as_of):
+    """`answer` = draft composition + output-text binding (A7 semantic half BLOCKS) + the required
+    refuter + input-lifecycle reject + visuals. --analysis is REQUIRED; a missing refuter is a
+    cannot-run §10 control (exit 2). There is no 'release': a verified PRIVATE answer, not truth."""
+    if analysis_id is None:
+        return 2, list(ANSWER_BANNER) + ["  [answer] --analysis is required (a committed answer "
+                                         "names its analysis) — fail closed."]
+    code, body = _draft_compose(root, analysis_id, as_of)
+    lines = list(ANSWER_BANNER) + body
+    if code == 2:
+        lines.append("  [answer] structural composition cannot run (exit 2) — answer halts, fail closed.")
+        return 2, lines
+    live = al.Live(root)
+    ana = live.analyses.get(analysis_id)
+    if ana is None:
+        return 2, lines + [f"  [answer] analysis {analysis_id!r} not found — fail closed."]
+    oc, of = v_out.validate_output(ana, live, root, block_unmarked=True)
+    lines += [f"  [output] {x}" for x in of]
+    if oc == 2:
+        lines.append("  [answer] output binding cannot run (exit 2) — fail closed.")
+        return 2, lines
+    code = max(code, oc)
+    refuter = live.refuter_for_analysis(analysis_id)
+    if refuter is None:
+        lines.append(f"  [answer] no refuter binds analysis {analysis_id!r} — the §10 refuter control "
+                     f"cannot run (exit 2, fail closed). SKIP is not PASS.")
+        return 2, lines
+    rc, rf = v_ref.validate_refuter(refuter, ana, live)
+    code = max(code, rc)
+    lines += [f"  [refuter] {x}" for x in rf]
+    lc, lf = _answer_input_lifecycle(ana, live)
+    code = max(code, lc)
+    lines += [f"  [inputs] {x}" for x in lf]
+    _vc, vlines = _answer_visuals(ana, live)
+    lines += vlines
+    if code == 0:
+        lines.append("  [answer] committed answer composes: records + manifest + context + output "
+                     "binding + refuter + input lifecycle + visuals. A VERIFIED PRIVATE answer — "
+                     "coherent + contested bookkeeping, NOT a truth or publication claim.")
     return code, lines
 
 
@@ -255,6 +362,8 @@ def run_mode(mode, root: Path, as_of=None, analysis_id=None):
         return records_check(root, as_of)
     if mode == "draft":
         return draft_check(root, analysis_id, as_of)
+    if mode == "answer":
+        return answer_check(root, analysis_id, as_of)
     if mode in UNAVAILABLE:
         return 2, [f"  mode '{mode}' is unavailable until {UNAVAILABLE[mode]} lands "
                    f"(fail closed — an inactive control is exit 2, never a silent pass)."]
