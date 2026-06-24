@@ -32,6 +32,10 @@ import validate_observations as v_obs  # noqa: E402
 import validate_schema as vs  # noqa: E402
 import validate_sources as v_src  # noqa: E402
 import validate_support as v_sup  # noqa: E402
+# Phase-3 answer-layer gates (WP3.1+):
+import answer_layer as al  # noqa: E402
+import validate_context_pack as v_ctx  # noqa: E402
+import validate_manifest_structural as v_man  # noqa: E402
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 REQUIRED_DIRS = ["scripts", "tests", "tests/fixtures", "schemas", "outputs", "analyses", "visuals/specs"]
@@ -48,9 +52,20 @@ CONVERSATIONAL_NOTICE = [
 ]
 
 UNAVAILABLE = {
-    "draft": "Phase 3 (WP3.1)",
     "answer": "Phase 3 (WP3.4)",
 }
+
+# A draft banner must never read as a verification result — deliberately avoids the token "PASS".
+DRAFT_BANNER = [
+    "============================================================",
+    "DRAFT — STRUCTURAL + REVIEWABLE, NOT TRUE.",
+    "Checks records integrity + manifest/context coherence + hash",
+    "consistency. Does NOT run the refuter; NOT a committed answer.",
+    "Exit 0 means 'structure coheres', never 'the answer is true'.",
+    "============================================================",
+]
+# Answer-layer registries draft/answer resolve (beyond the factbase records gates).
+ANSWER_LAYER_FILES = ["context_packs.yaml", "analyses.yaml", "refuters.yaml", "visuals.yaml"]
 
 
 def scaffold_check(root: Path):
@@ -161,7 +176,74 @@ def records_check(root: Path, as_of):
     return code, lines
 
 
-def run_mode(mode, root: Path, as_of=None):
+def _answer_layer_schema(root: Path, scope: str):
+    """Schema-validate any present answer-layer registries (context_packs/analyses/refuters/visuals)
+    before resolving them. Returns (code, lines); code 2 = a registry cannot parse (fail closed)."""
+    fb = root / "factbase"
+    code, lines = 0, []
+    for name in ANSWER_LAYER_FILES:
+        p = fb / name
+        if not p.exists():
+            continue
+        c, ff = vs.validate_file(p)
+        if c == 2:
+            return 2, [f"  [{scope}] {name}: cannot parse — fail closed."] + \
+                [f"  [{scope}] {x}" for x in ff]
+        if c == 1:
+            code = max(code, 1)
+            lines += [f"  [{scope} schema] {x}" for x in ff]
+    return code, lines
+
+
+def draft_check(root: Path, analysis_id, as_of):
+    """`draft` = records (whole-factbase integrity, incl. projection→prediction links) + the
+    analysis manifest's structural integrity + its context pack (when one is referenced), scoped to
+    the selected analysis. Fail-closed: records empty/upstream-2 propagates; a REQUIRED control that
+    cannot run (selected analysis or its referenced pack missing) is exit 2. SKIP is never PASS."""
+    lines = list(DRAFT_BANNER)
+    code, rlines = records_check(root, as_of)
+    lines += rlines
+    if code == 2:
+        lines.append("  [draft] records cannot run (exit 2) — draft halts, fail closed.")
+        return 2, lines
+    sc, slines = _answer_layer_schema(root, "draft")
+    lines += slines
+    if sc == 2:
+        lines.append("  [draft] an answer-layer registry cannot parse — fail closed.")
+        return 2, lines
+    code = max(code, sc)
+    live = al.Live(root)
+    if analysis_id is None:
+        lines.append("  [skip] manifest_structural / context_pack: no --analysis selected "
+                     "(not required for a whole-factbase draft; a SKIP never counts as clean).")
+    else:
+        ana = live.analyses.get(analysis_id)
+        if ana is None:
+            lines.append(f"  [draft] analysis {analysis_id!r} not found — a required control cannot "
+                         f"run (exit 2, fail closed).")
+            return 2, lines
+        mc, mf = v_man.validate_manifest_structural(ana, live)
+        code = max(code, mc)
+        lines += [f"  [manifest] {x}" for x in mf]
+        cpid = ana.get("context_pack_id")
+        pack = live.context_packs.get(cpid) if cpid else None
+        if cpid and pack is None:
+            lines.append(f"  [draft] analysis references context pack {cpid!r} but it does not "
+                         f"resolve — a required control cannot run (exit 2, fail closed).")
+            return 2, lines
+        if pack is not None:
+            cc, cf = v_ctx.validate_context_pack(pack, live, ana.get("context_pack_hash"))
+            code = max(code, cc)
+            lines += [f"  [context_pack] {x}" for x in cf]
+        else:
+            lines.append("  [skip] context_pack: analysis references no context pack.")
+    if code == 0:
+        lines.append("  [draft] structural composition clean (records + manifest + context). "
+                     "Coherent bookkeeping, NOT a truth result.")
+    return code, lines
+
+
+def run_mode(mode, root: Path, as_of=None, analysis_id=None):
     """Return (exit_code, output_lines) for a mode. None defaults to scaffold."""
     if mode is None:
         mode = "scaffold"
@@ -171,6 +253,8 @@ def run_mode(mode, root: Path, as_of=None):
         return scaffold_check(root)
     if mode == "records":
         return records_check(root, as_of)
+    if mode == "draft":
+        return draft_check(root, analysis_id, as_of)
     if mode in UNAVAILABLE:
         return 2, [f"  mode '{mode}' is unavailable until {UNAVAILABLE[mode]} lands "
                    f"(fail closed — an inactive control is exit 2, never a silent pass)."]
@@ -181,9 +265,10 @@ def main(argv=None) -> int:
     p = argparse.ArgumentParser(description="Analyst Harness v3 unified verifier")
     p.add_argument("--mode", default="scaffold")  # no choices: unknown modes fail closed in run_mode
     p.add_argument("--root", type=Path, default=REPO_ROOT)
-    p.add_argument("--as-of", default=None, help="injectable clock for --mode records (freshness)")
+    p.add_argument("--as-of", default=None, help="injectable clock for records/draft (freshness)")
+    p.add_argument("--analysis", default=None, help="analysis id to draft/answer (e.g. ana-skeleton)")
     args = p.parse_args(argv)
-    code, lines = run_mode(args.mode, args.root, args.as_of)
+    code, lines = run_mode(args.mode, args.root, args.as_of, args.analysis)
     for ln in lines:
         print(ln)
     if code == 0 and args.mode not in ("conversational",):
