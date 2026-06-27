@@ -36,7 +36,11 @@ import validate_high_impact as v_hi  # noqa: E402
 INDEPENDENT = {"HUMAN", "DIFFERENT_MODEL", "MIXED"}
 
 
-def validate_refuter(refuter: dict, analysis: dict, live: al.Live, triggers=None):
+def validate_refuter(refuter: dict, analysis: dict, live: al.Live, triggers=None, answer_mode=False):
+    """answer_mode=False: validate the refuter record's STRUCTURE (a negative verdict is a valid
+    stored record). answer_mode=True (a committed answer): the refuter must also CERTIFY the answer —
+    every required claim's verdict must be SURVIVES, so a refuter that REVISE/DOWNGRADE/REJECTs a
+    claim blocks the committed answer (cross-vendor review P0-1: the refuter's "no" must mean no)."""
     if triggers is None:
         triggers = v_hi.trigger_set()
     f = []
@@ -114,6 +118,12 @@ def validate_refuter(refuter: dict, analysis: dict, live: al.Live, triggers=None
             if failed:
                 f.append(f"claim {cid!r}: verdict SURVIVES but {failed} FAILed — a failed check cannot "
                          f"yield SURVIVES (use REVISE/DOWNGRADE/REJECT)")
+        # answer-mode certification: a committed answer requires every required claim to SURVIVE.
+        # A REVISE/DOWNGRADE/REJECT verdict is an honest "no" that blocks the committed answer (it is
+        # still a valid stored refuter record — answer_mode=False does not flag it).
+        elif answer_mode and vd.get("verdict") in {"REVISE", "DOWNGRADE", "REJECT"}:
+            f.append(f"claim {cid!r}: refuter verdict {vd.get('verdict')!r} — a committed answer "
+                     f"requires every claim to SURVIVE the refuter; this answer cannot be committed")
 
     # 6. the A7 escape cost: the refuter must echo the analysis's narrative_exemptions by set equality
     if set(refuter.get("exemptions_reviewed") or []) != set(analysis.get("narrative_exemptions") or []):

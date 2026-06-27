@@ -342,7 +342,7 @@ def answer_check(root: Path, analysis_id, as_of):
         lines.append(f"  [answer] no refuter binds analysis {analysis_id!r} — the §10 refuter control "
                      f"cannot run (exit 2, fail closed). SKIP is not PASS.")
         return 2, lines
-    rc, rf = v_ref.validate_refuter(refuter, ana, live)
+    rc, rf = v_ref.validate_refuter(refuter, ana, live, answer_mode=True)
     code = max(code, rc)
     lines += [f"  [refuter] {x}" for x in rf]
     lc, lf = _answer_input_lifecycle(ana, live)

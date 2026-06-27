@@ -201,6 +201,20 @@ def _v_p0_1_refuter() -> str | None:
     return f"V-P0-1 REGRESSED: {bad} did not exit 1" if bad else None
 
 
+def _refuter_reject_blocks() -> str | None:
+    # cross-vendor review P0-1: a REJECT verdict must block a committed answer (answer_mode=True),
+    # while remaining a valid stored record (answer_mode=False).
+    ref = _ref(["clm-n"], verdicts=[_verdict("clm-n", verdict="REJECT")])
+    ana = _ana(["clm-n"])
+    stored = v_ref.validate_refuter(ref, ana, _live())[0]
+    committed = v_ref.validate_refuter(ref, ana, _live(), answer_mode=True)[0]
+    if stored != 0:
+        return f"REFUTER-REJECT REGRESSED: a REJECT record should be storable (got {stored}, expected 0)"
+    if committed != 1:
+        return f"REFUTER-REJECT REGRESSED: a REJECT verdict must block a committed answer (got {committed}, expected 1)"
+    return None
+
+
 def _phase2_green() -> str | None:
     return None if g2.main() == 0 else "the Phase-2 exit gate is not green (cumulative drift reached Phases 1-2)"
 
@@ -212,7 +226,8 @@ def main() -> int:
         ("W-ANSWER-NO-REFUTER", _answer_no_refuter), ("W-SUBGATE-PROPAGATE", _subgate_propagate),
         ("W-A7-STRUCTURAL", _a7_structural), ("W-A7-SEMANTIC-BLOCKS", _a7_semantic_blocks),
         ("W-REFUTER-COVERAGE", _refuter_coverage), ("W-REFUTER-BINDING", _refuter_binding),
-        ("W-V-P0-1-REFUTER", _v_p0_1_refuter), ("W-PHASE2-GREEN", _phase2_green),
+        ("W-V-P0-1-REFUTER", _v_p0_1_refuter), ("W-REFUTER-REJECT-BLOCKS", _refuter_reject_blocks),
+        ("W-PHASE2-GREEN", _phase2_green),
     ]
     problems = []
     for name, fn in witnesses:

@@ -157,9 +157,26 @@ def test_survives_verdict_cannot_carry_failed_check():
     bad = _ref(["clm-n"], ["cea-1"], verdicts=[_verdict("clm-n", verdict="SURVIVES", displacement_check="FAIL")])
     code, f = vr.validate_refuter(bad, ana, _live(), TRIG)
     assert code == 1 and any("SURVIVES but" in x and "FAILed" in x for x in f), f
-    # an honest negative (a FAILed check with a REJECT verdict) is allowed
+    # an honest negative (a FAILed check with a REJECT verdict) is a valid STORED refuter record
+    # (records/standalone mode); it is not flagged as malformed
     ok = _ref(["clm-n"], ["cea-1"], verdicts=[_verdict("clm-n", verdict="REJECT", displacement_check="FAIL")])
     assert vr.validate_refuter(ok, ana, _live(), TRIG) == (0, [])
+
+
+def test_answer_mode_requires_survives_verdict():
+    # cross-vendor review P0-1: a REJECT/REVISE/DOWNGRADE verdict must BLOCK a committed answer,
+    # even though the same refuter record is structurally valid for storage.
+    ana = _ana(["clm-n"], ["cea-1"])
+    for bad_verdict in ("REJECT", "REVISE", "DOWNGRADE"):
+        ref = _ref(["clm-n"], ["cea-1"], verdicts=[_verdict("clm-n", verdict=bad_verdict)])
+        # structurally valid (records mode)
+        assert vr.validate_refuter(ref, ana, _live(), TRIG) == (0, [])
+        # but blocks the committed answer (answer mode)
+        code, f = vr.validate_refuter(ref, ana, _live(), TRIG, answer_mode=True)
+        assert code == 1 and any("requires every claim to SURVIVE" in x for x in f), (bad_verdict, f)
+    # a SURVIVES verdict still passes in answer mode
+    good = _ref(["clm-n"], ["cea-1"], verdicts=[_verdict("clm-n", verdict="SURVIVES")])
+    assert vr.validate_refuter(good, ana, _live(), TRIG, answer_mode=True) == (0, [])
 
 
 def test_required_refuter_class_enforced():
