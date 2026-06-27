@@ -177,6 +177,20 @@ def test_high_impact_prose_passes_when_hi_marked(tmp_path):
     assert not any("high-impact assertion not bound" in f for f in findings), findings
 
 
+def test_high_impact_cross_category_laundering_blocked(tmp_path):
+    # cross-vendor RE-review of P0-4: a casualties marker must NOT launder a co-located
+    # territorial-control assertion — coverage is per CATEGORY, not "any hi marker present".
+    cas = {**CLAIM, "id": "clm-cas", "topics": ["casualties"]}
+    ana = _ana(tmp_path, "Russia killed 500 civilians [[c1]] and seized control of Donetsk.\n",
+               {"c1": {"claim_id": "clm-cas", "claim_hash": "x"}})
+    code, findings = vo.validate_output(ana, _live(cas), tmp_path, block_unmarked=True)
+    assert code == 1 and any("high-impact assertion not bound" in f for f in findings), findings
+    # a synonym in the SAME category (prose 'deaths' vs claim topic 'casualties') is NOT a false positive
+    ana2 = _ana(tmp_path, "Russia caused 500 deaths. [[c1]]\n", {"c1": {"claim_id": "clm-cas", "claim_hash": "x"}})
+    assert not any("high-impact assertion not bound" in f
+                   for f in vo.validate_output(ana2, _live(cas), tmp_path, block_unmarked=True)[1])
+
+
 def test_skeleton_output_is_clean(tmp_path):
     # the real skeleton answer: stage its output + manifest, expect 0 with no warns
     import shutil

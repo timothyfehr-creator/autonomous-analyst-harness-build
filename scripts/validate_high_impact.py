@@ -52,6 +52,41 @@ def trigger_set(tokens=None) -> set[str]:
     return {normalize_topic(t) for t in toks}
 
 
+def _load_category_map(path=None):
+    """Map each normalized trigger token to its canonical CATEGORY (its `alias_of`, else itself):
+    {'control'->'territorial-control', 'losses'->'casualties', 'casualties'->'casualties', ...}.
+    Lets coverage be checked per category, not per token (so prose 'killed' and a claim tagged
+    'deaths' are the SAME category, while 'control' is a DIFFERENT category that needs its own marker)."""
+    p = path if path is not None else schema_defs._HI_TRIGGERS_PATH
+    try:
+        doc = vs.load_yaml_strict(p) or {}
+    except Exception:  # noqa: BLE001 — empty map degrades to per-token (still safe; categories=tokens)
+        return {}
+    out = {}
+    for e in (doc.get("high_impact_triggers") or []) if isinstance(doc, dict) else []:
+        if isinstance(e, dict) and e.get("token"):
+            out[normalize_topic(e["token"])] = normalize_topic(e.get("alias_of") or e["token"])
+    return out
+
+
+CATEGORY_MAP = _load_category_map()
+
+
+def categories_for(tokens, catmap=None) -> set:
+    """The canonical high-impact CATEGORIES a set of (normalized) trigger tokens belongs to."""
+    cm = CATEGORY_MAP if catmap is None else catmap
+    return {cm.get(t, t) for t in tokens}
+
+
+def claim_hi_categories(claim, triggers, catmap=None) -> set:
+    """The high-impact categories a claim is high-impact IN — from its topics ∪ its text (so a claim
+    that is high-impact by topic, with no trigger word in its text, still covers that category)."""
+    topics = claim.get("topics") or []
+    topic_hits = ({normalize_topic(t) for t in topics} & triggers) if isinstance(topics, list) else set()
+    text_hits = set(text_trigger_hits(claim.get("text"), triggers))
+    return categories_for(topic_hits | text_hits, catmap)
+
+
 def text_trigger_hits(text, triggers: set[str]) -> list[str]:
     """Trigger tokens that appear as a WHOLE WORD / phrase in the claim text (NFC+casefold), erring
     HIGH (cross-vendor review P0-2). Word-boundary, NOT substring, so 'redistribution' ≠ 'attribution'

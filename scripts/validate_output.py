@@ -111,20 +111,23 @@ def _high_impact_uncovered(prose, markers, live, triggers):
         line = _LIST_PREFIX.sub("", line)
         chunks = [c.strip() for c in _SENT_SPLIT.split(line)]
         for i, c in enumerate(chunks):
-            if not v_hi.text_trigger_hits(c, triggers):
+            asserted = v_hi.categories_for(v_hi.text_trigger_hits(c, triggers))
+            if not asserted:
                 continue
+            # every high-impact CATEGORY asserted in the sentence must be covered by a marked claim
+            # that is high-impact IN that category — a casualties marker does not launder a
+            # co-located territorial-control assertion (cross-vendor re-review of P0-4).
             names = [n for n, _tag in MARKER_RE.findall(c)]
             nxt = MARKER_RE.match(chunks[i + 1]) if i + 1 < len(chunks) else None
             if nxt:
                 names.append(nxt.group(1))
-            covered = False
+            covered = set()
             for name in names:
                 mv = markers.get(name) if isinstance(markers, dict) else None
                 claim = live.claims.get(mv.get("claim_id")) if isinstance(mv, dict) else None
-                if claim is not None and v_hi.compute_high_impact(claim, triggers)[0]:
-                    covered = True
-                    break
-            if not covered:
+                if claim is not None:
+                    covered |= v_hi.claim_hi_categories(claim, triggers)
+            if asserted - covered:
                 yield c
 
 
