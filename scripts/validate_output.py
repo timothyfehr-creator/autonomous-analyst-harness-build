@@ -29,6 +29,7 @@ import unicodedata
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+import validate_high_impact as v_hi  # noqa: E402
 import validate_schema as vs  # noqa: E402
 
 MARKER_RE = re.compile(r"\[\[([A-Za-z0-9_-]+)(?:\|([A-Z][A-Z_,]*))?\]\]")
@@ -94,6 +95,39 @@ def _assertion_candidates(prose: str):
             yield c
 
 
+def _high_impact_uncovered(prose, markers, live, triggers):
+    """Yield prose sentences that assert a HIGH-IMPACT term but are NOT bound to a high-impact
+    (hence refuter-contested) marked claim. Unlike the general unmarked-assertion scan, this fires
+    even when the sentence CONTAINS a marker — because a marker for an *unrelated low-impact* claim
+    must not launder a high-impact assertion hidden in the same sentence (cross-vendor review P0-4:
+    '...road transport and Russian strikes killed 500 civilians. [[c1]]'). A high-impact term must be
+    covered by a marker (in this sentence, or attaching backward from the next) whose claim the gate
+    itself computes high_impact. NOT clearable by narrative_exemptions — you cannot exempt away a
+    casualty/attribution/territory assertion."""
+    for raw in prose.splitlines():
+        line = raw.strip()
+        if _ALWAYS_SKIP.match(line):
+            continue
+        line = _LIST_PREFIX.sub("", line)
+        chunks = [c.strip() for c in _SENT_SPLIT.split(line)]
+        for i, c in enumerate(chunks):
+            if not v_hi.text_trigger_hits(c, triggers):
+                continue
+            names = [n for n, _tag in MARKER_RE.findall(c)]
+            nxt = MARKER_RE.match(chunks[i + 1]) if i + 1 < len(chunks) else None
+            if nxt:
+                names.append(nxt.group(1))
+            covered = False
+            for name in names:
+                mv = markers.get(name) if isinstance(markers, dict) else None
+                claim = live.claims.get(mv.get("claim_id")) if isinstance(mv, dict) else None
+                if claim is not None and v_hi.compute_high_impact(claim, triggers)[0]:
+                    covered = True
+                    break
+            if not covered:
+                yield c
+
+
 def validate_output(analysis: dict, live, output_root: Path, block_unmarked: bool = False):
     hard, unmarked = [], []
     # 1. output-text binding (sha256 of raw bytes == output_hash). Missing file = cannot run (2).
@@ -143,13 +177,21 @@ def validate_output(analysis: dict, live, output_root: Path, block_unmarked: boo
             continue  # declared non-load-bearing + reviewed (the escape)
         unmarked.append(sentence)
 
+    # 5. high-impact prose laundering (P0-4): a high-impact assertion must be bound to a high-impact
+    # marked claim — even if the sentence already carries a marker for some other (low-impact) claim.
+    triggers = v_hi.trigger_set()
+    hi_uncovered = sorted(set(_high_impact_uncovered(prose, markers, live, triggers)))
+
     findings = sorted(hard)
+    findings += [f"high-impact assertion not bound to a high-impact (refuter-contested) marker — a "
+                 f"committed answer may not launder it: {s!r}" for s in hi_uncovered]
     if block_unmarked:
         findings += [f"unmarked load-bearing assertion (answer BLOCKS; mark it, demote it, or add "
                      f"its hash to narrative_exemptions): {s!r}" for s in unmarked]
         code = 1 if findings else 0
     else:
+        # in draft the general unmarked scan is a warn, but high-impact laundering always counts
         findings += [f"[warn] unmarked assertion-like sentence (heuristic; not counted in draft): "
                      f"{s!r}" for s in unmarked]
-        code = 1 if hard else 0
+        code = 1 if (hard or hi_uncovered) else 0
     return code, findings

@@ -159,6 +159,24 @@ def test_heading_and_blockquote_assertions_are_scanned(tmp_path):
         assert code == 1, (prose, findings)
 
 
+def test_high_impact_prose_laundering_blocked(tmp_path):
+    # cross-vendor review P0-4: a high-impact assertion ("killed 500 civilians") hidden in the same
+    # sentence as a marker for an unrelated LOW-impact claim must block (the marker can't launder it).
+    ana = _ana(tmp_path, "Road transport is supported and Russia killed 500 civilians. [[c1]]\n",
+               {"c1": {"claim_id": CID, "claim_hash": "x"}})  # CID = skeleton low-impact claim
+    code, findings = vo.validate_output(ana, _live(), tmp_path, block_unmarked=True)
+    assert code == 1 and any("high-impact assertion not bound" in f for f in findings), findings
+
+
+def test_high_impact_prose_passes_when_hi_marked(tmp_path):
+    # a genuine high-impact claim, properly marked, is NOT laundering — the assertion is covered
+    hi = {**CLAIM, "id": "clm-hi", "topics": ["casualties"]}  # gate-computes high_impact true
+    ana = _ana(tmp_path, "Russia killed 500 civilians. [[c1]]\n",
+               {"c1": {"claim_id": "clm-hi", "claim_hash": "x"}})
+    code, findings = vo.validate_output(ana, _live(hi), tmp_path, block_unmarked=True)
+    assert not any("high-impact assertion not bound" in f for f in findings), findings
+
+
 def test_skeleton_output_is_clean(tmp_path):
     # the real skeleton answer: stage its output + manifest, expect 0 with no warns
     import shutil

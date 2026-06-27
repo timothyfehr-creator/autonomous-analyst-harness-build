@@ -201,6 +201,16 @@ def _v_p0_1_refuter() -> str | None:
     return f"V-P0-1 REGRESSED: {bad} did not exit 1" if bad else None
 
 
+def _hi_prose_laundering_blocks() -> str | None:
+    # cross-vendor review P0-4: a high-impact assertion hidden beside a low-impact marker must block.
+    with tempfile.TemporaryDirectory() as dd:
+        d = Path(dd)
+        ana = _ana_with_output(d, "hilaunder", "Road open and Russia killed 500 civilians. [[c1]]\n",
+                               {"c1": {"claim_id": "clm-n", "claim_hash": "x"}})  # clm-n is low-impact
+        code = v_out.validate_output(ana, _live(), d, block_unmarked=True)[0]
+    return None if code == 1 else f"HI-PROSE-LAUNDERING REGRESSED: returned {code}, expected 1"
+
+
 def _refuter_reject_blocks() -> str | None:
     # cross-vendor review P0-1: a REJECT verdict must block a committed answer (answer_mode=True),
     # while remaining a valid stored record (answer_mode=False).
@@ -227,7 +237,7 @@ def main() -> int:
         ("W-A7-STRUCTURAL", _a7_structural), ("W-A7-SEMANTIC-BLOCKS", _a7_semantic_blocks),
         ("W-REFUTER-COVERAGE", _refuter_coverage), ("W-REFUTER-BINDING", _refuter_binding),
         ("W-V-P0-1-REFUTER", _v_p0_1_refuter), ("W-REFUTER-REJECT-BLOCKS", _refuter_reject_blocks),
-        ("W-PHASE2-GREEN", _phase2_green),
+        ("W-HI-PROSE-LAUNDERING", _hi_prose_laundering_blocks), ("W-PHASE2-GREEN", _phase2_green),
     ]
     problems = []
     for name, fn in witnesses:
