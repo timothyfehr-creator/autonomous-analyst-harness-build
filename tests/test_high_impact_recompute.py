@@ -40,6 +40,24 @@ def test_t1_synonym_losses_raises():
     assert any("'losses'" in f for f in findings), findings
 
 
+def test_t1b_text_leg_catches_topic_laundering():
+    # cross-vendor review P0-2: a casualties claim tagged with an innocuous topic ([transport]) but
+    # whose TEXT says 'killed 500 civilians' must still compute high-impact (the topics field is not
+    # the only evasion surface). Word-boundary, err-high.
+    code, findings, _ = _run("hi_text_evasion.yaml")
+    assert code == 1
+    assert any("T1b" in f and "killed" in f for f in findings), findings
+
+
+def test_text_leg_is_word_boundary_not_substring():
+    import validate_high_impact as vhi
+    trig = vhi.trigger_set()
+    assert vhi.text_trigger_hits("the air-defence control room", trig) == ["control"]  # whole word
+    assert vhi.text_trigger_hits("a controlled demolition", trig) == []  # 'controlled' ≠ 'control'
+    assert vhi.text_trigger_hits("redistribution of grain", trig) == []  # not 'attribution'
+    assert vhi.text_trigger_hits("500 killed and many wounded", trig) == ["killed", "wounded"]
+
+
 def test_t2_prediction_leg_raises():
     code, findings, _ = _run("hi_t2_prediction_false.yaml")
     assert code == 1

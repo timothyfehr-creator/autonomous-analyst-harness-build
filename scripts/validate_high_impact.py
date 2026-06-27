@@ -27,6 +27,7 @@ Exit codes: 0 clean · 1 a stored false that recomputes true · 2 cannot-run / f
 from __future__ import annotations
 
 import argparse
+import re
 import sys
 import unicodedata
 from pathlib import Path
@@ -51,14 +52,31 @@ def trigger_set(tokens=None) -> set[str]:
     return {normalize_topic(t) for t in toks}
 
 
+def text_trigger_hits(text, triggers: set[str]) -> list[str]:
+    """Trigger tokens that appear as a WHOLE WORD / phrase in the claim text (NFC+casefold), erring
+    HIGH (cross-vendor review P0-2). Word-boundary, NOT substring, so 'redistribution' ≠ 'attribution'
+    and 'controlled' ≠ 'control'. Closes the topics-laundering surface: a casualties claim tagged
+    topics:[transport] but whose TEXT says 'killed 500 civilians' still computes high-impact. NB the
+    token set is owner-editable config; broad tokens like 'control' may over-fire on text — that is a
+    review burden, not a death sentence (tune config/high_impact_triggers.yaml as needed)."""
+    if not isinstance(text, str):
+        return []
+    norm = normalize_topic(text)
+    return sorted(t for t in triggers if t and re.search(r"(?<!\w)" + re.escape(t) + r"(?!\w)", norm))
+
+
 def compute_high_impact(claim: dict, triggers: set[str]) -> tuple[bool, list[str]]:
-    """Return (computed_lower_bound, reasons). Only the computable triggers (T1, T2-pred)."""
+    """Return (computed_lower_bound, reasons). Computable triggers: T1 topics, T1b claim text, T2-pred."""
     reasons = []
     topics = claim.get("topics") or []
     if isinstance(topics, list):
         hit = sorted({normalize_topic(t) for t in topics} & triggers)
         if hit:
             reasons.append(f"T1 topic(s) {hit} intersect the high_impact trigger set")
+    thit = text_trigger_hits(claim.get("text"), triggers)
+    if thit:
+        reasons.append(f"T1b claim text contains high_impact term(s) {thit} (author may not launder "
+                       f"via the topics field)")
     if (claim.get("epistemic_type") == "PROJECTION"
             and claim.get("projection_kind") == "FALSIFIABLE"
             and claim.get("prediction_id")):

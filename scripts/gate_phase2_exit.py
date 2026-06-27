@@ -79,6 +79,8 @@ def _a_exploits() -> str | None:
             lambda: v_sup.validate_support([FIX / "support_twocred6_claims.yaml"], FIX / "support_twocred6_cea.yaml")[0],
         "high_impact-recompute (V-P0-1)":
             lambda: v_hi.validate_high_impact_file(FIX / "hi_t1_casualties_false.yaml", v_hi.trigger_set())[0],
+        "high_impact-text-laundering (P0-2)":
+            lambda: v_hi.validate_high_impact_file(FIX / "hi_text_evasion.yaml", v_hi.trigger_set())[0],
         "A5 cross-class recast (V-P1-5)":
             lambda: v_obs.validate_observations([FIX / "obs_a5_cross_class_no_df.yaml"])[0],
         "conflict same-origin-both-sides":
