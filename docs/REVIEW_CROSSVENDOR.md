@@ -41,8 +41,17 @@ three P0 controls and their composition through `verify.py --mode answer`:**
 
 ## What we ALREADY found and fixed — so hunt for NEW seams, don't re-report these
 
-The in-harness review (`docs/REVIEW_MILESTONE_A.md`) + a follow-up already found and **fixed** (with
-regression tests): the empty-`claim_markers` degenerate answer; an unenforced
+**Round 1 of THIS cross-vendor review (REJECT) already found and FIXED these P0/P1 paths — verify
+they hold, then find NEW ones:** (P0-1) a refuter that REJECT/REVISE/DOWNGRADEs a claim now BLOCKS
+the committed answer (`validate_refuter` answer_mode); (P0-2) `high_impact` now computes from the
+claim TEXT too, not just author topics (a `topics:[transport]` casualties claim is caught); (P0-3) a
+CHECKED review must bind the CURRENT claim-content hash (a stale review no longer earns support);
+(P0-4) a high-impact assertion in the answer prose must be covered by a marked claim that is
+high-impact IN that CATEGORY (a casualties marker cannot launder a co-located territorial-control
+assertion); (P1-1) `--mode answer` requires `lifecycle: ANSWER`. Each has a fixture + a gate witness.
+
+The in-harness review (`docs/REVIEW_MILESTONE_A.md`) + earlier follow-ups already found and **fixed**
+(with regression tests): the empty-`claim_markers` degenerate answer; an unenforced
 `required_refuter_class`; the observation feeding-leg; the A7 heading/blockquote skip-list; and the
 two surfaced findings — **corroboration independence** (now counted by connected components over
 shared `origin_chain` source OR `independence_group`, not `origin_chain[0]` alone) and **`high_impact`
