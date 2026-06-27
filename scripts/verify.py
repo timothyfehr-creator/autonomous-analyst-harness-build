@@ -324,6 +324,12 @@ def answer_check(root: Path, analysis_id, as_of):
     ana = live.analyses.get(analysis_id)
     if ana is None:
         return 2, lines + [f"  [answer] analysis {analysis_id!r} not found — fail closed."]
+    # A committed answer requires the analysis to be in the ANSWER lifecycle (cross-vendor review
+    # P1-1): a DRAFT analysis is a work-in-progress, not a committed answer.
+    if ana.get("lifecycle") != "ANSWER":
+        code = max(code, 1)
+        lines.append(f"  [answer] analysis lifecycle is {ana.get('lifecycle')!r} — committed-answer "
+                     f"mode requires lifecycle ANSWER (a DRAFT analysis is not a committed answer).")
     # A committed answer must COMMIT to at least one claim. Empty claim_markers is a degenerate
     # "answer that cites nothing" — it would make the refuter's set-equality vacuously satisfied and
     # switch off the independence floor (Milestone-A P0 review). Reject it.

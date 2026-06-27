@@ -137,6 +137,15 @@ def test_answer_empty_markers_rejected(tmp_path):
     assert code != 0 and any("must cite at least one claim" in ln for ln in lines), "\n".join(lines)
 
 
+def test_answer_requires_answer_lifecycle(tmp_path):
+    # cross-vendor review P1-1: a DRAFT-lifecycle analysis must not pass committed-answer mode
+    fb = _stage(tmp_path)
+    (fb / "analyses.yaml").write_text(
+        (fb / "analyses.yaml").read_text().replace("lifecycle: ANSWER", "lifecycle: DRAFT"))
+    code, lines = _answer(tmp_path)
+    assert code != 0 and any("requires lifecycle ANSWER" in ln for ln in lines), "\n".join(lines)
+
+
 def test_cli_answer_on_staged_root(tmp_path):
     _stage(tmp_path)
     assert verify.main(["--mode", "answer", "--root", str(tmp_path),
