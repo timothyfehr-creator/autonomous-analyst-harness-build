@@ -11,5 +11,5 @@ claim_evidence_assessments:
     origin_chain:
       - {source_id: src-reuters, artifact_id: evd-a}
     independence_group: ind-cea-a
-    semantic_review: {status: CHECKED, reviewer: human:tim, reviewed_at: "2026-06-22T11:30:00Z", claim_content_hash: sha256:1b06aa264d7a37bcc91728301c943d130ae2687cf86c72194f0359ff1c79a5ab, artifact_hash: sha256:b4b352f8c2bac48b1096d3c146edbb990f0a174e83ef6e0cb2fddd6d428b5f65, relationship_input_hash: sha256:b3cc0475bb78a5026098858e9889acf666d31062d513d303314eca31d36e72f2}
+    semantic_review: {status: CHECKED, reviewer: human:tim, reviewed_at: "2026-06-22T11:30:00Z", claim_content_hash: sha256:0000000000000000000000000000000000000000000000000000000000000000, artifact_hash: sha256:b4b352f8c2bac48b1096d3c146edbb990f0a174e83ef6e0cb2fddd6d428b5f65, relationship_input_hash: sha256:b3cc0475bb78a5026098858e9889acf666d31062d513d303314eca31d36e72f2}
     supersedes: null

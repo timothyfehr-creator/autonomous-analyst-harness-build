@@ -25,6 +25,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))  # sibling import
 import gate_phase1_exit  # noqa: E402
+import validate_claim_evidence as v_cea  # noqa: E402
 import validate_conflict as v_con  # noqa: E402
 import validate_high_impact as v_hi  # noqa: E402
 import validate_observations as v_obs  # noqa: E402
@@ -95,6 +96,11 @@ def _a_exploits() -> str | None:
         "conflict deep-shared-origin":
             lambda: v_con.validate_conflict([FIX / "conflict_deep_shared_origin_claims.yaml"],
                                             FIX / "conflict_deep_shared_origin_cea.yaml")[0],
+        "stale-review-hash (P0-3)":
+            lambda: v_cea.validate_claim_evidence_file(
+                FIX / "cea_stale_cch_cea.yaml",
+                v_cea.load_ref_sets([FIX / "cea_ce_claims.yaml"], FIX / "cea_ce_evidence.yaml",
+                                    FIX / "cea_ce_sources.yaml"))[0],
     }
     bad = [f"{name}: exit {code} (expected 1 — STANDING INVARIANT REGRESSED)"
            for name, fn in checks.items() if (code := fn()) != 1]

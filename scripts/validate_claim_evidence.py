@@ -48,21 +48,27 @@ DEFAULT_SOURCES = REPO_ROOT / "factbase" / "sources.yaml"
 
 
 def load_ref_sets(claims_paths, evidence_path, sources_path):
-    """Return (clm_ids, evd_hashes{id->content_hash}, src_ids, grp_ids). Raises on any read failure."""
+    """Return (clm_ids, evd_hashes{id->content_hash}, src_ids, grp_ids, clm_content_hashes{id->hash}).
+    Raises on any read failure. The claim-CONTENT hashes let the CHECKED-review binding be verified
+    (P0-3): a CHECKED assessment must still bind the CURRENT claim content, not a stale snapshot."""
     clm_ids = set()
+    clm_content_hashes = {}
     for cp in claims_paths:
         d = vs.load_yaml_strict(cp) or {}
-        clm_ids |= {c.get("id") for c in (d.get("claims") or []) if isinstance(c, dict)}
+        for c in (d.get("claims") or []):
+            if isinstance(c, dict) and c.get("id"):
+                clm_ids.add(c["id"])
+                clm_content_hashes[c["id"]] = vs.claim_content_hash(c)
     ed = vs.load_yaml_strict(evidence_path) or {}
     evd_hashes = {e.get("id"): e.get("content_hash")
                   for e in (ed.get("evidence") or []) if isinstance(e, dict)}
     sd = vs.load_yaml_strict(sources_path) or {}
     src_ids = {s.get("id") for s in (sd.get("sources") or []) if isinstance(s, dict)}
     grp_ids = {g.get("id") for g in (sd.get("groups") or []) if isinstance(g, dict)}
-    return clm_ids, evd_hashes, src_ids, grp_ids
+    return clm_ids, evd_hashes, src_ids, grp_ids, clm_content_hashes
 
 
-def check_claim_evidence(records, clm_ids, evd_hashes, src_ids, grp_ids) -> list[str]:
+def check_claim_evidence(records, clm_ids, evd_hashes, src_ids, grp_ids, clm_content_hashes=None) -> list[str]:
     """Cross-record/cross-file governance findings for a schema-clean claim-evidence log."""
     findings = []
     seen = {}
@@ -96,10 +102,19 @@ def check_claim_evidence(records, clm_ids, evd_hashes, src_ids, grp_ids) -> list
                                 f"resolve to a known artifact")
 
         sr = r.get("semantic_review")
-        if isinstance(sr, dict) and sr.get("status") == "CHECKED" and aid in evd_hashes:
-            if sr.get("artifact_hash") != evd_hashes[aid]:
+        if isinstance(sr, dict) and sr.get("status") == "CHECKED":
+            if aid in evd_hashes and sr.get("artifact_hash") != evd_hashes[aid]:
                 findings.append(f"assessment {rid!r} CHECKED artifact_hash does not match artifact "
                                 f"{aid!r} content_hash (the binding is to the wrong/edited artifact)")
+            # P0-3: a CHECKED review must still bind the CURRENT claim content. If the claim resolves
+            # and its content hash moved (the claim was edited without re-review), the review is stale
+            # and may not earn support — a structurally-detectable internal inconsistency, not the A2
+            # residual.
+            cch = (clm_content_hashes or {}).get(r.get("claim_id"))
+            if cch is not None and sr.get("claim_content_hash") != cch:
+                findings.append(f"assessment {rid!r} CHECKED claim_content_hash does not bind claim "
+                                f"{r.get('claim_id')!r}'s current content (a stale review must not "
+                                f"earn support — re-review or supersede)")
 
     # one active leaf per (claim_id, artifact_id) chain; a supersedes edge may not cross pairs
     findings += supersession.check_supersession(

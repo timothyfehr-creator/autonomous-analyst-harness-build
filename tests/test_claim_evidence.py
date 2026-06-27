@@ -30,6 +30,13 @@ def test_valid_passes():
     assert _main("cea_ce_valid.yaml") == 0
 
 
+def test_stale_claim_content_hash_review_fails():
+    # cross-vendor review P0-3: a CHECKED review whose claim_content_hash no longer binds the claim
+    # (the claim was edited without re-review) must fail — a stale review cannot earn support.
+    code, f = _run("cea_stale_cch_cea.yaml")
+    assert code == 1 and any("does not bind" in x and "current content" in x for x in f), f
+
+
 def test_two_pairs_near_miss_passes():
     # same artifact, DIFFERENT claims = two partitions, each one active leaf -> clean
     assert _main("cea_ce_two_pairs_valid.yaml") == 0
