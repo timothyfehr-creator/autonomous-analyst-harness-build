@@ -152,6 +152,16 @@ distinct `origin_chain[0]` and distinct declared groups — collapse to one orig
 corroborate. The conflict gate (§6.4) uses the same component rule: opposing stances that trace
 to one origin are not a real contest.
 
+**Origin must be bound to the reviewed artifact (R2-P0-4, ratified 2026-06-27).** A shared origin
+can only collapse if it is visible, so each assessment's reviewed artifact must be **bound into its
+own `origin_chain`**: at least one origin link must name that artifact (`artifact_id`) and attribute
+it to the source that truly owns it, and any origin link naming an artifact must attribute it to that
+artifact's real source — `validate_claim_evidence` rejects a chain that does neither. Without this
+binding, two assessments over artifacts from the *same* outlet could declare unrelated origins and be
+miscounted as independent corroboration; binding the real source in forces the shared origin to
+collapse under the connected-component rule above. (Ordering is not positional — the binding is to
+*whichever* link names the reviewed artifact, not a fixed end of the chain.)
+
 **§6.1a Authoritative-primary is a closed kind (V-P1-4).** "Authoritative primary evidence" is
 not free-text: a chain claimed as primary declares a `primary_evidence_kind ∈
 {FIRST_PARTY_ACTION_RECORD, AUTHORITATIVE_DATASET, DIRECT_SENSOR_CAPTURE,
@@ -263,6 +273,23 @@ observation — must be a marked claim**, so the "feeds a manifest" high-impact 
 unreviewed claim past the contest. `output_hash` binds the exact reviewed bytes; an unmarked
 load-bearing assertion blocks a committed answer (the escape is a hash-pinned, refuter-reviewed
 `narrative_exemptions` entry).
+
+**Round-2 refinements (R2-P0-1/-2/-3, ratified 2026-06-27, code-locked by gate witnesses).** A
+reviewer's explicit `impact_category` (closed enum: `CASUALTIES` / `ATTRIBUTION` /
+`TERRITORIAL_CONTROL` / `MILITARY_CAPABILITY` / `NONE`) is the **authoritative high-impact signal**:
+a non-NONE category forces `high_impact: true` regardless of trigger-word coverage, and in a
+committed answer every high-impact claim must carry a non-NONE category (`validate_high_impact`,
+`validate_refuter`). The trigger word-list is demoted to a *candidate detector* that forces a
+reviewer to categorize; it is not relied on for completeness. The high-impact **contest fires for
+every high-impact claim** — by topic, claim text, reviewer category, or falsifiable projection, and
+whether or not the author stored the flag — not merely when an author downgrades it; in answer mode
+the verdict must set `high_impact: true`, actually run (not skip) the independence check, and the
+refuter must show a non-empty, well-formed `disconfirming_searches`. The refuter's
+**required-assessment scope is gate-computed** from the factbase — the manifest's assessment refs ∪
+the context pack ∪ referenced visuals ∪ the active `CHECKED` `SUPPORTS` assessments of every marked
+`FACT`/`INFERENCE` claim (`verify._gate_computed_refuter_scope`), covered by superset — so the author
+cannot shrink the refuter's scope by emptying the manifest list, and a factual marked claim with no
+active support cannot be committed.
 
 ## §11 — Forecast integrity and calibration
 

@@ -253,6 +253,15 @@ claim-record hash.
 One active leaf is allowed for each claim-artifact supersession chain. The same artifact
 may have separate, differently-stanced assessments for different claims.
 
+**Origin-chain binding (R2-P0-4, ratified 2026-06-27).** The reviewed `artifact_id` must be bound
+into the assessment's own `origin_chain`: at least one origin link must name that `artifact_id` and
+attribute it to the `source_id` that actually owns it (the source on the artifact's evidence record).
+Any origin link that names an `artifact_id` must likewise attribute it to that artifact's real owning
+source. `validate_claim_evidence` rejects an assessment that fails either rule — without the binding,
+two assessments over artifacts from one outlet could declare unrelated origins and be miscounted as
+independent (Constitution §6.1). The binding is position-independent: it holds for whichever link
+names the reviewed artifact, not a fixed end of the chain.
+
 ## 5. Claim registry
 
 All claim variants share:
@@ -273,6 +282,13 @@ supersedes: null
 
 Computed status fields may be stored for inspection, but the gates recompute and reject a
 mismatch.
+
+An optional `impact_category` (closed enum: `CASUALTIES`, `ATTRIBUTION`, `TERRITORIAL_CONTROL`,
+`MILITARY_CAPABILITY`, `NONE`) is the **authoritative high-impact signal** (Constitution §10): a
+non-NONE category forces `high_impact: true` and switches on the refuter's high-impact contest,
+independent of trigger-word coverage. Unlike the review/lifecycle fields in `CLAIM_CONTENT_EXCLUDE`,
+`impact_category` is deliberately **included** in the claim-content hash — like `high_impact`, a
+re-categorization breaks prior manifest and semantic-review bindings and forces re-review.
 
 ### 5.1 Fact
 
