@@ -242,6 +242,25 @@ def _hi_contest_stored_true() -> str | None:
     return f"HI-CONTEST REGRESSED: {bad} did not exit 1" if bad else None
 
 
+def _refuter_scope_gate_computed() -> str | None:
+    # R2-P0-1: emptying the manifest's assessment refs AND the refuter's reviewed set must NOT pass —
+    # the marked claim's active CHECKED support is GATE-COMPUTED into the required set.
+    import re
+    with tempfile.TemporaryDirectory() as dd:
+        d = Path(dd)
+        fb = stage_answer_layer(d)
+        a = re.sub(r"    claim_evidence_assessment_refs:\n      - \{[^}]*\}\n",
+                   "    claim_evidence_assessment_refs: []\n", (fb / "analyses.yaml").read_text())
+        (fb / "analyses.yaml").write_text(a)
+        r = (fb / "refuters.yaml").read_text().replace(
+            "reviewed_assessment_ids: [cea-skeleton-owner-to-modes]", "reviewed_assessment_ids: []")
+        (fb / "refuters.yaml").write_text(r)
+        code, lines = verify.answer_check(d, "ana-skeleton", ASOF)
+    if code != 1 or not any("gate-computed required set" in ln for ln in lines):
+        return f"REFUTER-SCOPE REGRESSED: manifest-shrunk answer returned {code}, expected 1 + gate-computed msg"
+    return None
+
+
 def _phase2_green() -> str | None:
     return None if g2.main() == 0 else "the Phase-2 exit gate is not green (cumulative drift reached Phases 1-2)"
 
@@ -255,7 +274,8 @@ def main() -> int:
         ("W-REFUTER-COVERAGE", _refuter_coverage), ("W-REFUTER-BINDING", _refuter_binding),
         ("W-V-P0-1-REFUTER", _v_p0_1_refuter), ("W-REFUTER-REJECT-BLOCKS", _refuter_reject_blocks),
         ("W-HI-PROSE-LAUNDERING", _hi_prose_laundering_blocks),
-        ("W-HI-CONTEST-STORED-TRUE", _hi_contest_stored_true), ("W-PHASE2-GREEN", _phase2_green),
+        ("W-HI-CONTEST-STORED-TRUE", _hi_contest_stored_true),
+        ("W-REFUTER-SCOPE-GATE-COMPUTED", _refuter_scope_gate_computed), ("W-PHASE2-GREEN", _phase2_green),
     ]
     problems = []
     for name, fn in witnesses:

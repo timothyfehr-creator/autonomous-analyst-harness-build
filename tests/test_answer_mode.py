@@ -146,6 +146,34 @@ def test_answer_requires_answer_lifecycle(tmp_path):
     assert code != 0 and any("requires lifecycle ANSWER" in ln for ln in lines), "\n".join(lines)
 
 
+def test_answer_undercovered_assessment_blocked(tmp_path):
+    # R2-P0-1: the refuter's required-assessment scope is GATE-COMPUTED (manifest ∪ context pack ∪
+    # the marked claims' active CHECKED support), not the author's manifest list. Emptying the
+    # manifest's assessment refs AND the refuter's reviewed set must NOT pass — the marked claim's
+    # active CHECKED SUPPORTS assessment still exists in the factbase and must be covered.
+    import re
+    fb = _stage(tmp_path)
+    a = re.sub(r"    claim_evidence_assessment_refs:\n      - \{[^}]*\}\n",
+               "    claim_evidence_assessment_refs: []\n", (fb / "analyses.yaml").read_text())
+    (fb / "analyses.yaml").write_text(a)
+    r = (fb / "refuters.yaml").read_text().replace(
+        "reviewed_assessment_ids: [cea-skeleton-owner-to-modes]", "reviewed_assessment_ids: []")
+    (fb / "refuters.yaml").write_text(r)
+    code, lines = _answer(tmp_path)
+    assert code == 1 and any("gate-computed required set" in ln for ln in lines), "\n".join(lines)
+
+
+def test_answer_undercovered_via_refuter_only_blocked(tmp_path):
+    # even with the manifest intact, a refuter that omits a marked claim's active support assessment
+    # is under-covered (the gate computes it from the factbase, not the refuter's declaration).
+    fb = _stage(tmp_path)
+    r = (fb / "refuters.yaml").read_text().replace(
+        "reviewed_assessment_ids: [cea-skeleton-owner-to-modes]", "reviewed_assessment_ids: []")
+    (fb / "refuters.yaml").write_text(r)
+    code, lines = _answer(tmp_path)
+    assert code == 1 and any("gate-computed required set" in ln for ln in lines), "\n".join(lines)
+
+
 def test_cli_answer_on_staged_root(tmp_path):
     _stage(tmp_path)
     assert verify.main(["--mode", "answer", "--root", str(tmp_path),

@@ -308,6 +308,39 @@ def _answer_visuals(ana: dict, live: al.Live):
     return 0, lines
 
 
+def _gate_computed_refuter_scope(ana: dict, live: al.Live):
+    """The refuter's REQUIRED assessment set, COMPUTED from the real factbase — not read from the
+    author's manifest list, which can be shrunk (R2-P0-1). Required = manifest assessment refs ∪
+    context-pack assessment_refs ∪ each referenced visual's input_assessment_refs ∪ the active CHECKED
+    SUPPORTS assessments of every marked FACT/INFERENCE claim. Also returns the support FLOOR: a
+    committed answer's factual claim must HAVE at least one active CHECKED SUPPORTS assessment."""
+    markers = ana.get("claim_markers") if isinstance(ana.get("claim_markers"), dict) else {}
+    marked = {mv.get("claim_id") for mv in markers.values() if isinstance(mv, dict)}
+    required = {r.get("id") for r in (ana.get("claim_evidence_assessment_refs") or []) if isinstance(r, dict)}
+    pack = live.context_packs.get(ana.get("context_pack_id"))
+    if isinstance(pack, dict):
+        required |= {r.get("id") for r in (pack.get("assessment_refs") or []) if isinstance(r, dict)}
+    for vref in ana.get("visual_refs") or []:
+        v = live.visuals.get(vref.get("id")) if isinstance(vref, dict) else None
+        if isinstance(v, dict):
+            required |= {r.get("id") for r in (v.get("input_assessment_refs") or []) if isinstance(r, dict)}
+    supports = v_sup.active_supports_by_claim(list(live.cea.values()))
+    floor = []
+    for cid in sorted(c for c in marked if c):
+        claim = live.claims.get(cid)
+        if not isinstance(claim, dict) or claim.get("epistemic_type") not in {"FACT", "INFERENCE"}:
+            continue  # ASSUMPTION/PROJECTION claims carry no evidence
+        ceas = supports.get(cid) or []
+        if ceas:
+            required |= {a.get("id") for a in ceas if isinstance(a, dict)}
+        else:
+            floor.append(f"marked {claim.get('epistemic_type')} claim {cid!r} has no active CHECKED "
+                         f"SUPPORTS assessment — a committed answer's factual claim must be supported "
+                         f"(R2-P0-1)")
+    required.discard(None)
+    return required, floor
+
+
 def answer_check(root: Path, analysis_id, as_of):
     """`answer` = draft composition + output-text binding (A7 semantic half BLOCKS) + the required
     refuter + input-lifecycle reject + visuals. --analysis is REQUIRED; a missing refuter is a
@@ -348,7 +381,13 @@ def answer_check(root: Path, analysis_id, as_of):
         lines.append(f"  [answer] no refuter binds analysis {analysis_id!r} — the §10 refuter control "
                      f"cannot run (exit 2, fail closed). SKIP is not PASS.")
         return 2, lines
-    rc, rf = v_ref.validate_refuter(refuter, ana, live, answer_mode=True)
+    # R2-P0-1: gate-compute the refuter's required-assessment scope from the factbase (the author
+    # cannot shrink it via the manifest), and enforce the support floor for factual marked claims.
+    required_ceas, floor = _gate_computed_refuter_scope(ana, live)
+    if floor:
+        code = max(code, 1)
+        lines += [f"  [refuter] {x}" for x in floor]
+    rc, rf = v_ref.validate_refuter(refuter, ana, live, answer_mode=True, required_ceas=required_ceas)
     code = max(code, rc)
     lines += [f"  [refuter] {x}" for x in rf]
     lc, lf = _answer_input_lifecycle(ana, live)

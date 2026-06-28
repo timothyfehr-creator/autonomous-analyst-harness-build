@@ -37,11 +37,16 @@ import validate_high_impact as v_hi  # noqa: E402
 INDEPENDENT = {"HUMAN", "DIFFERENT_MODEL", "MIXED"}
 
 
-def validate_refuter(refuter: dict, analysis: dict, live: al.Live, triggers=None, answer_mode=False):
+def validate_refuter(refuter: dict, analysis: dict, live: al.Live, triggers=None, answer_mode=False,
+                     required_ceas=None):
     """answer_mode=False: validate the refuter record's STRUCTURE (a negative verdict is a valid
     stored record). answer_mode=True (a committed answer): the refuter must also CERTIFY the answer —
     every required claim's verdict must be SURVIVES, so a refuter that REVISE/DOWNGRADE/REJECTs a
-    claim blocks the committed answer (cross-vendor review P0-1: the refuter's "no" must mean no)."""
+    claim blocks the committed answer (cross-vendor review P0-1: the refuter's "no" must mean no).
+    required_ceas (R2-P0-1): when the caller passes a GATE-COMPUTED required assessment set (manifest
+    ∪ context pack ∪ the marked claims' active CHECKED support — computed by answer_check from the
+    real factbase), coverage is by SUPERSET (reviewed ⊇ required) instead of the manifest set-equality
+    the author could shrink. None ⇒ records/standalone mode uses manifest set-equality."""
     if triggers is None:
         triggers = v_hi.trigger_set()
     f = []
@@ -60,12 +65,21 @@ def validate_refuter(refuter: dict, analysis: dict, live: al.Live, triggers=None
     reviewed_claims = set(refuter.get("reviewed_claim_ids") or [])
     reviewed_ceas = set(refuter.get("reviewed_assessment_ids") or [])
 
-    # 2. set-equality coverage (both directions)
+    # 2. coverage. Claims are always set-equal to the markers (they DEFINE the answer's claims).
     if reviewed_claims != manifest_claims:
         f.append(f"reviewed_claim_ids != manifest claim set "
                  f"(missing {sorted(manifest_claims - reviewed_claims)}, "
                  f"extra {sorted(reviewed_claims - manifest_claims)})")
-    if reviewed_ceas != manifest_ceas:
+    # Assessments: a gate-computed required set (answer mode) is covered by SUPERSET — the author
+    # cannot shrink it by emptying the manifest list (R2-P0-1). Records mode uses manifest equality.
+    if required_ceas is not None:
+        missing = set(required_ceas) - reviewed_ceas
+        if missing:
+            f.append(f"reviewed_assessment_ids does not cover the gate-computed required set "
+                     f"(missing {sorted(missing)}) — a committed answer's refuter scope is computed "
+                     f"from the marked claims' active CHECKED support + the context pack, not the "
+                     f"author's manifest list [R2-P0-1]")
+    elif reviewed_ceas != manifest_ceas:
         f.append(f"reviewed_assessment_ids != manifest assessment set "
                  f"(missing {sorted(manifest_ceas - reviewed_ceas)}, "
                  f"extra {sorted(reviewed_ceas - manifest_ceas)})")
