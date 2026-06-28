@@ -10,7 +10,7 @@ share the blind spot for.
 Paste this whole file as your instructions. The code is at
 `https://github.com/timothyfehr-creator/autonomous-analyst-harness-build` and in the attached zip
 (`analyst-harness-v3-review-*.zip`). It runs offline: `python3 -m venv .venv && .venv/bin/pip
-install -r requirements-dev.txt && .venv/bin/python -m pytest` (expect 431 green) and the three
+install -r requirements-dev.txt && .venv/bin/python -m pytest` (expect 457 green) and the three
 machine gates `.venv/bin/python scripts/gate_phase{1,2,3}_exit.py` (each exits 0).
 
 ## What the system is (one paragraph)
@@ -49,6 +49,27 @@ CHECKED review must bind the CURRENT claim-content hash (a stale review no longe
 (P0-4) a high-impact assertion in the answer prose must be covered by a marked claim that is
 high-impact IN that CATEGORY (a casualties marker cannot launder a co-located territorial-control
 assertion); (P1-1) `--mode answer` requires `lifecycle: ANSWER`. Each has a fixture + a gate witness.
+
+**Round 2 of THIS cross-vendor review (NO-GO) then found and FIXED four deeper P0s — same root
+cause: the answer/refuter controls trusted what the author DECLARED instead of computing/binding it.
+Verify these hold, then find NEW ones:** (R2-P0-1) the refuter's required-assessment set is now
+GATE-COMPUTED from the factbase (manifest ∪ context-pack assessment_refs ∪ the marked FACT/INFERENCE
+claims' active CHECKED SUPPORTS), covered by superset + a support floor — emptying the manifest list
+no longer shrinks the refuter's scope; (R2-P0-2) a reviewer-assigned closed-enum `impact_category`
+is the authoritative high-impact signal (forces high_impact + the contest), the word-list widened +
+demoted to a candidate detector that forces categorization; (R2-P0-3) the high-impact contest fires
+for EVERY high-impact claim (computed OR stored true), requires `high_impact: true` + a real
+independence check + a non-empty well-formed `disconfirming_searches`; (R2-P0-4) an assessment's
+`origin_chain` must be BOUND to the artifact it reviewed (the reviewed artifact attributed to its
+real source; no link misattributes an artifact) — two same-outlet artifacts can no longer declare
+fake-independent origins. A follow-up composition review then caught a P0 the impact_category fix
+itself introduced (a free-form category label could "cover" a co-located prose assertion — now prose
+coverage rests on the claim's genuine text/topics, not the label) + a vacuous-`disconfirming_searches`
+P2. Each has a fixture + a gate witness (gate_phase2/3). KNOWN-OPEN residuals you may still probe:
+a high-impact word OUTSIDE the (owner-tunable) trigger list + no category still escapes a committed
+answer (mandatory per-answer categorization is deferred — it cascades the frozen skeleton/golden
+hashes); a high-impact ASSUMPTION/PROJECTION ships visibly status-tagged + refuter-contested but
+dodges the support floor (it has no evidence by type).
 
 The in-harness review (`docs/REVIEW_MILESTONE_A.md`) + earlier follow-ups already found and **fixed**
 (with regression tests): the empty-`claim_markers` degenerate answer; an unenforced
