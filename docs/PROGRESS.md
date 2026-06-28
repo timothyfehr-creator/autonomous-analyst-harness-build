@@ -18,8 +18,9 @@ after every work package.
 
 ## Current state
 
-**Phases 0–3 COMPLETE — MILESTONE A reached (2026-06-23). 426 tests green; all three machine
-phase-gates (`gate_phase1_exit`, `gate_phase2_exit`, `gate_phase3_exit`) exit 0. Governance READY
+**Phases 0–3 COMPLETE — MILESTONE A reached (2026-06-23); hardened across three cross-vendor
+review rounds (R1/R2/R3) + the CONFLICT-1 honest-use fix (2026-06-28). 464 tests green; all three
+machine phase-gates (`gate_phase1_exit`, `gate_phase2_exit`, `gate_phase3_exit`) exit 0. Governance READY
 (ACCEPTED_WITH_LIMITS).** Phase 3 built the committed-answer loop: WP3.0 answer-layer oracle +
 real hash chain + `CONTEXT_PACK_SCHEMA`; WP3.1 `draft` mode (records + manifest_structural +
 context_pack); WP3.2 `validate_output` (output binding + markers + §7 status + the A7 halves);
@@ -565,12 +566,13 @@ witnesses mutation-proven load-bearing.
   gate. 359 tests; both phase gates PASS. A1 + A5 + high_impact + two-cred-6 + conflict standing
   invariants enforced.**
 
-### Phase 3 — Analysis binding and refutation
+### Phase 3 — Analysis binding and refutation — COMPLETE (Milestone A; hardened R1/R2/R3 + CONFLICT-1)
 
-- [ ] WP3.1 Draft composition
-- [ ] WP3.2 Analysis manifest and output markers
-- [ ] WP3.3 Refuter artifact and support audit
-- [ ] WP3.4 Answer mode
+- [x] WP3.0 Answer-layer hash chain + context-pack schema
+- [x] WP3.1 Draft composition
+- [x] WP3.2 Analysis manifest and output markers
+- [x] WP3.3 Refuter artifact and support audit
+- [x] WP3.4 Answer mode
 
 ### Phase 4 — Baseline fact repository and context tools
 

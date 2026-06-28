@@ -1,4 +1,4 @@
-# IMPLEMENTATION PLAN — Analyst Harness v2
+# IMPLEMENTATION PLAN — Analyst Harness v3
 
 The canonical ordered backlog. Build the evidence chain before the research corpus, the
 research corpus before the visual layer, and the visual layer before polish. Work one

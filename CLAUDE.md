@@ -11,7 +11,7 @@ and difficult to game. The useful product is not “lots of YAML.” It is:
 1. a trustworthy private answer loop;
 2. a reusable baseline fact repository;
 3. accurate charts, timelines, maps, and schematics on request;
-4. a tamper-evident forecast ledger over time.
+4. a durable, inspectable forecast ledger over time.
 
 A green result means the requested checks ran and the recorded relationships are coherent.
 Never phrase it as a truth certificate.
