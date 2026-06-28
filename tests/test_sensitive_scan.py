@@ -106,10 +106,17 @@ def test_non_geodata_path_clean():
 # --- integration + fail-closed ---
 def test_real_repo_scans_clean():
     code, findings = ss.scan_tracked(ROOT)
+    if code == 2 and any(getattr(f, "kind", None) == "NO_GIT" for f in findings):
+        import pytest
+        pytest.skip("not a git checkout (e.g. an unzipped review bundle) — repo scan is git-only")
     assert code == 0, findings
 
 
 def test_cli_real_repo_zero():
+    code, findings = ss.scan_tracked(ROOT)
+    if code == 2 and any(getattr(f, "kind", None) == "NO_GIT" for f in findings):
+        import pytest
+        pytest.skip("not a git checkout (e.g. an unzipped review bundle) — repo scan is git-only")
     assert ss.main(["--root", str(ROOT)]) == 0
 
 
