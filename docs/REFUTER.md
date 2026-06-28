@@ -22,11 +22,14 @@ A `ref-` record (schema in `scripts/schema_defs.py`) that binds one analysis man
 
 1. **Exact binding.** `manifest_hash` and `output_hash` must equal the analysis manifest's — the
    refuter reviewed *this* answer, not an earlier draft.
-2. **Set-equality coverage (§10).** `reviewed_claim_ids` must equal the manifest's marker claim set,
-   and `reviewed_assessment_ids` the manifest's cea-ref set — **exactly**, no missing and no extra.
-   A boolean "I reviewed everything" attestation is never a substitute. The required set is anchored
-   in the manifest (which the output gate forbids shrinking), so an answer cannot quietly drop a
-   load-bearing claim to make the review look complete (the A7 exploit).
+2. **Coverage of the gate-computed scope (§10).** In a committed answer the required claim and
+   assessment sets are **gate-computed from the factbase**, not read from the manifest: the marked
+   claims *and* visual input claims, and every active `CHECKED` assessment of them (supports **and**
+   opposing `REFUTES`/`MIXED`) plus the context-pack and visual assessment refs. `reviewed_claim_ids`
+   / `reviewed_assessment_ids` must **cover** that set (superset) — no missing; a boolean "I reviewed
+   everything" attestation is never a substitute. Because the set is computed, an answer cannot
+   quietly drop a load-bearing claim by shrinking the manifest (the A7 / R2-P0-1 exploit). (In
+   records/standalone mode the refuter record is still checked by manifest set-equality.)
 3. **Independence floor.** Every claim a committed answer cites *feeds the manifest*, so it requires
    an independent reviewer. `SAME_MODEL_FRESH_CONTEXT` is procedural only and **never qualifies** for
    a committed answer; use `DIFFERENT_MODEL`, `HUMAN`, or `MIXED`.

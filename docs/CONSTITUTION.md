@@ -291,6 +291,18 @@ the context pack ∪ referenced visuals ∪ the active `CHECKED` `SUPPORTS` asse
 cannot shrink the refuter's scope by emptying the manifest list, and a factual marked claim with no
 active support cannot be committed.
 
+**Round-3 refinements (R3 / CONFLICT-1, 2026-06-28).** The gate-computed scope adjudicates the
+committed answer's full input set, whatever channel an input arrives through: the required
+assessment set also includes the active `CHECKED` **opposing** assessments (`REFUTES`/`MIXED`), not
+only supports, so a contested claim's opposing evidence must be reviewed; the required **claim** set
+also includes a referenced visual's input claims (a chart asserts them too). A committed answer binds
+**exactly one** refuter per `(analysis, manifest_hash, output_hash)` and rejects duplicate verdicts
+for a claim (there is no refuter-supersession model). Each referenced visual's `spec_hash` is
+self-verified against its record. And per §6.6, a committed claim's support must be
+credibility-**scored**, not merely present — an unscored support is invisible to the conflict
+recompute and could otherwise ship a genuinely contested claim as settled (CONFLICT-1). These are
+coherence/honest-workflow checks, not adversary resistance — see §15 and the README threat model.
+
 ## §11 — Forecast integrity and calibration
 
 Every falsifiable forward claim links to a prediction with question, probability, resolution
