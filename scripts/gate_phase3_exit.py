@@ -315,6 +315,21 @@ def _visual_spec_self_hash() -> str | None:
         f"VISUAL-SELF-HASH REGRESSED: returned {code}, expected 1"
 
 
+def _floor_requires_scored_support() -> str | None:
+    # CONFLICT-1: a committed claim's support must be credibility-SCORED — an unscored support is
+    # invisible to the conflict recompute and can hide a real contest (ship as settled).
+    def _c(cred):
+        return {"id": "cea-s", "claim_id": "clm-a", "artifact_id": "evd-s", "stance": "SUPPORTS",
+                "information_credibility": cred, "semantic_review": {"status": "CHECKED"}, "supersedes": None}
+    live = types.SimpleNamespace(claims={"clm-a": {"id": "clm-a", "epistemic_type": "FACT"}},
+                                 cea={"cea-s": _c("UNASSESSED")}, context_packs={}, visuals={})
+    ana = {"claim_markers": {"c": {"claim_id": "clm-a"}}, "claim_evidence_assessment_refs": [],
+           "context_pack_id": None, "visual_refs": []}
+    _, _, floor = verify._gate_computed_refuter_scope(ana, live)
+    return None if any("scored" in x.lower() for x in floor) else \
+        "CONFLICT-1 REGRESSED: an unscored support passed the Tier-2 floor"
+
+
 def _phase2_green() -> str | None:
     return None if g2.main() == 0 else "the Phase-2 exit gate is not green (cumulative drift reached Phases 1-2)"
 
@@ -333,7 +348,8 @@ def main() -> int:
         ("W-REFUTER-DUP-VERDICTS", _refuter_dup_verdicts_block),
         ("W-REFUTER-SCOPE-OPPOSING-VISUAL", _refuter_scope_opposing_visual),
         ("W-MULTIPLE-REFUTERS", _multiple_refuters_fail_closed),
-        ("W-VISUAL-SPEC-SELF-HASH", _visual_spec_self_hash), ("W-PHASE2-GREEN", _phase2_green),
+        ("W-VISUAL-SPEC-SELF-HASH", _visual_spec_self_hash),
+        ("W-FLOOR-SCORED-SUPPORT", _floor_requires_scored_support), ("W-PHASE2-GREEN", _phase2_green),
     ]
     problems = []
     for name, fn in witnesses:

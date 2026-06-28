@@ -194,7 +194,7 @@ def test_gate_scope_includes_opposing_and_visual():
     import types
     def _cea(i, claim_id, stance):
         return {"id": i, "claim_id": claim_id, "artifact_id": f"evd-{i}", "stance": stance,
-                "semantic_review": {"status": "CHECKED"}, "supersedes": None}
+                "information_credibility": 2, "semantic_review": {"status": "CHECKED"}, "supersedes": None}
     live = types.SimpleNamespace(
         claims={"clm-a": {"id": "clm-a", "epistemic_type": "FACT"},
                 "clm-v": {"id": "clm-v", "epistemic_type": "FACT"}},
@@ -211,6 +211,25 @@ def test_gate_scope_includes_opposing_and_visual():
     assert "clm-v" in req_claims, "R3-P0-4: visual input claim must be a required claim"
     assert "cea-vis" in req_ceas, "R3-P0-4: visual assessment ref (correct field name)"
     assert "cea-vsup" in req_ceas and not floor
+
+
+def test_floor_requires_credibility_scored_support():
+    # CONFLICT-1 (honest-use): a committed claim's support must be credibility-SCORED, not merely
+    # exist — an UNASSESSED support is invisible to the conflict recompute and can hide a real
+    # opposing assessment, shipping the claim as settled. §6.6 enforced on the Tier-2 floor.
+    import types
+    def _cea(cred):
+        return {"id": "cea-s", "claim_id": "clm-a", "artifact_id": "evd-s", "stance": "SUPPORTS",
+                "information_credibility": cred, "semantic_review": {"status": "CHECKED"}, "supersedes": None}
+    ana = {"claim_markers": {"c": {"claim_id": "clm-a"}}, "claim_evidence_assessment_refs": [],
+           "context_pack_id": None, "visual_refs": []}
+    def _live(cred):
+        return types.SimpleNamespace(claims={"clm-a": {"id": "clm-a", "epistemic_type": "FACT"}},
+                                     cea={"cea-s": _cea(cred)}, context_packs={}, visuals={})
+    _, _, floor_unscored = verify._gate_computed_refuter_scope(ana, _live("UNASSESSED"))
+    assert any("scored" in x.lower() for x in floor_unscored), floor_unscored
+    _, _, floor_scored = verify._gate_computed_refuter_scope(ana, _live(2))
+    assert not floor_scored, floor_scored
 
 
 def test_cli_answer_on_staged_root(tmp_path):

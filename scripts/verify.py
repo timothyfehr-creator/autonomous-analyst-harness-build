@@ -343,10 +343,19 @@ def _gate_computed_refuter_scope(ana: dict, live: al.Live):
         if not isinstance(claim, dict) or claim.get("epistemic_type") not in {"FACT", "INFERENCE"}:
             continue  # ASSUMPTION/PROJECTION claims carry no evidence
         required |= {a.get("id") for a in (active.get(cid) or []) if isinstance(a, dict)}
-        if not (supports.get(cid) or []):
+        # §6.6 / CONFLICT-1: the support must be credibility-SCORED (1..6), not merely exist. An
+        # UNASSESSED support is invisible to the conflict recompute (compute_dispute filters both
+        # sides by credibility), so it can hide a real opposing assessment and ship the claim as
+        # settled. Requiring a scored support forces the contest into the open (or fails here).
+        scored = [a for a in (supports.get(cid) or [])
+                  if isinstance(a.get("information_credibility"), int)
+                  and not isinstance(a.get("information_credibility"), bool)
+                  and 1 <= a["information_credibility"] <= 6]
+        if not scored:
             floor.append(f"required {claim.get('epistemic_type')} claim {cid!r} (prose marker or "
-                         f"visual input) has no active CHECKED SUPPORTS assessment — a committed "
-                         f"answer's factual claim must be supported (R2-P0-1)")
+                         f"visual input) has no credibility-SCORED active CHECKED SUPPORTS assessment "
+                         f"— a committed answer (Tier 2, §6.6) requires a scored support; an unscored "
+                         f"support can hide a real conflict (CONFLICT-1)")
     required.discard(None)
     return required_claims, required, floor
 
