@@ -52,6 +52,17 @@ def test_derived_from_unresolved_fails():
     assert code == 1 and any("does not resolve to a known observation" in x for x in f), f
 
 
+def test_observation_unresolved_claim_or_cea_fails():
+    # R3-P1-2: an observation's evidence leg must EXIST when the registries are supplied — a
+    # nonexistent claim_id or claim_evidence_assessment_id is a finding (records composition).
+    obs = [{"id": "obs-x", "claim_id": "clm-nope", "claim_evidence_assessment_ids": ["cea-nope"]}]
+    f = vo.check_observations(obs, {"obs-x"}, claim_ids={"clm-real"}, cea_ids={"cea-real"})
+    assert any("clm-nope" in x and "does not resolve" in x for x in f), f
+    assert any("cea-nope" in x and "does not resolve" in x for x in f), f
+    # standalone gate (registries absent) skips the resolution — no false positive
+    assert not vo.check_observations(obs, {"obs-x"})
+
+
 def test_empty_factbase_passes():
     assert vo.main([]) == 0
 

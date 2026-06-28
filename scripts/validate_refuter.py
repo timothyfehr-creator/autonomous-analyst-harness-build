@@ -48,15 +48,16 @@ def _wellformed_search(s) -> bool:
 
 
 def validate_refuter(refuter: dict, analysis: dict, live: al.Live, triggers=None, answer_mode=False,
-                     required_ceas=None):
+                     required_ceas=None, required_claims=None):
     """answer_mode=False: validate the refuter record's STRUCTURE (a negative verdict is a valid
     stored record). answer_mode=True (a committed answer): the refuter must also CERTIFY the answer —
     every required claim's verdict must be SURVIVES, so a refuter that REVISE/DOWNGRADE/REJECTs a
     claim blocks the committed answer (cross-vendor review P0-1: the refuter's "no" must mean no).
-    required_ceas (R2-P0-1): when the caller passes a GATE-COMPUTED required assessment set (manifest
-    ∪ context pack ∪ the marked claims' active CHECKED support — computed by answer_check from the
-    real factbase), coverage is by SUPERSET (reviewed ⊇ required) instead of the manifest set-equality
-    the author could shrink. None ⇒ records/standalone mode uses manifest set-equality."""
+    required_ceas (R2-P0-1) / required_claims (R3-P0-1/-4): when the caller passes a GATE-COMPUTED
+    required assessment + claim set (computed by answer_check from the real factbase — manifest ∪
+    context pack ∪ the required claims' active CHECKED assessments of EVERY stance ∪ visual inputs),
+    coverage is by SUPERSET (reviewed ⊇ required) instead of the manifest set-equality the author
+    could shrink. None ⇒ records/standalone mode uses manifest set-equality."""
     if triggers is None:
         triggers = v_hi.trigger_set()
     f = []
@@ -74,9 +75,19 @@ def validate_refuter(refuter: dict, analysis: dict, live: al.Live, triggers=None
                      if isinstance(r, dict)}
     reviewed_claims = set(refuter.get("reviewed_claim_ids") or [])
     reviewed_ceas = set(refuter.get("reviewed_assessment_ids") or [])
+    # the required CLAIM set is gate-computed in answer mode (prose markers ∪ visual inputs, R3-P0-4);
+    # records/standalone mode falls back to the manifest markers.
+    req_claims = set(required_claims) if required_claims is not None else manifest_claims
 
-    # 2. coverage. Claims are always set-equal to the markers (they DEFINE the answer's claims).
-    if reviewed_claims != manifest_claims:
+    # 2. coverage. The required claim set must be COVERED by the refuter (superset when gate-computed;
+    # set-equality vs the markers in records mode).
+    if required_claims is not None:
+        missing_c = req_claims - reviewed_claims
+        if missing_c:
+            f.append(f"reviewed_claim_ids does not cover the gate-computed required claim set "
+                     f"(missing {sorted(missing_c)}) — a committed answer's claims include visual "
+                     f"inputs, not only prose markers [R3-P0-4]")
+    elif reviewed_claims != manifest_claims:
         f.append(f"reviewed_claim_ids != manifest claim set "
                  f"(missing {sorted(manifest_claims - reviewed_claims)}, "
                  f"extra {sorted(reviewed_claims - manifest_claims)})")
@@ -95,7 +106,7 @@ def validate_refuter(refuter: dict, analysis: dict, live: al.Live, triggers=None
                  f"extra {sorted(reviewed_ceas - manifest_ceas)})")
 
     # 3. independence floor — every cited claim feeds the manifest ⇒ needs an independent reviewer
-    if manifest_claims and refuter.get("reviewer_class") == "SAME_MODEL_FRESH_CONTEXT":
+    if req_claims and refuter.get("reviewer_class") == "SAME_MODEL_FRESH_CONTEXT":
         f.append("reviewer_class SAME_MODEL_FRESH_CONTEXT is not independent (§10): a committed "
                  "answer's claims feed the manifest and require HUMAN / DIFFERENT_MODEL / MIXED")
     # ...and the manifest's OWN declared bar must actually be met (it was decorative before — the
@@ -105,7 +116,15 @@ def validate_refuter(refuter: dict, analysis: dict, live: al.Live, triggers=None
         f.append(f"reviewer_class {refuter.get('reviewer_class')!r} does not satisfy the manifest's "
                  f"required_refuter_class HUMAN_OR_DIFFERENT_MODEL (needs HUMAN/DIFFERENT_MODEL/MIXED)")
 
-    verdicts = {vd.get("claim_id"): vd for vd in (refuter.get("verdicts") or []) if isinstance(vd, dict)}
+    # duplicate verdicts for one claim silently collapse (last wins), which could hide a REJECT behind
+    # a later SURVIVES (R3-P0-2). Reject duplicate verdict claim_ids BEFORE collapsing to a dict.
+    vlist = [vd for vd in (refuter.get("verdicts") or []) if isinstance(vd, dict)]
+    vids = [vd.get("claim_id") for vd in vlist]
+    dupes = sorted({c for c in vids if vids.count(c) > 1})
+    if dupes:
+        f.append(f"duplicate verdicts for claim(s) {dupes} — a claim may carry exactly one verdict "
+                 f"(a duplicate can hide a REJECT behind a later SURVIVES) [R3-P0-2]")
+    verdicts = {vd.get("claim_id"): vd for vd in vlist}
     # claims that carry an observation cited in the manifest (so observation_check is applicable)
     manifest_obs = [r.get("id") for r in (analysis.get("observation_refs") or []) if isinstance(r, dict)]
     claims_with_obs = {live.observations[o].get("claim_id") for o in manifest_obs if o in live.observations}
@@ -115,7 +134,7 @@ def validate_refuter(refuter: dict, analysis: dict, live: al.Live, triggers=None
     CHECKS = ("displacement_check", "independence_check", "freshness_check",
               "observation_check", "reasoning_check")
     any_high_impact = False
-    for cid in sorted(manifest_claims):
+    for cid in sorted(req_claims):
         claim = live.claims.get(cid)
         if claim is None:
             continue  # resolution is manifest_structural's job (run first in answer mode)

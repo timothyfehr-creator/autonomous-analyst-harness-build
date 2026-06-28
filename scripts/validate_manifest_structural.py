@@ -65,4 +65,14 @@ def validate_manifest_structural(analysis: dict, live: al.Live):
     # 4. manifest self-hash consistency (tamper-evident over the whole manifest record)
     if analysis.get("manifest_hash") != vs.record_hash(analysis, exclude=("manifest_hash",)):
         f.append("manifest_hash is self-inconsistent (record_hash(analysis, exclude=manifest_hash) differs)")
+    # 5. visual self-hash consistency (R3-P1-1): step 2 binds visual_refs[].record_hash to the
+    # visual's STORED spec_hash, but that stored hash must ITSELF bind the visual record — else the
+    # visual body (title / data_bindings) can be tampered without breaking the manifest. Mirror the
+    # manifest self-hash check for every referenced visual.
+    for ref in analysis.get("visual_refs") or []:
+        vis = live.visuals.get(ref.get("id")) if isinstance(ref, dict) else None
+        if isinstance(vis, dict) and vis.get("spec_hash") != vs.record_hash(vis, exclude=("spec_hash",)):
+            f.append(f"visual {ref.get('id')!r} spec_hash is self-inconsistent "
+                     f"(record_hash(visual, exclude=spec_hash) differs — the visual body was tampered "
+                     f"without updating spec_hash)")
     return (1 if f else 0), sorted(f)

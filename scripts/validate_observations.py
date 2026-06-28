@@ -90,8 +90,10 @@ def _derivation_cycles(observations) -> list[str]:
     return sorted(findings)
 
 
-def check_observations(observations, obs_ids) -> list[str]:
-    """R-OBS-1 derived_from resolution (+ self/cycle guard) + R-OBS-2 the A5 cross-class dimensional check."""
+def check_observations(observations, obs_ids, claim_ids=None, cea_ids=None) -> list[str]:
+    """R-OBS-1 derived_from resolution (+ self/cycle guard) + R-OBS-2 the A5 cross-class dimensional
+    check + R-OBS-3 (R3-P1-2) claim/CEA backing resolution when the registries are supplied (records
+    composition passes them; the standalone gate stays dimensional-only)."""
     findings = list(_derivation_cycles(observations))
     vocab = schema_defs.UNIT_VOCABULARY
     for o in observations:
@@ -100,6 +102,18 @@ def check_observations(observations, obs_ids) -> list[str]:
         for d in (o.get("derived_from") or []):
             if isinstance(d, str) and d not in obs_ids:
                 findings.append(f"observation {oid!r}: derived_from {d!r} does not resolve to a known observation")
+        # R-OBS-3 (R3-P1-2): the observation's evidence leg must EXIST — its claim_id and every
+        # claim_evidence_assessment_id must resolve, else an observation can claim backing that is
+        # not there (and feed a committed answer via the manifest unrefuted).
+        if claim_ids is not None:
+            cid = o.get("claim_id")
+            if cid is not None and cid not in claim_ids:
+                findings.append(f"observation {oid!r}: claim_id {cid!r} does not resolve to a known claim")
+        if cea_ids is not None:
+            for a in (o.get("claim_evidence_assessment_ids") or []):
+                if isinstance(a, str) and a not in cea_ids:
+                    findings.append(f"observation {oid!r}: claim_evidence_assessment_ids {a!r} does not "
+                                    f"resolve to a known assessment")
         # R-OBS-2: a cross-dimensional-class numeric recast must be backed by a non-empty derived_from
         if o.get("value_type") in ("NUMBER", "INTEGER"):
             su, un = o.get("source_unit"), o.get("unit")
@@ -112,8 +126,9 @@ def check_observations(observations, obs_ids) -> list[str]:
     return sorted(findings)
 
 
-def validate_observations(paths):
-    """Return (exit_code, findings). Vocab fail-closed first; schema-first per file; then integrity."""
+def validate_observations(paths, claim_ids=None, cea_ids=None):
+    """Return (exit_code, findings). Vocab fail-closed first; schema-first per file; then integrity.
+    claim_ids/cea_ids (records composition) enable R-OBS-3 claim/CEA backing resolution."""
     if not schema_defs.UNIT_VOCABULARY:  # the dimensional-class map could not load — cannot run (§13)
         return 2, ["[FAIL closed] unit vocabulary is empty/unreadable — no dimensional-class map "
                    "(check config/unit_vocabulary.yaml)"]
@@ -126,7 +141,7 @@ def validate_observations(paths):
         return code, schema_findings
     merged, dup = load_observations_union(paths)
     obs_ids = {o.get("id") for o in merged}
-    findings = dup + check_observations(merged, obs_ids)
+    findings = dup + check_observations(merged, obs_ids, claim_ids, cea_ids)
     return (1 if findings else 0), findings
 
 

@@ -147,6 +147,10 @@ def records_check(root: Path, as_of):
     try:  # resolution sets for the cross-file gates (a bad registry here is §13 cannot-run)
         src_ids, grp_ids = v_evd.load_source_ids(sources)
         cea_refs = v_cea.load_ref_sets(claims, evidence, sources)
+        # claim + cea id sets so the observation gate can resolve its backing leg (R3-P1-2)
+        obs_claim_ids = cea_refs[0]
+        obs_cea_ids = {a.get("id") for a in (vs.load_yaml_strict(cea) or {}).get(
+            "claim_evidence_assessments") or [] if isinstance(a, dict)}
     except Exception as e:  # noqa: BLE001
         return 2, [f"  [records] cannot load a registry for resolution (fail closed): {e}"]
     triggers = v_hi.trigger_set()
@@ -170,7 +174,7 @@ def records_check(root: Path, as_of):
         ("support", lambda: v_sup.validate_support(claims, cea)),
         ("conflict", lambda: v_con.validate_conflict(claims, cea)),
         ("freshness", lambda: v_fresh.validate_freshness(claims, as_of)),
-        ("observations", lambda: v_obs.validate_observations([observations])),
+        ("observations", lambda: v_obs.validate_observations([observations], obs_claim_ids, obs_cea_ids)),
     ]
     code, lines = 0, [f"  [records] composing {len(stages)} integrity gates as of {as_of!r} "
                       f"(DAG order; cross-commit reward-hack is a separate gate)."]
@@ -309,13 +313,17 @@ def _answer_visuals(ana: dict, live: al.Live):
 
 
 def _gate_computed_refuter_scope(ana: dict, live: al.Live):
-    """The refuter's REQUIRED assessment set, COMPUTED from the real factbase — not read from the
-    author's manifest list, which can be shrunk (R2-P0-1). Required = manifest assessment refs ∪
-    context-pack assessment_refs ∪ each referenced visual's input_assessment_refs ∪ the active CHECKED
-    SUPPORTS assessments of every marked FACT/INFERENCE claim. Also returns the support FLOOR: a
-    committed answer's factual claim must HAVE at least one active CHECKED SUPPORTS assessment."""
+    """Return (required_claims, required_ceas, floor) COMPUTED from the real factbase — not read from
+    the author-shrinkable manifest. A committed answer commits to its prose markers AND its visual
+    input claims (a chart asserts them too, R3-P0-4), so required_claims = both. required_ceas =
+    manifest refs ∪ context-pack assessment_refs ∪ each referenced visual's
+    input_claim_evidence_assessment_refs ∪ the active CHECKED assessments of EVERY stance
+    (SUPPORTS ∪ REFUTES ∪ MIXED) for every required FACT/INFERENCE claim — an opposing assessment
+    that makes a claim CONTESTED must be reviewed too (R3-P0-1), not just its support. floor: a
+    factual required claim must HAVE at least one active CHECKED SUPPORTS assessment."""
     markers = ana.get("claim_markers") if isinstance(ana.get("claim_markers"), dict) else {}
     marked = {mv.get("claim_id") for mv in markers.values() if isinstance(mv, dict)}
+    visual_claims = set()
     required = {r.get("id") for r in (ana.get("claim_evidence_assessment_refs") or []) if isinstance(r, dict)}
     pack = live.context_packs.get(ana.get("context_pack_id"))
     if isinstance(pack, dict):
@@ -323,22 +331,24 @@ def _gate_computed_refuter_scope(ana: dict, live: al.Live):
     for vref in ana.get("visual_refs") or []:
         v = live.visuals.get(vref.get("id")) if isinstance(vref, dict) else None
         if isinstance(v, dict):
-            required |= {r.get("id") for r in (v.get("input_assessment_refs") or []) if isinstance(r, dict)}
-    supports = v_sup.active_supports_by_claim(list(live.cea.values()))
+            visual_claims |= {r.get("id") for r in (v.get("input_claim_refs") or []) if isinstance(r, dict)}
+            required |= {r.get("id") for r in (v.get("input_claim_evidence_assessment_refs") or [])
+                         if isinstance(r, dict)}
+    required_claims = {c for c in (marked | visual_claims) if c}
+    active = v_sup.active_checked_by_claim(list(live.cea.values()))      # every stance (R3-P0-1)
+    supports = v_sup.active_supports_by_claim(list(live.cea.values()))   # SUPPORTS only (the floor)
     floor = []
-    for cid in sorted(c for c in marked if c):
+    for cid in sorted(required_claims):
         claim = live.claims.get(cid)
         if not isinstance(claim, dict) or claim.get("epistemic_type") not in {"FACT", "INFERENCE"}:
             continue  # ASSUMPTION/PROJECTION claims carry no evidence
-        ceas = supports.get(cid) or []
-        if ceas:
-            required |= {a.get("id") for a in ceas if isinstance(a, dict)}
-        else:
-            floor.append(f"marked {claim.get('epistemic_type')} claim {cid!r} has no active CHECKED "
-                         f"SUPPORTS assessment — a committed answer's factual claim must be supported "
-                         f"(R2-P0-1)")
+        required |= {a.get("id") for a in (active.get(cid) or []) if isinstance(a, dict)}
+        if not (supports.get(cid) or []):
+            floor.append(f"required {claim.get('epistemic_type')} claim {cid!r} (prose marker or "
+                         f"visual input) has no active CHECKED SUPPORTS assessment — a committed "
+                         f"answer's factual claim must be supported (R2-P0-1)")
     required.discard(None)
-    return required, floor
+    return required_claims, required, floor
 
 
 def answer_check(root: Path, analysis_id, as_of):
@@ -381,13 +391,28 @@ def answer_check(root: Path, analysis_id, as_of):
         lines.append(f"  [answer] no refuter binds analysis {analysis_id!r} — the §10 refuter control "
                      f"cannot run (exit 2, fail closed). SKIP is not PASS.")
         return 2, lines
-    # R2-P0-1: gate-compute the refuter's required-assessment scope from the factbase (the author
-    # cannot shrink it via the manifest), and enforce the support floor for factual marked claims.
-    required_ceas, floor = _gate_computed_refuter_scope(ana, live)
+    # R3-P0-3: there is no refuter supersession model, so MORE THAN ONE refuter binding the same
+    # (analysis, manifest_hash, output_hash) is ambiguous — refuter_for_analysis picks the first,
+    # which would let a cherry-picked SURVIVES hide a REJECT sibling. Fail closed.
+    bound = sorted(r.get("id") for r in live.refuters.values()
+                   if isinstance(r, dict) and r.get("analysis_id") == analysis_id
+                   and r.get("manifest_hash") == ana.get("manifest_hash")
+                   and r.get("output_hash") == ana.get("output_hash"))
+    if len(bound) > 1:
+        lines.append(f"  [answer] {len(bound)} refuters bind analysis {analysis_id!r} at the same "
+                     f"manifest/output hash ({bound}) — a committed answer requires exactly one "
+                     f"(no supersession model); a negative sibling cannot be cherry-picked away. "
+                     f"Fail closed. [R3-P0-3]")
+        return 2, lines
+    # R2-P0-1 / R3-P0-1 / R3-P0-4: gate-compute the refuter's required claim + assessment scope from
+    # the factbase (the author cannot shrink it via the manifest), including opposing assessments and
+    # visual input claims, and enforce the support floor for factual required claims.
+    required_claims, required_ceas, floor = _gate_computed_refuter_scope(ana, live)
     if floor:
         code = max(code, 1)
         lines += [f"  [refuter] {x}" for x in floor]
-    rc, rf = v_ref.validate_refuter(refuter, ana, live, answer_mode=True, required_ceas=required_ceas)
+    rc, rf = v_ref.validate_refuter(refuter, ana, live, answer_mode=True,
+                                    required_ceas=required_ceas, required_claims=required_claims)
     code = max(code, rc)
     lines += [f"  [refuter] {x}" for x in rf]
     lc, lf = _answer_input_lifecycle(ana, live)

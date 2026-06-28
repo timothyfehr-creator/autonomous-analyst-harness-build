@@ -82,6 +82,18 @@ def test_draft_referenced_pack_missing_is_exit2(tmp_path):
     assert code == 2 and "does not resolve" in "\n".join(lines)
 
 
+def test_draft_tampered_visual_body_breaks_spec_hash(tmp_path):
+    # R3-P1-1: the manifest binds visual_refs[].record_hash to the visual's STORED spec_hash; that
+    # stored hash must itself bind the visual body. Tamper the title (keep spec_hash) → the visual
+    # self-hash check must fire (the manifest ref check alone misses it).
+    fb = _stage(tmp_path)
+    t = (fb / "visuals.yaml").read_text()
+    t = t.replace("title: ", "title: TAMPERED ", 1)
+    (fb / "visuals.yaml").write_text(t)
+    code, lines = _draft(tmp_path, "ana-skeleton")
+    assert code == 1 and any("spec_hash is self-inconsistent" in ln for ln in lines), "\n".join(lines)
+
+
 def test_draft_stale_manifest_ref_hash_is_finding(tmp_path):
     fb = _stage(tmp_path)
     # tamper the manifest's cea ref hash → manifest_structural finding (exit 1, in valid input)

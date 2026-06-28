@@ -253,6 +253,27 @@ def test_answer_mode_requires_survives_verdict():
     assert vr.validate_refuter(good, ana, _live(), TRIG, answer_mode=True) == (0, [])
 
 
+def test_required_claims_superset_coverage():
+    # R3-P0-4: a refuter that covers the prose markers but NOT a gate-required visual input claim is
+    # under-covered (the answer commits to visual claims too).
+    ana = _ana(["clm-n"], ["cea-1"])
+    ref = _ref(["clm-n"], ["cea-1"])  # reviews only clm-n
+    n2 = {**_NORMAL, "id": "clm-v"}
+    code, f = vr.validate_refuter(ref, ana, _live([_NORMAL, n2]), TRIG, answer_mode=True,
+                                  required_claims={"clm-n", "clm-v"}, required_ceas={"cea-1"})
+    assert code == 1 and any("required claim set" in x for x in f), f
+
+
+def test_duplicate_verdicts_for_one_claim_rejected():
+    # R3-P0-2: a REJECT hidden behind a later SURVIVES for the SAME claim must not pass — the verdict
+    # list collapses to a dict (last wins), so the dedup must fire before the disposition check.
+    ana = _ana(["clm-n"], ["cea-1"])
+    ref = _ref(["clm-n"], ["cea-1"], verdicts=[_verdict("clm-n", verdict="REJECT"),
+                                               _verdict("clm-n", verdict="SURVIVES")])
+    code, f = vr.validate_refuter(ref, ana, _live(), TRIG, answer_mode=True)
+    assert code == 1 and any("duplicate verdict" in x for x in f), f
+
+
 def test_required_refuter_class_enforced():
     # Milestone-A P0 review: the manifest's declared required_refuter_class was decorative. A
     # DIFFERENT_MODEL refuter satisfies HUMAN_OR_DIFFERENT_MODEL; SAME_MODEL does not.

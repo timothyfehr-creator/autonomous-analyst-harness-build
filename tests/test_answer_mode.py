@@ -174,6 +174,45 @@ def test_answer_undercovered_via_refuter_only_blocked(tmp_path):
     assert code == 1 and any("gate-computed required set" in ln for ln in lines), "\n".join(lines)
 
 
+def test_answer_multiple_refuters_fails_closed(tmp_path):
+    # R3-P0-3: a second refuter binding the SAME analysis/manifest/output (e.g. a hidden REJECT) must
+    # fail closed — refuter_for_analysis picks the first, so a negative sibling could be cherry-picked
+    # away. No supersession model exists, so >1 active binding refuter is ambiguous.
+    fb = _stage(tmp_path)
+    text = (fb / "refuters.yaml").read_text()
+    _, _, record = text.partition("refuters:\n")
+    second = record.replace("id: ref-skeleton", "id: ref-skeleton-negative").replace(
+        "verdict: SURVIVES", "verdict: REJECT")
+    (fb / "refuters.yaml").write_text(text + second)
+    code, lines = _answer(tmp_path)
+    assert code == 2 and any("refuters bind" in ln for ln in lines), "\n".join(lines)
+
+
+def test_gate_scope_includes_opposing_and_visual():
+    # R3-P0-1 + R3-P0-4: the gate-computed scope must include active opposing (REFUTES) assessments
+    # for a marked claim AND the visual's input claims + its assessment refs (correct field name).
+    import types
+    def _cea(i, claim_id, stance):
+        return {"id": i, "claim_id": claim_id, "artifact_id": f"evd-{i}", "stance": stance,
+                "semantic_review": {"status": "CHECKED"}, "supersedes": None}
+    live = types.SimpleNamespace(
+        claims={"clm-a": {"id": "clm-a", "epistemic_type": "FACT"},
+                "clm-v": {"id": "clm-v", "epistemic_type": "FACT"}},
+        cea={"cea-sup": _cea("cea-sup", "clm-a", "SUPPORTS"),
+             "cea-ref": _cea("cea-ref", "clm-a", "REFUTES"),
+             "cea-vsup": _cea("cea-vsup", "clm-v", "SUPPORTS")},
+        context_packs={},
+        visuals={"vis-1": {"input_claim_refs": [{"id": "clm-v"}],
+                           "input_claim_evidence_assessment_refs": [{"id": "cea-vis"}]}})
+    ana = {"claim_markers": {"c1": {"claim_id": "clm-a"}}, "claim_evidence_assessment_refs": [],
+           "context_pack_id": None, "visual_refs": [{"id": "vis-1"}]}
+    req_claims, req_ceas, floor = verify._gate_computed_refuter_scope(ana, live)
+    assert "cea-ref" in req_ceas, "R3-P0-1: opposing REFUTES assessment must be required"
+    assert "clm-v" in req_claims, "R3-P0-4: visual input claim must be a required claim"
+    assert "cea-vis" in req_ceas, "R3-P0-4: visual assessment ref (correct field name)"
+    assert "cea-vsup" in req_ceas and not floor
+
+
 def test_cli_answer_on_staged_root(tmp_path):
     _stage(tmp_path)
     assert verify.main(["--mode", "answer", "--root", str(tmp_path),

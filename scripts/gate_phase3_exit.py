@@ -261,6 +261,60 @@ def _refuter_scope_gate_computed() -> str | None:
     return None
 
 
+def _refuter_dup_verdicts_block() -> str | None:
+    # R3-P0-2: a REJECT hidden behind a later SURVIVES (duplicate verdicts for one claim) must block.
+    ref = _ref(["clm-n"], verdicts=[_verdict("clm-n", verdict="REJECT"),
+                                    _verdict("clm-n", verdict="SURVIVES")])
+    code = v_ref.validate_refuter(ref, _ana(["clm-n"]), _live(), answer_mode=True)[0]
+    return None if code == 1 else f"DUP-VERDICTS REGRESSED: returned {code}, expected 1"
+
+
+def _refuter_scope_opposing_visual() -> str | None:
+    # R3-P0-1/-4: the gate-computed scope must include active OPPOSING assessments + visual inputs.
+    def _c(i, cid, st):
+        return {"id": i, "claim_id": cid, "artifact_id": f"evd-{i}", "stance": st,
+                "semantic_review": {"status": "CHECKED"}, "supersedes": None}
+    live = types.SimpleNamespace(
+        claims={"clm-a": {"id": "clm-a", "epistemic_type": "FACT"},
+                "clm-v": {"id": "clm-v", "epistemic_type": "FACT"}},
+        cea={"s": _c("cea-s", "clm-a", "SUPPORTS"), "r": _c("cea-r", "clm-a", "REFUTES"),
+             "vs": _c("cea-vs", "clm-v", "SUPPORTS")},
+        context_packs={}, visuals={"v": {"input_claim_refs": [{"id": "clm-v"}],
+                                         "input_claim_evidence_assessment_refs": [{"id": "cea-vis"}]}})
+    ana = {"claim_markers": {"c": {"claim_id": "clm-a"}}, "claim_evidence_assessment_refs": [],
+           "context_pack_id": None, "visual_refs": [{"id": "v"}]}
+    rc, rceas, _ = verify._gate_computed_refuter_scope(ana, live)
+    missing = [x for x in ("cea-r", "cea-vis") if x not in rceas] + (["clm-v"] if "clm-v" not in rc else [])
+    return None if not missing else f"SCOPE REGRESSED: {missing} not in gate-computed refuter scope"
+
+
+def _multiple_refuters_fail_closed() -> str | None:
+    # R3-P0-3: a second refuter binding the same analysis/manifest/output must fail closed.
+    with tempfile.TemporaryDirectory() as dd:
+        d = Path(dd)
+        fb = stage_answer_layer(d)
+        text = (fb / "refuters.yaml").read_text()
+        _, _, record = text.partition("refuters:\n")
+        second = record.replace("id: ref-skeleton", "id: ref-skeleton-negative").replace(
+            "verdict: SURVIVES", "verdict: REJECT")
+        (fb / "refuters.yaml").write_text(text + second)
+        code, lines = verify.answer_check(d, "ana-skeleton", ASOF)
+    return None if code == 2 and any("refuters bind" in ln for ln in lines) else \
+        f"MULTI-REFUTER REGRESSED: returned {code}, expected 2"
+
+
+def _visual_spec_self_hash() -> str | None:
+    # R3-P1-1: a tampered visual body (spec_hash left unchanged) must fail manifest_structural.
+    with tempfile.TemporaryDirectory() as dd:
+        d = Path(dd)
+        fb = stage_answer_layer(d)
+        (fb / "visuals.yaml").write_text((fb / "visuals.yaml").read_text().replace(
+            "title: ", "title: TAMPERED ", 1))
+        code, lines = verify.draft_check(d, "ana-skeleton", ASOF)
+    return None if code == 1 and any("spec_hash is self-inconsistent" in ln for ln in lines) else \
+        f"VISUAL-SELF-HASH REGRESSED: returned {code}, expected 1"
+
+
 def _phase2_green() -> str | None:
     return None if g2.main() == 0 else "the Phase-2 exit gate is not green (cumulative drift reached Phases 1-2)"
 
@@ -275,7 +329,11 @@ def main() -> int:
         ("W-V-P0-1-REFUTER", _v_p0_1_refuter), ("W-REFUTER-REJECT-BLOCKS", _refuter_reject_blocks),
         ("W-HI-PROSE-LAUNDERING", _hi_prose_laundering_blocks),
         ("W-HI-CONTEST-STORED-TRUE", _hi_contest_stored_true),
-        ("W-REFUTER-SCOPE-GATE-COMPUTED", _refuter_scope_gate_computed), ("W-PHASE2-GREEN", _phase2_green),
+        ("W-REFUTER-SCOPE-GATE-COMPUTED", _refuter_scope_gate_computed),
+        ("W-REFUTER-DUP-VERDICTS", _refuter_dup_verdicts_block),
+        ("W-REFUTER-SCOPE-OPPOSING-VISUAL", _refuter_scope_opposing_visual),
+        ("W-MULTIPLE-REFUTERS", _multiple_refuters_fail_closed),
+        ("W-VISUAL-SPEC-SELF-HASH", _visual_spec_self_hash), ("W-PHASE2-GREEN", _phase2_green),
     ]
     problems = []
     for name, fn in witnesses:
