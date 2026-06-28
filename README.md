@@ -17,26 +17,42 @@ It has four jobs:
 
 ## Status
 
-**Phases 0–2 are built and green; Phase 3 (the answer/refuter loop) is not yet written.**
+**Phases 0–3 are built and green — the full conversational → recorded → committed-answer loop,
+through the refuter (Milestone A). Phase 4 (the baseline fact repository) is next.**
 
 | Layer | State |
 |---|---|
 | Phase 0 — scaffold, review-adjudication gate, sensitive-scan, Tier-0 contract | **built** (WP0.0–0.3) |
 | Phase 1 — closed record schemas + golden canonicalization vector | **built** (WP1.1–1.6) |
 | Phase 2 — 8 record-integrity gates + `records` composition + exit gate | **built** (WP2.1–2.8) |
-| Phase 3 — `draft` / `answer` modes + refuter coverage | **planned, not built** |
+| Phase 3 — `draft` / `answer` modes + output binding + required refuter | **built** (WP3.0–3.4, Milestone A) |
 | Phases 4–7 — baseline memory, visuals, forecast calibration, semantic assist | **planned** |
 
-- **359 tests pass** (`pytest`). The two machine phase-gates — `scripts/gate_phase1_exit.py`
-  and `scripts/gate_phase2_exit.py` — both exit `0`.
-- Governance is **READY (ACCEPTED_WITH_LIMITS)** — see `docs/REVIEW_ADJUDICATION.md` and
-  `docs/PROGRESS.md`. The cold review that cleared it was a *non-independent same-model pass*;
-  a genuinely independent cross-vendor/human review of the P0 corroboration / `high_impact`
-  surface (gates WP2.5 / WP2.2 / the Phase-3 refuter) is **recommended defence-in-depth and has
-  not yet been performed**. It no longer blocks the build, but it is an honest open limit.
+- **464 tests pass** (`pytest`). The three machine phase-gates —
+  `scripts/gate_phase{1,2,3}_exit.py` — each exit `0`.
+- The committed-answer loop has been hardened across three independent cross-vendor review
+  rounds (see `docs/REVIEW_CROSSVENDOR.md`). Remaining known gaps are deliberate-adversary
+  constructions outside this tool's threat model (below), not honest-use failures.
 
 This is a working harness, not a finished product. The unbuilt modes fail closed (exit `2`),
 never silently pass.
+
+### What this defends against — and what it does not
+
+This is a **private, single-user** tool. Its job is to keep an AI assistant (and the user)
+**honest and traceable**: every committed claim traces to a real source and exact locator; the
+"is this high-impact / contested / stale" labels are **computed from the records, not asserted**;
+a committed answer is bound to its exact inputs and checked by an independent refuter.
+
+- **It defends against** the realistic failure modes of AI-assisted research — a confidently
+  wrong or unsupported claim, a contested point shipped as settled, a stale fact reused, an
+  error inherited from a previous session's memory.
+- **It does not claim to resist a deliberate adversary** who forges internally-consistent
+  records and recomputes the content hashes to evade the checks. There is no such adversary for
+  a single-user tool, so that is out of scope. For a high-stakes Tier-2 answer the **independent
+  human / different-model refuter is the control**; the gates make its job easier and catch
+  mechanical self-deception, but they are a coherence floor, not a truth certificate
+  (Constitution §15).
 
 ## Quickstart
 
@@ -45,7 +61,7 @@ Requires Python 3.11+.
 ```bash
 python3 -m venv .venv
 .venv/bin/pip install -r requirements-dev.txt
-.venv/bin/python -m pytest                          # 359 tests
+.venv/bin/python -m pytest                          # 464 tests
 .venv/bin/python scripts/verify.py --mode scaffold  # governance + scaffold check → exit 0
 ```
 
@@ -113,8 +129,9 @@ flowchart LR
 The separations are load-bearing and the gates enforce them: source **type** is not assessed
 **reliability**; reliability is not information **credibility**; an artifact is not a claim
 verdict; a claim is not a chart datum; corroboration counts independent information *origins*
-(collapsed by `origin_chain[0]`), not outlet logos; same-model fresh-context review is not
-independent review; Git history is not an immutable prediction anchor.
+(by connected component over shared origin source or independence group, not outlet logos);
+same-model fresh-context review is not independent review; Git history is not an immutable
+prediction anchor.
 
 ## Honest verification modes
 
@@ -123,8 +140,8 @@ independent review; Git history is not an immutable prediction anchor.
 | `conversational` | Tier-0 notice — UNVERIFIED BY DESIGN, never a PASS | **available** |
 | `scaffold` | governance, required files, dependencies, schema availability | **available** |
 | `records` | source, artifact, assessment, claim, support, conflict, freshness, observation integrity | **available** |
-| `draft` | records plus analysis-manifest and projection-link integrity | planned (Phase 3) |
-| `answer` | draft plus output binding, visual hashes, and required refuter review | planned (Phase 3) |
+| `draft` | records plus analysis-manifest and projection-link integrity | **available** (Phase 3) |
+| `answer` | draft plus output binding, visual hashes, and required refuter review | **available** (Phase 3) |
 
 None proves semantic truth. Exact support locators and adversarial review make judgment
 inspectable; they do not automate it into existence.
@@ -134,19 +151,20 @@ inspectable; they do not automate it into existence.
 **Available now:**
 
 ```bash
-.venv/bin/python -m pytest                                   # full suite (359)
+.venv/bin/python -m pytest                                   # full suite (464)
 .venv/bin/python scripts/verify.py --mode conversational     # Tier-0 notice (exit 0, not a PASS)
 .venv/bin/python scripts/verify.py --mode scaffold           # governance + scaffold (exit 0/2)
 .venv/bin/python scripts/verify.py --mode records --as-of 2026-06-23T00:00:00Z  # integrity composition (exit 0/1/2)
+.venv/bin/python scripts/verify.py --mode draft --analysis ana-id    # Phase-3 draft composition (exit 0/1/2)
+.venv/bin/python scripts/verify.py --mode answer --analysis ana-id   # Phase-3 committed answer + refuter (exit 0/1/2)
 .venv/bin/python scripts/gate_phase1_exit.py                 # Phase-1 machine gate (exit 0/2)
 .venv/bin/python scripts/gate_phase2_exit.py                 # Phase-2 machine gate (exit 0/2)
+.venv/bin/python scripts/gate_phase3_exit.py                 # Phase-3 machine gate (exit 0/2)
 ```
 
-**Planned (not yet built — these scripts/modes do not exist yet):**
+**Planned (not yet built — these scripts do not exist yet):**
 
 ```bash
-.venv/bin/python scripts/verify.py --mode draft              # Phase 3 (WP3.1)
-.venv/bin/python scripts/verify.py --mode answer --analysis ana-001  # Phase 3 (WP3.4)
 # scripts/fact.py        — query / context / candidate / assess / promote / supersede (Phase 4)
 # scripts/prediction.py  — lock / resolve / score (Phase 6)
 # scripts/visual.py      — validate / render / inspect (Phase 5)
@@ -181,18 +199,19 @@ public/redacted export would be a separate, explicitly threat-modeled mode, not 
 
 ```text
 README.md  AGENTS.md  CLAUDE.md  LICENSE  requirements-dev.txt  IMPLEMENTATION_PLAN.md
-scripts/                      # 20 scripts
-  verify.py                   #   unified mode ladder (conversational/scaffold/records/...)
+scripts/                      # 27 scripts
+  verify.py                   #   unified mode ladder (conversational/scaffold/records/draft/answer)
   validate_schema.py          #   Phase-1 closed-schema envelope + canonicalization vector
   schema_defs.py              #   per-record closed schemas + vocabularies
   validate_*.py               #   Phase-2 integrity gates (sources, evidence, claim_evidence,
-                              #     claims, support, conflict, freshness, observations, ...)
+                              #     claims, support, conflict, freshness, observations) +
+                              #     Phase-3 answer layer (output, refuter, manifest, context_pack)
+  answer_layer.py / hash_chain.py  #   Phase-3 Live resolver + reproducible hash regenerator
   check_reward_hack.py        #   cross-commit reward-hack tripwire
   supersession.py             #   shared one-active-leaf / cycle helper
-  gate_phase1_exit.py         #   Phase-1 machine exit gate
-  gate_phase2_exit.py         #   Phase-2 machine exit gate
+  gate_phase{1,2,3}_exit.py   #   per-phase machine exit gates (each wraps the prior)
   check_review_adjudication.py / preflight_phase1.py / sensitive_scan.py
-tests/                        # 232 files (incl. 206 synthetic fixtures); pytest suite
+tests/                        # 260 files (incl. 228 synthetic fixtures); 464-test pytest suite
   fixtures/skeleton/          #   Milestone-A synthetic assembly oracle
 config/
   high_impact_triggers.yaml   # high_impact recompute trigger oracle
