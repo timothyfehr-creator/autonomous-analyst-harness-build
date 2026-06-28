@@ -10,7 +10,8 @@ share the blind spot for.
 Paste this whole file as your instructions. The code is at
 `https://github.com/timothyfehr-creator/autonomous-analyst-harness-build` and in the attached zip
 (`analyst-harness-v3-review-*.zip`). It runs offline: `python3 -m venv .venv && .venv/bin/pip
-install -r requirements-dev.txt && .venv/bin/python -m pytest` (expect 457 green) and the three
+install -r requirements-dev.txt && .venv/bin/python -m pytest` (457 passing in a git clone; from the
+unzipped bundle, 455 passing + 2 skipped — the 2 skips are git-only repo-scan tests, NOT failures) and the three
 machine gates `.venv/bin/python scripts/gate_phase{1,2,3}_exit.py` (each exits 0).
 
 ## What the system is (one paragraph)
