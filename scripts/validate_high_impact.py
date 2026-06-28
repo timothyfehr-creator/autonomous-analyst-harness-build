@@ -84,7 +84,11 @@ def claim_hi_categories(claim, triggers, catmap=None) -> set:
     topics = claim.get("topics") or []
     topic_hits = ({normalize_topic(t) for t in topics} & triggers) if isinstance(topics, list) else set()
     text_hits = set(text_trigger_hits(claim.get("text"), triggers))
-    return categories_for(topic_hits | text_hits, catmap)
+    cats = categories_for(topic_hits | text_hits, catmap)
+    cat = claim.get("impact_category")  # a reviewer-assigned category covers its category in prose
+    if isinstance(cat, str) and cat in _CATEGORY_TO_TOKEN:
+        cats = cats | {_CATEGORY_TO_TOKEN[cat]}
+    return cats
 
 
 def text_trigger_hits(text, triggers: set[str]) -> list[str]:
@@ -100,9 +104,21 @@ def text_trigger_hits(text, triggers: set[str]) -> list[str]:
     return sorted(t for t in triggers if t and re.search(r"(?<!\w)" + re.escape(t) + r"(?!\w)", norm))
 
 
+# Reviewer-assigned impact_category → its canonical high-impact category TOKEN (for prose-coverage
+# parity in validate_output). MILITARY_CAPABILITY has no trigger token yet — still a real category.
+_CATEGORY_TO_TOKEN = {"CASUALTIES": "casualties", "ATTRIBUTION": "attribution",
+                      "TERRITORIAL_CONTROL": "territorial-control",
+                      "MILITARY_CAPABILITY": "military-capability"}
+
+
 def compute_high_impact(claim: dict, triggers: set[str]) -> tuple[bool, list[str]]:
-    """Return (computed_lower_bound, reasons). Computable triggers: T1 topics, T1b claim text, T2-pred."""
+    """Return (computed_lower_bound, reasons). Triggers: T0 reviewer impact_category (authoritative),
+    T1 topics, T1b claim text, T2-pred."""
     reasons = []
+    cat = claim.get("impact_category")
+    if isinstance(cat, str) and cat not in ("", "NONE"):
+        reasons.append(f"T0 reviewer-assigned impact_category {cat!r} is a high-impact category "
+                       f"(authoritative — not word-list dependent)")
     topics = claim.get("topics") or []
     if isinstance(topics, list):
         hit = sorted({normalize_topic(t) for t in topics} & triggers)
@@ -136,6 +152,17 @@ def check_claims(data, triggers: set[str]) -> tuple[list[str], list[str]]:
             notices.append(f"claim {cid!r}: high_impact true accepted on author's word — the "
                            f"manifest/visual (WP3.2/Ph5) and contradiction (WP2.6) legs are not "
                            f"computable at records scope [deferred, not scored]")
+        # FR-2 (R2-P0-2): an explicit impact_category NONE that contradicts the LEXICAL candidate
+        # detector (topics ∪ text) is a miscategorization / laundering — assign a real category or
+        # correct the text. Absent category is tolerated at records scope (the committed-answer path
+        # forces categorization). A non-NONE category never trips this (it IS the category).
+        topics = claim.get("topics") or []
+        topic_hits = {normalize_topic(t) for t in topics} & triggers if isinstance(topics, list) else set()
+        text_hits = set(text_trigger_hits(claim.get("text"), triggers))
+        if (topic_hits or text_hits) and claim.get("impact_category") == "NONE":
+            findings.append(f"claim {cid!r}: impact_category NONE contradicts high-impact candidate "
+                            f"term(s) {sorted(topic_hits | text_hits)} — assign a category or correct "
+                            f"the text (UNCATEGORIZED/MISCATEGORIZED, R2-P0-2)")
     return sorted(findings), sorted(notices)
 
 

@@ -82,6 +82,8 @@ def _a_exploits() -> str | None:
             lambda: v_hi.validate_high_impact_file(FIX / "hi_t1_casualties_false.yaml", v_hi.trigger_set())[0],
         "high_impact-text-laundering (P0-2)":
             lambda: v_hi.validate_high_impact_file(FIX / "hi_text_evasion.yaml", v_hi.trigger_set())[0],
+        "high_impact-uncategorized-candidate (R2-P0-2)":
+            lambda: v_hi.validate_high_impact_file(FIX / "hi_candidate_uncategorized.yaml", v_hi.trigger_set())[0],
         "A5 cross-class recast (V-P1-5)":
             lambda: v_obs.validate_observations([FIX / "obs_a5_cross_class_no_df.yaml"])[0],
         "conflict same-origin-both-sides":

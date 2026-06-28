@@ -142,6 +142,11 @@ FRESHNESS_STATUS = {"NOT_APPLICABLE", "CURRENT", "REVIEW_DUE", "STALE"}
 LIFECYCLE = {"CANDIDATE", "REVIEWED", "SUPERSEDED", "REJECTED"}
 STABILITY = {"DURABLE", "APPEND_ONLY_HISTORY", "VOLATILE"}
 PROJECTION_KIND = {"FALSIFIABLE", "SCENARIO"}
+# Reviewer-assigned high-impact CATEGORY (FR-2 / R2-P0-2). The AUTHORITATIVE high-impact signal:
+# a non-NONE category forces `high_impact: true` regardless of word-list coverage, and switches on
+# the refuter's high-impact contest (§10). The widened trigger word-list is only a CANDIDATE
+# detector that forces a reviewer to assign this; it is not relied on for completeness.
+IMPACT_CATEGORY = {"CASUALTIES", "ATTRIBUTION", "TERRITORIAL_CONTROL", "MILITARY_CAPABILITY", "NONE"}
 
 
 def _claim_extra(rec):
@@ -194,10 +199,11 @@ CLAIM_SCHEMA = {
                  "created_at", "supersedes"},
     "optional": {"premise_claim_ids", "reasoning", "rationale", "consequence_if_false",
                  "projection_kind", "prediction_id", "scenario_id", "temporal", "review_by",
-                 "expires_at", "freshness_profile"},
+                 "expires_at", "freshness_profile", "impact_category"},
     "enums": {"epistemic_type": EPISTEMIC_TYPES, "support_status": SUPPORT_STATUS,
               "dispute_status": DISPUTE_STATUS, "freshness_status": FRESHNESS_STATUS,
-              "lifecycle": LIFECYCLE, "stability": STABILITY, "projection_kind": PROJECTION_KIND},
+              "lifecycle": LIFECYCLE, "stability": STABILITY, "projection_kind": PROJECTION_KIND,
+              "impact_category": IMPACT_CATEGORY},
     "types": {"id": "id", "created_at": "datetime", "supersedes": "ref:clm-",
               "high_impact": "boolean", "prediction_id": "ref:prd-"},
     "extra": _claim_extra,
@@ -208,8 +214,9 @@ CLAIM_SCHEMA = {
 # re-reviewing or superseding a claim (which mutates these fields) does NOT silently break every
 # prior answer that cited it. Everything a review / refresh / supersession touches is EXCLUDED;
 # the semantic content (text, epistemic_type, topics, high_impact, stability, temporal,
-# premise/reasoning/rationale/projection legs, id) stays IN. `high_impact` is deliberately IN: a
-# false→true flip SHOULD break a binding and force re-review (§10). claim_content_hash =
+# premise/reasoning/rationale/projection legs, id) stays IN. `high_impact` and `impact_category`
+# are deliberately IN: a false→true flip or a re-categorization SHOULD break a binding and force
+# re-review (§10, FR-2). claim_content_hash =
 # validate_schema.record_hash(claim, exclude=CLAIM_CONTENT_EXCLUDE). ASSUMED — surfaced for owner
 # ratification (DATA_MODEL §4); locked for the run by a frozen test.
 CLAIM_CONTENT_EXCLUDE = frozenset({

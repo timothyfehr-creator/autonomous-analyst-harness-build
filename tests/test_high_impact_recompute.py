@@ -139,3 +139,49 @@ def test_compute_each_leg_isolated():
     assert vhi.compute_high_impact({"epistemic_type": "PROJECTION", "projection_kind": "FALSIFIABLE",
                                     "prediction_id": "prd-x", "topics": []}, trig)[0] is True
     assert vhi.compute_high_impact({"topics": ["transport"]}, trig)[0] is False
+
+
+# ---- FR-2 (R2-P0-2): reviewer-assigned impact_category + widened candidate detector ----
+def test_impact_category_none_contradicts_trigger():
+    # the candidate detector trips on the TEXT ('died', a widened token) but the reviewer stamped
+    # impact_category: NONE — a contradiction the records gate must flag (laundering / miscategory).
+    code, findings, _ = _run("hi_candidate_uncategorized.yaml")
+    assert code == 1
+    assert any("impact_category" in f and "NONE" in f for f in findings), findings
+
+
+def test_impact_category_forces_high_impact():
+    # a reviewer-assigned category (CASUALTIES) is an authoritative high-impact signal: it forces
+    # high_impact true even with no trigger word (the durable fix, not word-list dependent).
+    code, findings, _ = _run("hi_category_forces_high_impact.yaml")
+    assert code == 1
+    assert any("T0" in f and "impact_category" in f for f in findings), findings
+
+
+def test_impact_category_consistent_passes():
+    code, findings, _ = _run("hi_category_consistent_valid.yaml")
+    assert code == 0, findings
+
+
+def test_widened_trigger_catches_died_and_seized():
+    # R2-P0-2 immediate exploit: 'died' / 'seized' were not tokens; the widened candidate detector
+    # now catches them (word-boundary, NFC+casefold).
+    trig = vhi.trigger_set()
+    assert "died" in vhi.text_trigger_hits("five hundred civilians died today", trig)
+    assert "seized" in vhi.text_trigger_hits("russian forces seized the town", trig)
+    assert vhi.text_trigger_hits("a studied retreat", trig) == []  # 'studied' ≠ 'died' (word-boundary)
+
+
+def test_category_leg_isolated():
+    trig = vhi.trigger_set()
+    assert vhi.compute_high_impact({"topics": ["transport"], "impact_category": "CASUALTIES"}, trig)[0] is True
+    assert vhi.compute_high_impact({"topics": ["transport"], "impact_category": "NONE"}, trig)[0] is False
+
+
+def test_schema_rejects_bad_impact_category(tmp_path):
+    import validate_schema as vs
+    p = tmp_path / "bad_cat.yaml"
+    p.write_text((FIX / "hi_category_consistent_valid.yaml").read_text().replace(
+        "impact_category: CASUALTIES", "impact_category: BOGUS"))
+    code, findings = vs.validate_file(p)
+    assert code == 1 and any("impact_category" in f and "enum" in f for f in findings), findings

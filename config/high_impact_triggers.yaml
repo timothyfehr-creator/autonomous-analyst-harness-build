@@ -20,13 +20,25 @@ high_impact_triggers:
   - {token: killed,              alias_of: casualties}
   - {token: wounded,             alias_of: casualties}
   - {token: kia,                 alias_of: casualties}
+  # CANDIDATE-DETECTOR widening (FR-2 / R2-P0-2): 'died' / 'dead' / 'injured' escaped the prior set.
+  # The detector only FORCES the reviewer to assign an impact_category; the category is authoritative.
+  - {token: died,                alias_of: casualties}
+  - {token: dead,                alias_of: casualties}
+  - {token: injured,             alias_of: casualties}
+  - {token: perished,            alias_of: casualties}
   # --- attribution + its synonyms ---
   - {token: attribution,         alias_of: null}
   - {token: responsibility,      alias_of: attribution}
+  - {token: blamed,              alias_of: attribution}
+  - {token: attributed,          alias_of: attribution}
+  - {token: responsible,         alias_of: attribution}
   # --- territorial-control + its synonyms (note: "territorial" alone did NOT match the hyphenated
   #     canonical token, a real gap the review surfaced) ---
   - {token: territorial-control, alias_of: null}
   - {token: control,             alias_of: territorial-control}
   - {token: territory,           alias_of: territorial-control}
+  - {token: seized,              alias_of: territorial-control}
+  - {token: captured,            alias_of: territorial-control}
   # NB: bare `territorial` is deliberately NOT a token — too broad, and a real territorial-control
-  # claim should use `control` / `territorial-control` / `territory` (all trigger).
+  # claim should use `control` / `territorial-control` / `territory` (all trigger). Polysemous verbs
+  # ('advanced', 'withdrew', 'took') are deliberately OMITTED — too many benign senses to force-flag.

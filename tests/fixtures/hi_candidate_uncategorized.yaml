@@ -1,0 +1,21 @@
+schema_version: "2.0"
+# R2-P0-2: a casualties claim whose TEXT trips the (widened) candidate detector ("died") but is
+# explicitly stamped impact_category: NONE — the reviewer-assigned category contradicts the
+# high-impact signal. Records gate must flag it (UNCATEGORIZED/MISCATEGORIZED). high_impact is set
+# true so the recompute leg does NOT fire — this isolates the new explicit-NONE rule.
+claims:
+  - id: clm-uncat
+    text: Five hundred civilians died at the Skeleton Crossing (synthetic).
+    epistemic_type: FACT
+    support_status: SUPPORTED
+    dispute_status: UNCONTESTED
+    freshness_status: CURRENT
+    lifecycle: REVIEWED
+    stability: DURABLE
+    topics: [transport]
+    high_impact: true
+    impact_category: NONE
+    created_at: "2026-06-22T00:00:00Z"
+    supersedes: null
+    temporal: {kind: AS_OF, event_time: null, as_of: "2026-06-22T00:00:00Z"}
+    review_by: "2026-12-22T00:00:00Z"
