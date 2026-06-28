@@ -225,6 +225,23 @@ def _refuter_reject_blocks() -> str | None:
     return None
 
 
+def _hi_contest_stored_true() -> str | None:
+    # R2-P0-3: a CORRECTLY-stored high_impact: true claim must STILL be contested (the old gate only
+    # fired on an author downgrade); and a committed high-impact answer must carry an impact_category.
+    triggers = v_hi.trigger_set()
+    st = {**_NORMAL, "id": "clm-st", "high_impact": True}
+    uncontested = v_ref.validate_refuter(
+        _ref(["clm-st"], reviewer_class="DIFFERENT_MODEL", verdicts=[_verdict("clm-st")]),
+        _ana(["clm-st"]), _live([st]), triggers)[0]
+    uncat = v_ref.validate_refuter(
+        _ref(["clm-hi"], reviewer_class="DIFFERENT_MODEL",
+             verdicts=[_verdict("clm-hi", high_impact=True, independence_check="PASS")]),
+        _ana(["clm-hi"]), _live([_HI]), triggers, answer_mode=True)[0]
+    bad = [n for n, c in (("stored-true-uncontested", uncontested),
+                          ("answer-uncategorized-high-impact", uncat)) if c != 1]
+    return f"HI-CONTEST REGRESSED: {bad} did not exit 1" if bad else None
+
+
 def _phase2_green() -> str | None:
     return None if g2.main() == 0 else "the Phase-2 exit gate is not green (cumulative drift reached Phases 1-2)"
 
@@ -237,7 +254,8 @@ def main() -> int:
         ("W-A7-STRUCTURAL", _a7_structural), ("W-A7-SEMANTIC-BLOCKS", _a7_semantic_blocks),
         ("W-REFUTER-COVERAGE", _refuter_coverage), ("W-REFUTER-BINDING", _refuter_binding),
         ("W-V-P0-1-REFUTER", _v_p0_1_refuter), ("W-REFUTER-REJECT-BLOCKS", _refuter_reject_blocks),
-        ("W-HI-PROSE-LAUNDERING", _hi_prose_laundering_blocks), ("W-PHASE2-GREEN", _phase2_green),
+        ("W-HI-PROSE-LAUNDERING", _hi_prose_laundering_blocks),
+        ("W-HI-CONTEST-STORED-TRUE", _hi_contest_stored_true), ("W-PHASE2-GREEN", _phase2_green),
     ]
     problems = []
     for name, fn in witnesses:

@@ -44,11 +44,12 @@ def _ana(claim_ids, cea_ids, obs_refs=(), exemptions=()):
 
 
 def _ref(claim_ids, cea_ids, reviewer_class="HUMAN", verdicts=None, exemptions_reviewed=(),
-         manifest_hash=HM, output_hash=OH):
+         manifest_hash=HM, output_hash=OH, disconfirming_searches=()):
     return {"manifest_hash": manifest_hash, "output_hash": output_hash, "reviewer_class": reviewer_class,
             "reviewed_claim_ids": list(claim_ids), "reviewed_assessment_ids": list(cea_ids),
             "verdicts": verdicts if verdicts is not None else [_verdict(c) for c in claim_ids],
-            "exemptions_reviewed": list(exemptions_reviewed)}
+            "exemptions_reviewed": list(exemptions_reviewed),
+            "disconfirming_searches": list(disconfirming_searches)}
 
 
 def test_normal_answer_passes():
@@ -106,6 +107,62 @@ def test_high_impact_contested_passes():
     ref = _ref(["clm-hi"], ["cea-1"], reviewer_class="DIFFERENT_MODEL",
                verdicts=[_verdict("clm-hi", high_impact=True, independence_check="PASS")])
     assert vr.validate_refuter(ref, ana, _live([_HI]), TRIG) == (0, [])
+
+
+# ---- FR-3 (R2-P0-3): contest EVERY high-impact claim, not just author-downgraded ones ----
+_HI_CAT = {**_HI, "id": "clm-hic", "high_impact": True, "impact_category": "CASUALTIES"}
+_ST = {**_NORMAL, "id": "clm-st", "high_impact": True}  # stored TRUE, no trigger (transport topic)
+
+
+def test_high_impact_stored_true_uncontested_fails():
+    # R2-P0-3: a CORRECTLY-stored high_impact: true claim must STILL be contested — setting the flag
+    # right no longer lets the claim skip the rigor (the old gate only fired on a downgrade).
+    ana = _ana(["clm-st"], ["cea-1"])
+    ref = _ref(["clm-st"], ["cea-1"], reviewer_class="DIFFERENT_MODEL", verdicts=[_verdict("clm-st")])
+    code, f = vr.validate_refuter(ref, ana, _live([_ST]), TRIG)
+    assert code == 1 and any("MUST contest" in x and "R2-P0-3" in x for x in f), f
+
+
+def test_high_impact_stored_true_contested_passes():
+    ana = _ana(["clm-st"], ["cea-1"])
+    ref = _ref(["clm-st"], ["cea-1"], reviewer_class="DIFFERENT_MODEL",
+               verdicts=[_verdict("clm-st", high_impact=True, independence_check="PASS")])
+    assert vr.validate_refuter(ref, ana, _live([_ST]), TRIG) == (0, [])
+
+
+def test_na_independence_on_high_impact_fails():
+    # the contest must actually RUN the independence check — NOT_APPLICABLE is no longer allowed
+    ana = _ana(["clm-hi"], ["cea-1"])
+    ref = _ref(["clm-hi"], ["cea-1"], reviewer_class="DIFFERENT_MODEL",
+               verdicts=[_verdict("clm-hi", high_impact=True, independence_check="NOT_APPLICABLE")])
+    code, f = vr.validate_refuter(ref, ana, _live([_HI]), TRIG)
+    assert code == 1 and any("MUST contest" in x for x in f), f
+
+
+def test_answer_mode_high_impact_requires_category():
+    # FR-2 answer-path closure: a committed answer's high-impact claim must carry a non-NONE
+    # impact_category (a contesting verdict alone is not enough).
+    ana = _ana(["clm-hi"], ["cea-1"])
+    ref = _ref(["clm-hi"], ["cea-1"], reviewer_class="DIFFERENT_MODEL",
+               verdicts=[_verdict("clm-hi", high_impact=True, independence_check="PASS")],
+               disconfirming_searches=["searched X, found nothing"])
+    code, f = vr.validate_refuter(ref, ana, _live([_HI]), TRIG, answer_mode=True)  # _HI has no category
+    assert code == 1 and any("non-NONE impact_category" in x for x in f), f
+    # the same answer with a categorized claim passes
+    ref2 = _ref(["clm-hic"], ["cea-1"], reviewer_class="DIFFERENT_MODEL",
+                verdicts=[_verdict("clm-hic", high_impact=True, independence_check="PASS")],
+                disconfirming_searches=["searched X, found nothing"])
+    ana2 = _ana(["clm-hic"], ["cea-1"])
+    assert vr.validate_refuter(ref2, ana2, _live([_HI_CAT]), TRIG, answer_mode=True) == (0, [])
+
+
+def test_answer_mode_high_impact_requires_disconfirming_search():
+    # R2-P0-3: a high-impact committed answer requires an actual disconfirming search (non-empty)
+    ana = _ana(["clm-hic"], ["cea-1"])
+    ref = _ref(["clm-hic"], ["cea-1"], reviewer_class="DIFFERENT_MODEL",
+               verdicts=[_verdict("clm-hic", high_impact=True, independence_check="PASS")])  # empty searches
+    code, f = vr.validate_refuter(ref, ana, _live([_HI_CAT]), TRIG, answer_mode=True)
+    assert code == 1 and any("disconfirming_searches is" in x for x in f), f
 
 
 def test_inference_reasoning_check_na_fails():

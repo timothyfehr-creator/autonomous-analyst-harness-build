@@ -11,11 +11,12 @@ covers the required claim/assessment sets by SET EQUALITY (Constitution §10). T
      validate_output/manifest_structural prevent from being shrunk (the A7 deterministic half);
   3. independence floor: every claim a committed answer cites FEEDS the manifest and so requires an
      independent reviewer — reviewer_class SAME_MODEL_FRESH_CONTEXT never qualifies (§10);
-  4. high_impact CONTEST (V-P0-1 refuter half): for a claim the gate computes high_impact TRUE by
-     trigger (topics ∩ {casualties, attribution, territorial-control}, or a falsifiable projection)
-     while it is stored not-true, the refuter's verdict MUST set high_impact: true AND actually run
-     the independence check — closing the circularity where the strongest control is switched off
-     by the very field that triggers it;
+  4. high_impact CONTEST (V-P0-1 / R2-P0-3): for EVERY high-impact claim — gate-computed (topics,
+     text, reviewer impact_category, or a falsifiable projection) OR a correctly-stored
+     high_impact: true — the refuter's verdict MUST set high_impact: true AND actually run the
+     independence check (not NOT_APPLICABLE). Setting the flag correctly no longer lets a claim skip
+     the rigor (R2-P0-3). In answer mode a committed high-impact claim must ALSO carry a non-NONE
+     impact_category (FR-2) and the refuter must show a non-empty disconfirming_searches;
   5. per-verdict check applicability: an INFERENCE claim's reasoning_check, a claim-with-observation's
      observation_check, and a STALE/REVIEW_DUE claim's freshness_check may not be NOT_APPLICABLE;
   6. the A7 escape cost: exemptions_reviewed == analysis.narrative_exemptions (the refuter must echo
@@ -89,6 +90,7 @@ def validate_refuter(refuter: dict, analysis: dict, live: al.Live, triggers=None
     # not coverage), then contest + check applicability + verdict-disposition consistency.
     CHECKS = ("displacement_check", "independence_check", "freshness_check",
               "observation_check", "reasoning_check")
+    any_high_impact = False
     for cid in sorted(manifest_claims):
         claim = live.claims.get(cid)
         if claim is None:
@@ -98,12 +100,27 @@ def validate_refuter(refuter: dict, analysis: dict, live: al.Live, triggers=None
             f.append(f"claim {cid!r}: in the manifest's required set but has no verdict entry "
                      f"(a covered claim must be adjudicated, not merely listed)")
             continue
+        # 4. high_impact contest — fire for EVERY high-impact claim, by ANY route: gate-computed
+        # (topics/text/category/projection) OR a correctly-stored high_impact: true. R2-P0-3 closed
+        # the loophole where setting the flag right let the claim skip the rigor (the old gate only
+        # fired on an author DOWNGRADE). compute_high_impact already folds in the FR-2 category leg.
         computed, reasons = v_hi.compute_high_impact(claim, triggers)
-        if computed and claim.get("high_impact") is not True:
+        is_hi = computed or claim.get("high_impact") is True
+        if is_hi:
+            any_high_impact = True
+            detail = "; ".join(reasons) or "stored high_impact: true"
             if vd.get("high_impact") is not True or vd.get("independence_check") == "NOT_APPLICABLE":
-                f.append(f"claim {cid!r}: gate computes high_impact true ({'; '.join(reasons)}) but it "
-                         f"is stored {claim.get('high_impact')!r}; the refuter MUST contest it "
-                         f"(verdict high_impact: true + independence_check run) [V-P0-1]")
+                f.append(f"claim {cid!r}: is high_impact ({detail}); the refuter MUST contest it "
+                         f"(verdict high_impact: true + independence_check run, not NOT_APPLICABLE) "
+                         f"[V-P0-1/R2-P0-3]")
+            # FR-2 answer-path closure: a committed answer's high-impact claim must carry the
+            # AUTHORITATIVE reviewer-assigned category, not a word-list guess.
+            if answer_mode:
+                cat = claim.get("impact_category")
+                if not (isinstance(cat, str) and cat not in ("", "NONE")):
+                    f.append(f"claim {cid!r}: high_impact but impact_category is {cat!r} — a committed "
+                             f"answer's high-impact claim must carry a non-NONE impact_category "
+                             f"(FR-2/R2-P0-2)")
         if claim.get("epistemic_type") == "INFERENCE" and vd.get("reasoning_check") == "NOT_APPLICABLE":
             f.append(f"claim {cid!r}: INFERENCE verdict requires reasoning_check != NOT_APPLICABLE")
         if cid in claims_with_obs and vd.get("observation_check") == "NOT_APPLICABLE":
@@ -124,6 +141,13 @@ def validate_refuter(refuter: dict, analysis: dict, live: al.Live, triggers=None
         elif answer_mode and vd.get("verdict") in {"REVISE", "DOWNGRADE", "REJECT"}:
             f.append(f"claim {cid!r}: refuter verdict {vd.get('verdict')!r} — a committed answer "
                      f"requires every claim to SURVIVE the refuter; this answer cannot be committed")
+
+    # R2-P0-3: a committed answer that commits a high-impact claim must show an ACTUAL disconfirming
+    # search — an empty disconfirming_searches is not a contest. Answer-mode only (a stored refuter
+    # record may legitimately carry none).
+    if answer_mode and any_high_impact and not (refuter.get("disconfirming_searches") or []):
+        f.append("a committed answer includes a high-impact claim but disconfirming_searches is "
+                 "empty — a high-impact contest requires an actual disconfirming search (R2-P0-3)")
 
     # 6. the A7 escape cost: the refuter must echo the analysis's narrative_exemptions by set equality
     if set(refuter.get("exemptions_reviewed") or []) != set(analysis.get("narrative_exemptions") or []):
