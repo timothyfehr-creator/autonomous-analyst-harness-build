@@ -81,3 +81,45 @@ def test_build_records_binds_hashes():
     assert cea["semantic_review"]["claim_content_hash"] == vs.claim_content_hash(clm)
     # the reviewed artifact is bound into its own origin_chain (FR-4 B1)
     assert cea["origin_chain"][0]["artifact_id"] == evd["id"] == cea["artifact_id"]
+
+
+# ---- fact.py source — scoped reliability ratings ----
+def _src_spec(scope="own announcements", reliability="C", rationale="track record fair"):
+    return {"source": {"id": "src-test-mil", "title": "Test Military", "source_type": "MILITARY"},
+            "ratings": [{"scope": scope, "reliability": reliability,
+                         "sample_definition": "qualitative review of ~10 statements vs later outcomes",
+                         "sample_size": 10, "rationale": rationale, "assessed_by": "ai:test"}]}
+
+
+def _sas(root):
+    f = root / "factbase" / "source_assessments.yaml"
+    return (vs.load_yaml_strict(f) or {}).get("source_assessments", []) if f.is_file() else []
+
+
+def test_source_rate_persists_and_creates_identity(tmp_path):
+    code = fact.main(["--root", str(tmp_path), "source", str(_write(tmp_path, _src_spec())), "--as-of", ASOF])
+    assert code == 0
+    sas = _sas(tmp_path)
+    assert len(sas) == 1 and sas[0]["reliability"] == "C" and sas[0]["source_id"] == "src-test-mil"
+    assert sas[0]["supersedes"] is None and sas[0]["assessed_at"] == ASOF
+    srcs = (vs.load_yaml_strict(tmp_path / "factbase" / "sources.yaml") or {}).get("sources", [])
+    assert any(s["id"] == "src-test-mil" for s in srcs)  # identity created
+
+
+def test_source_rate_fail_closed_on_empty_rationale(tmp_path):
+    # the governance gate forces non-empty provenance — a blank rationale must NOT persist
+    code = fact.main(["--root", str(tmp_path), "source",
+                      str(_write(tmp_path, _src_spec(rationale="   "))), "--as-of", ASOF])
+    assert code == 1
+    assert _sas(tmp_path) == []  # not persisted
+
+
+def test_source_multiple_scoped_ratings(tmp_path):
+    # one belligerent source, two scopes (reliable for its own announcements, unreliable for enemy losses)
+    spec = _src_spec()
+    spec["ratings"].append({"scope": "adversary casualty claims", "reliability": "E",
+                            "sample_definition": "qualitative review", "sample_size": 8,
+                            "rationale": "systematic over-claim", "assessed_by": "ai:test"})
+    assert fact.main(["--root", str(tmp_path), "source", str(_write(tmp_path, spec)), "--as-of", ASOF]) == 0
+    sas = _sas(tmp_path)
+    assert {s["reliability"] for s in sas} == {"C", "E"} and len({s["id"] for s in sas}) == 2

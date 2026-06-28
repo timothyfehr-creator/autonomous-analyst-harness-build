@@ -9,6 +9,11 @@
   fact.py query [--root DIR] [--topic T] [--text S] [--id clm-...]
       List the baseline facts and the source + quote backing each.
 
+  fact.py source <spec.yaml> --as-of <ts> [--root DIR]
+      Ensure a source identity + append SCOPED reliability ratings (A-F sas- records), validate the
+      source + governance gates (independent of the claim DAG), persist ONLY if clean. Ratings are
+      dated, scoped, append-only judgments — separate from per-claim credibility.
+
 The corpus lives under <root>/factbase (default: the repo). Keep a REAL corpus in a gitignored
 location (e.g. `--root private/corpus`) so the public repo's factbase stays empty.
 """
@@ -22,7 +27,9 @@ import tempfile
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+import validate_assessment_governance as v_gov  # noqa: E402
 import validate_schema as vs  # noqa: E402
+import validate_sources as v_src  # noqa: E402
 import verify  # noqa: E402
 import yaml  # noqa: E402
 
@@ -175,8 +182,60 @@ def cmd_query(args):
     return 0
 
 
+def cmd_source(args):
+    spec = vs.load_yaml_strict(Path(args.spec))
+    s = spec.get("source") or {}
+    src_id = s.get("id")
+    if not src_id:
+        print("[fact source] spec.source.id is required", file=sys.stderr)
+        return 2
+    root = Path(args.root)
+    srcs = _load(root / "factbase" / "sources.yaml", "sources")
+    sas = _load(root / "factbase" / "source_assessments.yaml", "source_assessments")
+    # ensure the identity (create if a full record is given and it's new)
+    if {"title", "source_type"} <= set(s) and not any(x.get("id") == src_id for x in srcs["sources"]):
+        srcs["sources"].append({"id": src_id, "title": s["title"], "source_type": s["source_type"],
+                                "aliases": s.get("aliases", []), "canonical_home": s.get("canonical_home"),
+                                "active_from": None, "active_to": None})
+    src_slug = src_id[4:] if src_id.startswith("src-") else src_id
+    seen = {a.get("id") for a in sas["source_assessments"]}
+    added = []
+    for r in spec.get("ratings") or []:
+        sid = base = f"sas-{src_slug}-{_slug(r['scope'], 4)}"
+        n = 2
+        while sid in seen:
+            sid, n = f"{base}-{n}", n + 1
+        seen.add(sid)
+        rec = {"id": sid, "source_id": src_id, "scope": r["scope"], "reliability": r["reliability"],
+               "sample_definition": r["sample_definition"], "sample_size": int(r["sample_size"]),
+               "rationale": r["rationale"],
+               "assessed_by": r.get("assessed_by", "ai:claude-opus-4-8-draft + owner-review-pending"),
+               "assessed_at": args.as_of, "supersedes": None}
+        sas["source_assessments"].append(rec)
+        added.append(rec)
+    # validate the SOURCE layers only (ratings are independent of the claim DAG) — fail-closed
+    with tempfile.TemporaryDirectory() as dd:
+        fb = Path(dd) / "factbase"
+        fb.mkdir(parents=True)
+        _dump(fb / "sources.yaml", srcs)
+        _dump(fb / "source_assessments.yaml", sas)
+        sc, sf = v_src.validate_sources_file(fb / "sources.yaml")
+        gc, gf = v_gov.validate_governance_file(fb / "source_assessments.yaml")
+    code, findings = max(sc, gc), sf + gf
+    if code != 0:
+        print("\n".join(findings), file=sys.stderr)
+        print(f"\n[fact source] NOT persisted — source/rating does not validate (exit {code}).", file=sys.stderr)
+        return code
+    _dump(root / "factbase" / "sources.yaml", srcs)
+    _dump(root / "factbase" / "source_assessments.yaml", sas)
+    summ = ", ".join(f"{a['scope'][:24]}={a['reliability']}" for a in added)
+    print(f"[fact source] OK — {src_id!r}: {len(added)} scoped rating(s) [{summ}] persisted under "
+          f"{root}/factbase")
+    return 0
+
+
 def main(argv=None) -> int:
-    p = argparse.ArgumentParser(description="lean fact-repository tool (add / query)")
+    p = argparse.ArgumentParser(description="lean fact-repository tool (add / query / source)")
     p.add_argument("--root", default=".", help="repo/corpus root containing factbase/ (default: .)")
     sub = p.add_subparsers(dest="cmd", required=True)
     pa = sub.add_parser("add", help="add a checked fact from a seed spec (fail-closed)")
@@ -188,6 +247,10 @@ def main(argv=None) -> int:
     pq.add_argument("--text")
     pq.add_argument("--id")
     pq.set_defaults(fn=cmd_query)
+    ps = sub.add_parser("source", help="ensure a source identity + append scoped reliability ratings")
+    ps.add_argument("spec", help="seed-spec YAML (source + ratings[])")
+    ps.add_argument("--as-of", required=True, help="ISO timestamp for assessed_at")
+    ps.set_defaults(fn=cmd_source)
     args = p.parse_args(argv)
     return args.fn(args)
 
