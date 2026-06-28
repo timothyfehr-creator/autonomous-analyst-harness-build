@@ -1,0 +1,7 @@
+schema_version: "2.0"
+# FR-4 / R2-P0-4 registries: three resolvable sources. The exploit declares src-declared-* as fake
+# "independent" origins for artifacts that actually both come from src-same-outlet.
+sources:
+  - {id: src-same-outlet, title: Same Outlet, source_type: NEWSWIRE}
+  - {id: src-declared-a,  title: Declared A,  source_type: NEWSWIRE}
+  - {id: src-declared-b,  title: Declared B,  source_type: NEWSWIRE}

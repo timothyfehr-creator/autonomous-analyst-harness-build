@@ -1,0 +1,31 @@
+schema_version: "2.0"
+# FR-4 near-miss control: both reviewed artifacts are correctly bound into their own origin_chains
+# (to their real source). Claim-evidence governance PASSES — collapsing these two same-outlet
+# assessments to one independent origin is then validate_support's job, not this gate's.
+claim_evidence_assessments:
+  - id: cea-same-a
+    claim_id: clm-echo
+    artifact_id: evd-same-a
+    support_locator: {kind: PAGE_AND_QUOTE, page: 1, quote: q}
+    support_summary: s
+    stance: SUPPORTS
+    information_credibility: 2
+    temporal_scope: {kind: TIMELESS, start: null, end: null}
+    origin_chain:
+      - {source_id: src-same-outlet, artifact_id: evd-same-a}
+    independence_group: ind-a
+    semantic_review: {status: UNCHECKED}
+    supersedes: null
+  - id: cea-same-b
+    claim_id: clm-echo
+    artifact_id: evd-same-b
+    support_locator: {kind: PAGE_AND_QUOTE, page: 1, quote: q}
+    support_summary: s
+    stance: SUPPORTS
+    information_credibility: 2
+    temporal_scope: {kind: TIMELESS, start: null, end: null}
+    origin_chain:
+      - {source_id: src-same-outlet, artifact_id: evd-same-b}
+    independence_group: ind-b
+    semantic_review: {status: UNCHECKED}
+    supersedes: null

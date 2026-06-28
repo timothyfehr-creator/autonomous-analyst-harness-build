@@ -126,3 +126,34 @@ def test_schema_break_returns_schema_code_not_masked():
     # CHECKED missing a binding hash fails at the WP1.4 schema (exit 1), governance not masking it
     code, f = _run("cea_reviewed_missing_hash.yaml")
     assert code == 1
+
+
+# ---- FR-4 (R2-P0-4): origin_chain must be BOUND to the reviewed artifact ----
+ORIG_CLAIMS = [FIX / "cea_origin_claims.yaml"]
+ORIG_EVID = FIX / "cea_origin_evidence.yaml"
+ORIG_SRC = FIX / "cea_origin_sources.yaml"
+
+
+def _run_origin(name):
+    refs = vce.load_ref_sets(ORIG_CLAIMS, ORIG_EVID, ORIG_SRC)
+    return vce.validate_claim_evidence_file(FIX / name, refs)
+
+
+def test_origin_chain_reviewed_artifact_must_be_bound():
+    # B1: the reviewed artifact must appear in its OWN origin_chain bound to its real source; a fake
+    # independent origin (no binding link) cannot manufacture a second independent origin (R2-P0-4).
+    code, f = _run_origin("cea_origin_not_bound_cea.yaml")
+    assert code == 1 and any("not bound into its own origin_chain" in x for x in f), f
+
+
+def test_origin_chain_link_source_must_own_artifact():
+    # B2: a link that names an artifact must attribute it to the artifact's REAL source.
+    code, f = _run_origin("cea_origin_not_bound_cea.yaml")
+    assert code == 1 and any("belongs to source" in x for x in f), f
+
+
+def test_origin_chain_bound_ok_passes():
+    # the near-miss: both reviewed artifacts correctly bound → governance clean (independence
+    # collapse of these same-outlet assessments is validate_support's job, not this gate's).
+    code, f = _run_origin("cea_origin_bound_ok_cea.yaml")
+    assert code == 0, f

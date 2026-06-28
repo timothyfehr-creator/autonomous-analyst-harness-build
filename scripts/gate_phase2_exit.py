@@ -103,6 +103,11 @@ def _a_exploits() -> str | None:
                 FIX / "cea_stale_cch_cea.yaml",
                 v_cea.load_ref_sets([FIX / "cea_ce_claims.yaml"], FIX / "cea_ce_evidence.yaml",
                                     FIX / "cea_ce_sources.yaml"))[0],
+        "origin-chain-artifact-binding (R2-P0-4)":
+            lambda: v_cea.validate_claim_evidence_file(
+                FIX / "cea_origin_not_bound_cea.yaml",
+                v_cea.load_ref_sets([FIX / "cea_origin_claims.yaml"], FIX / "cea_origin_evidence.yaml",
+                                    FIX / "cea_origin_sources.yaml"))[0],
     }
     bad = [f"{name}: exit {code} (expected 1 — STANDING INVARIANT REGRESSED)"
            for name, fn in checks.items() if (code := fn()) != 1]

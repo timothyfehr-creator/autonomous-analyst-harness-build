@@ -48,9 +48,10 @@ DEFAULT_SOURCES = REPO_ROOT / "factbase" / "sources.yaml"
 
 
 def load_ref_sets(claims_paths, evidence_path, sources_path):
-    """Return (clm_ids, evd_hashes{id->content_hash}, src_ids, grp_ids, clm_content_hashes{id->hash}).
-    Raises on any read failure. The claim-CONTENT hashes let the CHECKED-review binding be verified
-    (P0-3): a CHECKED assessment must still bind the CURRENT claim content, not a stale snapshot."""
+    """Return (clm_ids, evd_hashes{id->content_hash}, src_ids, grp_ids, clm_content_hashes{id->hash},
+    evd_sources{id->source_id}). Raises on any read failure. The claim-CONTENT hashes let the
+    CHECKED-review binding be verified (P0-3); evd_sources lets the origin_chain be bound to the
+    artifact actually reviewed (R2-P0-4): a declared origin must be the source that really owns it."""
     clm_ids = set()
     clm_content_hashes = {}
     for cp in claims_paths:
@@ -62,13 +63,16 @@ def load_ref_sets(claims_paths, evidence_path, sources_path):
     ed = vs.load_yaml_strict(evidence_path) or {}
     evd_hashes = {e.get("id"): e.get("content_hash")
                   for e in (ed.get("evidence") or []) if isinstance(e, dict)}
+    evd_sources = {e.get("id"): e.get("source_id")
+                   for e in (ed.get("evidence") or []) if isinstance(e, dict)}
     sd = vs.load_yaml_strict(sources_path) or {}
     src_ids = {s.get("id") for s in (sd.get("sources") or []) if isinstance(s, dict)}
     grp_ids = {g.get("id") for g in (sd.get("groups") or []) if isinstance(g, dict)}
-    return clm_ids, evd_hashes, src_ids, grp_ids, clm_content_hashes
+    return clm_ids, evd_hashes, src_ids, grp_ids, clm_content_hashes, evd_sources
 
 
-def check_claim_evidence(records, clm_ids, evd_hashes, src_ids, grp_ids, clm_content_hashes=None) -> list[str]:
+def check_claim_evidence(records, clm_ids, evd_hashes, src_ids, grp_ids, clm_content_hashes=None,
+                         evd_sources=None) -> list[str]:
     """Cross-record/cross-file governance findings for a schema-clean claim-evidence log."""
     findings = []
     seen = {}
@@ -85,6 +89,7 @@ def check_claim_evidence(records, clm_ids, evd_hashes, src_ids, grp_ids, clm_con
         if aid not in evd_hashes:
             findings.append(f"assessment {rid!r} artifact_id {aid!r} does not resolve to a known artifact")
 
+        evd_srcs = evd_sources or {}
         for i, link in enumerate(r.get("origin_chain") or []):
             if not isinstance(link, dict):
                 continue
@@ -100,6 +105,29 @@ def check_claim_evidence(records, clm_ids, evd_hashes, src_ids, grp_ids, clm_con
             if laid is not None and laid not in evd_hashes:
                 findings.append(f"assessment {rid!r} origin_chain[{i}] artifact_id {laid!r} does not "
                                 f"resolve to a known artifact")
+            # B2 (R2-P0-4): a link that names an artifact must attribute it to the artifact's REAL
+            # source — otherwise an analyst can declare a fake-independent origin for an artifact
+            # that actually belongs to some other (shared) outlet, manufacturing independence.
+            elif laid is not None and evd_srcs.get(laid) is not None and sid != evd_srcs[laid]:
+                findings.append(f"assessment {rid!r} origin_chain[{i}] says source {sid!r} published "
+                                f"artifact {laid!r}, but it belongs to source {evd_srcs[laid]!r} "
+                                f"(origin misattributed — independence may not rest on it)")
+
+        # B1 (R2-P0-4): the artifact ACTUALLY REVIEWED must be bound into its own origin_chain — a
+        # link naming `artifact_id` AND attributing it to the source that truly owns it. Without this,
+        # two assessments over same-outlet artifacts can declare unrelated fake origins and reach two
+        # "independent" components → CORROBORATED. Binding the real source in forces the shared origin
+        # to collapse (validate_support's connected components). Applies once the artifact resolves.
+        aid_src = evd_srcs.get(aid)
+        if aid in evd_hashes and aid_src is not None:
+            bound = any(isinstance(L, dict) and L.get("artifact_id") == aid
+                        and L.get("source_id") == aid_src
+                        for L in (r.get("origin_chain") or []))
+            if not bound:
+                findings.append(f"assessment {rid!r} reviewed artifact {aid!r} (owned by source "
+                                f"{aid_src!r}) is not bound into its own origin_chain — a committed "
+                                f"answer's corroboration cannot rest on a declared origin that is not "
+                                f"the artifact actually reviewed (R2-P0-4)")
 
         sr = r.get("semantic_review")
         if isinstance(sr, dict) and sr.get("status") == "CHECKED":

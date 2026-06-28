@@ -1,0 +1,19 @@
+schema_version: "2.0"
+# Two artifacts that BOTH belong to the same outlet (src-same-outlet) — the laundering setup.
+evidence:
+  - id: evd-same-a
+    source_id: src-same-outlet
+    artifact_type: ARTICLE
+    title: t
+    canonical_locator: https://example.invalid/same-a
+    content_hash: sha256:1111111111111111111111111111111111111111111111111111111111111111
+    published_at: "2026-06-20T08:00:00Z"
+    retrieved_at: "2026-06-22T09:00:00Z"
+  - id: evd-same-b
+    source_id: src-same-outlet
+    artifact_type: ARTICLE
+    title: t
+    canonical_locator: https://example.invalid/same-b
+    content_hash: sha256:2222222222222222222222222222222222222222222222222222222222222222
+    published_at: "2026-06-20T08:00:00Z"
+    retrieved_at: "2026-06-22T09:00:00Z"
