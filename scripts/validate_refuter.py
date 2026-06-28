@@ -37,6 +37,16 @@ import validate_high_impact as v_hi  # noqa: E402
 INDEPENDENT = {"HUMAN", "DIFFERENT_MODEL", "MIXED"}
 
 
+def _wellformed_search(s) -> bool:
+    """A disconfirming search is real iff it is a non-empty string OR a mapping with non-empty
+    query AND result — so a vacuous [""], [None], [{}] does not satisfy the high-impact requirement."""
+    if isinstance(s, str):
+        return bool(s.strip())
+    if isinstance(s, dict):
+        return bool(str(s.get("query") or "").strip()) and bool(str(s.get("result") or "").strip())
+    return False
+
+
 def validate_refuter(refuter: dict, analysis: dict, live: al.Live, triggers=None, answer_mode=False,
                      required_ceas=None):
     """answer_mode=False: validate the refuter record's STRUCTURE (a negative verdict is a valid
@@ -159,9 +169,11 @@ def validate_refuter(refuter: dict, analysis: dict, live: al.Live, triggers=None
     # R2-P0-3: a committed answer that commits a high-impact claim must show an ACTUAL disconfirming
     # search — an empty disconfirming_searches is not a contest. Answer-mode only (a stored refuter
     # record may legitimately carry none).
-    if answer_mode and any_high_impact and not (refuter.get("disconfirming_searches") or []):
+    if answer_mode and any_high_impact and not any(
+            _wellformed_search(s) for s in (refuter.get("disconfirming_searches") or [])):
         f.append("a committed answer includes a high-impact claim but disconfirming_searches is "
-                 "empty — a high-impact contest requires an actual disconfirming search (R2-P0-3)")
+                 "empty or vacuous — a high-impact contest requires an actual disconfirming search "
+                 "(a non-empty query+result), R2-P0-3")
 
     # 6. the A7 escape cost: the refuter must echo the analysis's narrative_exemptions by set equality
     if set(refuter.get("exemptions_reviewed") or []) != set(analysis.get("narrative_exemptions") or []):

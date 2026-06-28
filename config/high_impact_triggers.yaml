@@ -26,12 +26,16 @@ high_impact_triggers:
   - {token: dead,                alias_of: casualties}
   - {token: injured,             alias_of: casualties}
   - {token: perished,            alias_of: casualties}
+  - {token: massacred,           alias_of: casualties}
+  - {token: slaughtered,         alias_of: casualties}
+  - {token: executed,           alias_of: casualties}
   # --- attribution + its synonyms ---
   - {token: attribution,         alias_of: null}
   - {token: responsibility,      alias_of: attribution}
   - {token: blamed,              alias_of: attribution}
   - {token: attributed,          alias_of: attribution}
   - {token: responsible,         alias_of: attribution}
+  - {token: perpetrated,         alias_of: attribution}
   # --- territorial-control + its synonyms (note: "territorial" alone did NOT match the hyphenated
   #     canonical token, a real gap the review surfaced) ---
   - {token: territorial-control, alias_of: null}
@@ -39,6 +43,9 @@ high_impact_triggers:
   - {token: territory,           alias_of: territorial-control}
   - {token: seized,              alias_of: territorial-control}
   - {token: captured,            alias_of: territorial-control}
+  - {token: occupied,            alias_of: territorial-control}
+  - {token: annexed,             alias_of: territorial-control}
+  - {token: overran,             alias_of: territorial-control}
   # NB: bare `territorial` is deliberately NOT a token — too broad, and a real territorial-control
   # claim should use `control` / `territorial-control` / `territory` (all trigger). Polysemous verbs
   # ('advanced', 'withdrew', 'took') are deliberately OMITTED — too many benign senses to force-flag.

@@ -191,6 +191,17 @@ def test_high_impact_cross_category_laundering_blocked(tmp_path):
                    for f in vo.validate_output(ana2, _live(cas), tmp_path, block_unmarked=True)[1])
 
 
+def test_high_impact_category_label_does_not_cover_prose(tmp_path):
+    # adversarial P0 (composition review): a benign claim MISLABELED impact_category: CASUALTIES must
+    # NOT 'cover' a casualty assertion in prose. Coverage rests on the claim's genuine text/topics,
+    # not the reviewer's free-form label — else a road-transport claim laundered any casualty prose.
+    benign = {**CLAIM, "id": "clm-mislabel", "impact_category": "CASUALTIES"}  # text = road transport
+    ana = _ana(tmp_path, "Russian strikes killed 500 civilians. [[c1]]\n",
+               {"c1": {"claim_id": "clm-mislabel", "claim_hash": "x"}})
+    code, findings = vo.validate_output(ana, _live(benign), tmp_path, block_unmarked=True)
+    assert code == 1 and any("high-impact assertion not bound" in f for f in findings), findings
+
+
 def test_skeleton_output_is_clean(tmp_path):
     # the real skeleton answer: stage its output + manifest, expect 0 with no warns
     import shutil

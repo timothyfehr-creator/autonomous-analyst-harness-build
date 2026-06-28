@@ -79,16 +79,16 @@ def categories_for(tokens, catmap=None) -> set:
 
 
 def claim_hi_categories(claim, triggers, catmap=None) -> set:
-    """The high-impact categories a claim is high-impact IN — from its topics ∪ its text (so a claim
-    that is high-impact by topic, with no trigger word in its text, still covers that category)."""
+    """The high-impact categories a claim PROVES it is about — from its topics ∪ its text ONLY.
+    Deliberately NOT from `impact_category`: a free-form label must not let a benign claim 'cover' a
+    co-located high-impact prose assertion (composition-review P0). The label remains authoritative
+    for the claim's OWN high-impact status (compute_high_impact T0 leg) + the refuter contest, but
+    PROSE coverage must rest on what the claim actually says — else 'road transport' tagged CASUALTIES
+    laundered any casualty sentence cited beside it."""
     topics = claim.get("topics") or []
     topic_hits = ({normalize_topic(t) for t in topics} & triggers) if isinstance(topics, list) else set()
     text_hits = set(text_trigger_hits(claim.get("text"), triggers))
-    cats = categories_for(topic_hits | text_hits, catmap)
-    cat = claim.get("impact_category")  # a reviewer-assigned category covers its category in prose
-    if isinstance(cat, str) and cat in _CATEGORY_TO_TOKEN:
-        cats = cats | {_CATEGORY_TO_TOKEN[cat]}
-    return cats
+    return categories_for(topic_hits | text_hits, catmap)
 
 
 def text_trigger_hits(text, triggers: set[str]) -> list[str]:
@@ -102,13 +102,6 @@ def text_trigger_hits(text, triggers: set[str]) -> list[str]:
         return []
     norm = normalize_topic(text)
     return sorted(t for t in triggers if t and re.search(r"(?<!\w)" + re.escape(t) + r"(?!\w)", norm))
-
-
-# Reviewer-assigned impact_category → its canonical high-impact category TOKEN (for prose-coverage
-# parity in validate_output). MILITARY_CAPABILITY has no trigger token yet — still a real category.
-_CATEGORY_TO_TOKEN = {"CASUALTIES": "casualties", "ATTRIBUTION": "attribution",
-                      "TERRITORIAL_CONTROL": "territorial-control",
-                      "MILITARY_CAPABILITY": "military-capability"}
 
 
 def compute_high_impact(claim: dict, triggers: set[str]) -> tuple[bool, list[str]]:

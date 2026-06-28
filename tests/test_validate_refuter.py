@@ -165,6 +165,23 @@ def test_answer_mode_high_impact_requires_disconfirming_search():
     assert code == 1 and any("disconfirming_searches is" in x for x in f), f
 
 
+def test_answer_mode_vacuous_disconfirming_search_rejected():
+    # composition-review P2: a non-empty but VACUOUS disconfirming_searches ([""], [None], [{}]) is
+    # not an actual search — only a well-formed entry (non-empty string OR {query, result}) counts.
+    ana = _ana(["clm-hic"], ["cea-1"])
+    for vacuous in ([""], [None], [{}], [{"query": "", "result": ""}]):
+        ref = _ref(["clm-hic"], ["cea-1"], reviewer_class="DIFFERENT_MODEL",
+                   verdicts=[_verdict("clm-hic", high_impact=True, independence_check="PASS")],
+                   disconfirming_searches=vacuous)
+        code, f = vr.validate_refuter(ref, ana, _live([_HI_CAT]), TRIG, answer_mode=True)
+        assert code == 1 and any("disconfirming_searches is" in x for x in f), (vacuous, f)
+    # a well-formed mapping passes (the skeleton shape)
+    ref_ok = _ref(["clm-hic"], ["cea-1"], reviewer_class="DIFFERENT_MODEL",
+                  verdicts=[_verdict("clm-hic", high_impact=True, independence_check="PASS")],
+                  disconfirming_searches=[{"query": "civilian deaths crossing", "result": "no contrary artifact"}])
+    assert vr.validate_refuter(ref_ok, ana, _live([_HI_CAT]), TRIG, answer_mode=True) == (0, [])
+
+
 def test_inference_reasoning_check_na_fails():
     inf = {**_NORMAL, "id": "clm-inf", "epistemic_type": "INFERENCE"}
     ana = _ana(["clm-inf"], ["cea-1"])
