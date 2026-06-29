@@ -173,3 +173,90 @@ def test_two_assessments_same_artifact_fails(tmp_path):
     spec["assessments"][0]["artifact"]["id"] = spec["assessments"][1]["artifact"]["id"] = "evd-collide"
     code = fact.main(["--root", str(tmp_path), "add", str(_write(tmp_path, spec)), "--as-of", ASOF])
     assert code != 0 and _baseline_claims(tmp_path) == []
+
+
+# ---- WP-A: supersede (append-only correction) ----
+def _ceas(root):
+    f = root / "factbase" / "claim_evidence.yaml"
+    return (vs.load_yaml_strict(f) or {}).get("claim_evidence_assessments", []) if f.is_file() else []
+
+
+def _two_support_spec():
+    # one proposition, two independent SUPPORTS → SUPPORTED/UNCONTESTED (high-impact casualty claim)
+    return {
+        "claim": {"text": "Russian military deaths in Ukraine have surpassed two hundred thousand.",
+                  "topics": ["casualties"], "stability": "DURABLE", "review_by": "2027-06-29",
+                  "high_impact": True, "impact_category": "CASUALTIES"},
+        "assessments": [
+            {"source": {"id": "src-a-mil", "title": "Source A", "source_type": "MILITARY"},
+             "artifact": {"url": "https://example.invalid/a", "retrieved_at": ASOF, "artifact_type": "ARTICLE",
+                          "text": "Source A reports Russian military deaths have surpassed two hundred thousand."},
+             "quote": "Russian military deaths have surpassed two hundred thousand", "stance": "SUPPORTS",
+             "information_credibility": 3, "reviewer": "ai:test", "summary": "A"},
+            {"source": {"id": "src-b-inst", "title": "Source B", "source_type": "RESEARCH_INSTITUTE"},
+             "artifact": {"url": "https://example.invalid/b", "retrieved_at": ASOF, "artifact_type": "ARTICLE",
+                          "text": "Source B independently estimates deaths above two hundred thousand."},
+             "quote": "Source B independently estimates deaths above two hundred thousand", "stance": "SUPPORTS",
+             "information_credibility": 2, "reviewer": "ai:test", "summary": "B"},
+        ],
+    }
+
+
+def test_supersede_cea_stance_flip_creates_contest(tmp_path):
+    assert fact.main(["--root", str(tmp_path), "add", str(_write(tmp_path, _two_support_spec())), "--as-of", ASOF]) == 0
+    assert _baseline_claims(tmp_path)[0]["dispute_status"] == "UNCONTESTED"
+    target = next(a["id"] for a in _ceas(tmp_path) if a["origin_chain"][0]["source_id"] == "src-b-inst")
+    code = fact.main(["--root", str(tmp_path), "supersede", "--target", target, "--stance", "REFUTES",
+                      "--reviewer", "human:tim", "--as-of", ASOF])
+    assert code == 0
+    c = _baseline_claims(tmp_path)[0]
+    # recompute restored the stored label on BOTH axes (trap T1): support holds, dispute flips
+    assert c["support_status"] == "SUPPORTED" and c["dispute_status"] == "CONTESTED"
+    ceas = _ceas(tmp_path)
+    superseded = {a["supersedes"] for a in ceas if a.get("supersedes")}
+    active = [a for a in ceas if a["id"] not in superseded and a["claim_id"] == c["id"]]
+    flipped = [a for a in active if a["origin_chain"][0]["source_id"] == "src-b-inst"]
+    assert flipped and flipped[0]["stance"] == "REFUTES" and flipped[0]["semantic_review"]["reviewer"] == "human:tim"
+
+
+def test_supersede_cea_retract_drops_support(tmp_path):
+    spec = _spec("The Example Bridge spans the river connecting A and B.",
+                 "The Example Bridge spans the river connecting A and B")
+    assert fact.main(["--root", str(tmp_path), "add", str(_write(tmp_path, spec)), "--as-of", ASOF]) == 0
+    assert _baseline_claims(tmp_path)[0]["support_status"] == "SUPPORTED"
+    target = _ceas(tmp_path)[0]["id"]
+    assert fact.main(["--root", str(tmp_path), "supersede", "--target", target, "--retract", "--as-of", ASOF]) == 0
+    # the sole support is REJECTED → drops from the active set → claim recomputes to UNVERIFIED
+    assert _baseline_claims(tmp_path)[0]["support_status"] == "UNVERIFIED"
+
+
+def test_supersede_claim_text_repoints_and_freezes(tmp_path):
+    spec = _spec("The Example Bridge spans the river, connecting A and B.",
+                 "The Example Bridge spans the river connecting A and B")
+    assert fact.main(["--root", str(tmp_path), "add", str(_write(tmp_path, spec)), "--as-of", ASOF]) == 0
+    old = _baseline_claims(tmp_path)[0]["id"]
+    code = fact.main(["--root", str(tmp_path), "supersede", "--target", old,
+                      "--text", "The Example Bridge spans the Example River, linking towns A and B.",
+                      "--reviewer", "human:tim", "--as-of", ASOF])
+    assert code == 0
+    claims = {c["id"]: c for c in _baseline_claims(tmp_path)}
+    assert claims[old]["lifecycle"] == "SUPERSEDED"  # old frozen
+    new = [c for c in claims.values() if c.get("supersedes") == old]
+    assert len(new) == 1 and new[0]["lifecycle"] == "REVIEWED" and new[0]["support_status"] == "SUPPORTED"
+    # the cloned cea points to the NEW claim and binds its NEW content hash (FR-4)
+    clones = [a for a in _ceas(tmp_path) if a["claim_id"] == new[0]["id"]]
+    assert len(clones) == 1
+    assert clones[0]["semantic_review"]["claim_content_hash"] == vs.claim_content_hash(new[0])
+    assert clones[0]["semantic_review"]["reviewer"] == "human:tim" and clones[0]["supersedes"] is None
+
+
+def test_supersede_wrong_option_for_target_and_missing_fail(tmp_path):
+    spec = _spec("The Example Bridge spans the river connecting A and B.",
+                 "The Example Bridge spans the river connecting A and B")
+    fact.main(["--root", str(tmp_path), "add", str(_write(tmp_path, spec)), "--as-of", ASOF])
+    cea = _ceas(tmp_path)[0]["id"]
+    clm = _baseline_claims(tmp_path)[0]["id"]
+    # claim option on an assessment target / assessment option on a claim target / not found → all exit 2
+    assert fact.main(["--root", str(tmp_path), "supersede", "--target", cea, "--text", "x", "--as-of", ASOF]) == 2
+    assert fact.main(["--root", str(tmp_path), "supersede", "--target", clm, "--credibility", "2", "--as-of", ASOF]) == 2
+    assert fact.main(["--root", str(tmp_path), "supersede", "--target", "clm-nope", "--text", "y", "--as-of", ASOF]) == 2
