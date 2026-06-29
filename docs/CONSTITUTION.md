@@ -175,6 +175,16 @@ corroborating chain to clear a **credibility floor** (`information_credibility �
 checked assessment). Two low-credibility (`5`–`6`) assessments agreeing — e.g. two amplifier
 accounts repeating one rumour — cannot reach `CORROBORATED`.
 
+**§6.1c The A–C reliable-source leg is wired; "in scope" is ASSUMED (2026-06-29).** The "source
+assessed `A`–`C` in scope" disjunct of §6.1 is now computed: `validate_support` admits a counting
+(non-first-party) origin source as the second corroboration condition when that source holds an active
+reliability in `{A,B,C}`. The **"in scope"** qualifier is currently **ASSUMED** — the source-assessment
+`scope` is free-text and is not structurally matched to the claim, so the leg fires whenever the source
+has *any* active `A`–`C` rating in *any* scope, not a scope-matched one. Tightening (a structured scope
+or a declared assessment→source-rating link) is a future owner-gated change. The ≥2-independent-origins
+requirement (§6.1) and the §6.1b credibility floor are unchanged, so single-source facts and
+low-credibility-only agreement still cannot reach `CORROBORATED`.
+
 **§6.2 Exact support.** Every checked assessment names the exact passage/cell/frame.
 Quantitative claims point to the exact number or a deterministic derivation; a URL is not
 enough. The gate checks presence/binding/consistency; a human or different-model reviewer
