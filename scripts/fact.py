@@ -28,8 +28,10 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import validate_assessment_governance as v_gov  # noqa: E402
+import validate_conflict as v_con  # noqa: E402
 import validate_schema as vs  # noqa: E402
 import validate_sources as v_src  # noqa: E402
+import validate_support as v_sup  # noqa: E402
 import verify  # noqa: E402
 import yaml  # noqa: E402
 
@@ -64,32 +66,22 @@ def _dump(path: Path, doc):
 
 
 def build_records(spec: dict, as_of: str):
-    """Return (source_or_None, evidence, claim, cea) from a seed spec. Raises ValueError on a
-    dishonest spec — the quote must be a verbatim substring of the retrieved artifact text."""
-    s, a, c, asmt = spec["source"], spec["artifact"], spec["claim"], spec["assessment"]
-    text = a.get("text") or (Path(a["text_file"]).read_text(encoding="utf-8") if a.get("text_file") else None)
-    if not text:
-        raise ValueError("artifact needs `text` or `text_file` (the exact retrieved content)")
-    quote = asmt["quote"]
-    if _norm(quote) not in _norm(text):
-        raise ValueError("assessment.quote is not a verbatim substring of the artifact text — a "
-                         "locator must point to real retrieved text, not a paraphrase or memory")
-    slug = _slug(c["text"])
-    content_hash = "sha256:" + hashlib.sha256(text.encode("utf-8")).hexdigest()
-    src_id = s["id"]
-    source = None
-    if {"title", "source_type"} <= set(s):  # a full source record to create if it's new
-        source = {"id": src_id, "title": s["title"], "source_type": s["source_type"],
-                  "aliases": s.get("aliases", []), "canonical_home": s.get("canonical_home"),
-                  "active_from": None, "active_to": None}
-    evd_id = a.get("id") or f"evd-{slug}"
-    evidence = {"id": evd_id, "source_id": src_id, "artifact_type": a.get("artifact_type", "ARTICLE"),
-                "title": a.get("title", c["text"][:80]), "canonical_locator": a["url"],
-                "content_hash": content_hash, "published_at": a.get("published_at", a["retrieved_at"]),
-                "retrieved_at": a["retrieved_at"]}
-    clm_id = c.get("id") or f"clm-{slug}"
+    """Return (sources, evidence_list, claim, ceas) from a seed spec. A claim carries ONE assessment
+    (spec.source/artifact/assessment — back-compat) OR MANY (spec.assessments[], each with its own
+    source/artifact/stance/quote — a CONTESTED claim). support_status/dispute_status are placeholders
+    here (both excluded from claim_content_hash) and COMPUTED by the caller from the full cea set, so
+    the support + conflict gates pass by construction. Raises ValueError on a non-verbatim quote."""
+    c = spec["claim"]
+    clm_slug = _slug(c["text"])
+    clm_id = c.get("id") or f"clm-{clm_slug}"
+    if spec.get("assessments"):
+        units = spec["assessments"]
+    else:  # single-assessment back-compat: source + artifact live at the top level
+        u0 = dict(spec["assessment"])
+        u0["source"], u0["artifact"] = spec["source"], spec["artifact"]
+        units = [u0]
     claim = {"id": clm_id, "text": c["text"], "epistemic_type": c.get("epistemic_type", "FACT"),
-             "support_status": "SUPPORTED", "dispute_status": "UNCONTESTED",
+             "support_status": "UNVERIFIED", "dispute_status": "UNKNOWN",  # placeholders; caller computes
              "freshness_status": "CURRENT", "lifecycle": "REVIEWED",
              "stability": c.get("stability", "DURABLE"), "topics": c["topics"],
              "high_impact": c.get("high_impact", False), "created_at": as_of, "supersedes": None,
@@ -98,35 +90,67 @@ def build_records(spec: dict, as_of: str):
              "review_by": c.get("review_by"), "expires_at": None, "freshness_profile": None}
     if c.get("impact_category"):
         claim["impact_category"] = c["impact_category"]
-    rih = "sha256:" + hashlib.sha256(("REL|" + _norm(quote)).encode("utf-8")).hexdigest()
-    cea = {"id": asmt.get("id") or f"cea-{slug}", "claim_id": clm_id, "artifact_id": evd_id,
-           "support_locator": {"kind": "PAGE_AND_QUOTE", "page": 1, "quote": quote},
-           "support_summary": asmt.get("summary", quote[:120]), "stance": asmt.get("stance", "SUPPORTS"),
-           "information_credibility": asmt["information_credibility"],
-           "temporal_scope": {"kind": "TIMELESS", "start": None, "end": None},
-           "origin_chain": [{"source_id": src_id, "artifact_id": evd_id}],
-           "independence_group": f"ind-{slug}",
-           "semantic_review": {"status": "CHECKED", "reviewer": asmt.get("reviewer", "model:unknown"),
-                               "reviewed_at": as_of, "claim_content_hash": vs.claim_content_hash(claim),
-                               "artifact_hash": content_hash, "relationship_input_hash": rih},
-           "supersedes": None}
-    return source, evidence, claim, cea
+    cch = vs.claim_content_hash(claim)  # excludes support/dispute_status → stable vs the caller's recompute
+    sources, evidence, ceas, seen = [], [], [], set()
+    for u in units:
+        s, a = u["source"], u["artifact"]
+        text = a.get("text") or (Path(a["text_file"]).read_text(encoding="utf-8") if a.get("text_file") else None)
+        if not text:
+            raise ValueError("each assessment's artifact needs `text` or `text_file`")
+        quote = u["quote"]
+        if _norm(quote) not in _norm(text):
+            raise ValueError(f"quote is not a verbatim substring of its artifact text: {quote[:60]!r}")
+        src_id = s["id"]
+        src_slug = src_id[4:] if src_id.startswith("src-") else src_id
+        key, n = f"{clm_slug}-{src_slug}", 2
+        while key in seen:
+            key, n = f"{clm_slug}-{src_slug}-{n}", n + 1
+        seen.add(key)
+        content_hash = "sha256:" + hashlib.sha256(text.encode("utf-8")).hexdigest()
+        if {"title", "source_type"} <= set(s):  # create the identity if a full record is given
+            sources.append({"id": src_id, "title": s["title"], "source_type": s["source_type"],
+                            "aliases": s.get("aliases", []), "canonical_home": s.get("canonical_home"),
+                            "active_from": None, "active_to": None})
+        evd_id = a.get("id") or f"evd-{key}"
+        evidence.append({"id": evd_id, "source_id": src_id, "artifact_type": a.get("artifact_type", "ARTICLE"),
+                         "title": a.get("title", c["text"][:80]), "canonical_locator": a["url"],
+                         "content_hash": content_hash, "published_at": a.get("published_at", a["retrieved_at"]),
+                         "retrieved_at": a["retrieved_at"]})
+        rih = "sha256:" + hashlib.sha256(("REL|" + _norm(quote)).encode("utf-8")).hexdigest()
+        ceas.append({"id": u.get("id") or f"cea-{key}", "claim_id": clm_id, "artifact_id": evd_id,
+                     "support_locator": {"kind": "PAGE_AND_QUOTE", "page": 1, "quote": quote},
+                     "support_summary": u.get("summary", quote[:120]), "stance": u.get("stance", "SUPPORTS"),
+                     "information_credibility": u["information_credibility"],
+                     "temporal_scope": {"kind": "TIMELESS", "start": None, "end": None},
+                     "origin_chain": [{"source_id": src_id, "artifact_id": evd_id}],
+                     "independence_group": f"ind-{key}",
+                     "semantic_review": {"status": "CHECKED", "reviewer": u.get("reviewer", "model:unknown"),
+                                         "reviewed_at": as_of, "claim_content_hash": cch,
+                                         "artifact_hash": content_hash, "relationship_input_hash": rih},
+                     "supersedes": None})
+    return sources, evidence, claim, ceas
 
 
 def cmd_add(args):
     spec = vs.load_yaml_strict(Path(args.spec))
     try:
-        source, evidence, claim, cea = build_records(spec, args.as_of)
+        sources, evidence, claim, ceas = build_records(spec, args.as_of)
     except (ValueError, KeyError) as e:
         print(f"[fact add] spec error: {e}", file=sys.stderr)
         return 2
     root = Path(args.root)
     docs = {f: _load(root / "factbase" / f, k) for f, k in FB_FILES.items()}
-    if source and not any(s.get("id") == source["id"] for s in docs["sources.yaml"]["sources"]):
-        docs["sources.yaml"]["sources"].append(source)
-    docs["evidence.yaml"]["evidence"].append(evidence)
-    docs["claim_evidence.yaml"]["claim_evidence_assessments"].append(cea)
+    for src in sources:
+        if not any(s.get("id") == src["id"] for s in docs["sources.yaml"]["sources"]):
+            docs["sources.yaml"]["sources"].append(src)
+    docs["evidence.yaml"]["evidence"].extend(evidence)
+    docs["claim_evidence.yaml"]["claim_evidence_assessments"].extend(ceas)
     docs["baseline/claims.yaml"]["claims"].append(claim)
+    # compute-then-store: derive support_status + dispute_status from the FULL cea set so the support
+    # and conflict gates pass by construction (both fields are excluded from claim_content_hash).
+    all_ceas = docs["claim_evidence.yaml"]["claim_evidence_assessments"]
+    claim["support_status"] = v_sup.compute_support(v_sup.active_supports_by_claim(all_ceas).get(claim["id"], []))[0]
+    claim["dispute_status"] = v_con.compute_dispute(v_sup.active_checked_by_claim(all_ceas).get(claim["id"], []))
     # stage onto a tmp copy and run the records gates BEFORE persisting (fail-closed)
     with tempfile.TemporaryDirectory() as dd:
         st = Path(dd)
@@ -142,8 +166,9 @@ def cmd_add(args):
         return code
     for f in FB_FILES:  # persist only on a clean compose
         _dump(root / "factbase" / f, docs[f])
-    print(f"[fact add] OK — claim {claim['id']!r} (SUPPORTED) composes clean and is persisted under "
-          f"{root}/factbase. Backed by {evidence['canonical_locator']}")
+    n = len(ceas)
+    print(f"[fact add] OK — claim {claim['id']!r} ({claim['support_status']}/{claim['dispute_status']}, "
+          f"{n} assessment{'' if n == 1 else 's'}) composes clean, persisted under {root}/factbase.")
     return 0
 
 

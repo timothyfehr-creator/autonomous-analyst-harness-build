@@ -75,12 +75,13 @@ def test_add_fail_closed_on_uncomposable_fact(tmp_path):
 def test_build_records_binds_hashes():
     spec = _spec("The Example Bridge spans the Example River, connecting A and B.",
                  "The Example Bridge spans the Example River connecting A and B")
-    _src, evd, clm, cea = fact.build_records(spec, ASOF)
+    _srcs, evd, clm, ceas = fact.build_records(spec, ASOF)  # now returns LISTS (multi-assessment)
+    cea, ev = ceas[0], evd[0]
     # the assessment binds the artifact + the CURRENT claim content (what validate_claim_evidence checks)
-    assert cea["semantic_review"]["artifact_hash"] == evd["content_hash"]
+    assert cea["semantic_review"]["artifact_hash"] == ev["content_hash"]
     assert cea["semantic_review"]["claim_content_hash"] == vs.claim_content_hash(clm)
     # the reviewed artifact is bound into its own origin_chain (FR-4 B1)
-    assert cea["origin_chain"][0]["artifact_id"] == evd["id"] == cea["artifact_id"]
+    assert cea["origin_chain"][0]["artifact_id"] == ev["id"] == cea["artifact_id"]
 
 
 # ---- fact.py source — scoped reliability ratings ----
@@ -123,3 +124,52 @@ def test_source_multiple_scoped_ratings(tmp_path):
     assert fact.main(["--root", str(tmp_path), "source", str(_write(tmp_path, spec)), "--as-of", ASOF]) == 0
     sas = _sas(tmp_path)
     assert {s["reliability"] for s in sas} == {"C", "E"} and len({s["id"] for s in sas}) == 2
+
+
+# ---- WP-1: multi-assessment CONTESTED facts ----
+def _contested_spec(high_impact=True, impact_category="CASUALTIES"):
+    claim = {"text": "Total Russian military deaths in Ukraine exceed one million as of mid-2026.",
+             "topics": ["casualties"], "stability": "DURABLE", "review_by": "2027-06-29",
+             "high_impact": high_impact}
+    if impact_category:
+        claim["impact_category"] = impact_category
+    return {
+        "claim": claim,
+        "assessments": [
+            {"source": {"id": "src-claimant-mil", "title": "Claimant Military", "source_type": "MILITARY"},
+             "artifact": {"url": "https://example.invalid/a", "retrieved_at": ASOF, "artifact_type": "ARTICLE",
+                          "text": "The claimant reports that total enemy military deaths exceed one million."},
+             "quote": "total enemy military deaths exceed one million", "stance": "SUPPORTS",
+             "information_credibility": 5, "reviewer": "ai:test", "summary": "belligerent claim (low cred)"},
+            {"source": {"id": "src-independent-count", "title": "Independent Count", "source_type": "RESEARCH_INSTITUTE"},
+             "artifact": {"url": "https://example.invalid/b", "retrieved_at": ASOF, "artifact_type": "ARTICLE",
+                          "text": "Independently confirmed deaths number in the low hundreds of thousands, far below one million."},
+             "quote": "Independently confirmed deaths number in the low hundreds of thousands, far below one million",
+             "stance": "REFUTES", "information_credibility": 2, "reviewer": "ai:test", "summary": "independent estimate"},
+        ],
+    }
+
+
+def test_contested_claim_composes_supported_and_contested(tmp_path):
+    code = fact.main(["--root", str(tmp_path), "add", str(_write(tmp_path, _contested_spec())), "--as-of", ASOF])
+    assert code == 0
+    claims = _baseline_claims(tmp_path)
+    assert len(claims) == 1
+    assert claims[0]["support_status"] == "SUPPORTED" and claims[0]["dispute_status"] == "CONTESTED"
+    ceas = (vs.load_yaml_strict(tmp_path / "factbase" / "claim_evidence.yaml") or {}).get("claim_evidence_assessments", [])
+    assert len(ceas) == 2 and {a["stance"] for a in ceas} == {"SUPPORTS", "REFUTES"}
+
+
+def test_contested_casualty_without_category_fails_closed(tmp_path):
+    # a contested casualty claim that doesn't carry high_impact:true is raised by the records gate
+    spec = _contested_spec(high_impact=False, impact_category=None)
+    code = fact.main(["--root", str(tmp_path), "add", str(_write(tmp_path, spec)), "--as-of", ASOF])
+    assert code == 1 and _baseline_claims(tmp_path) == []
+
+
+def test_two_assessments_same_artifact_fails(tmp_path):
+    # two assessments pinned to the SAME artifact_id → one-active-leaf fork → fail closed
+    spec = _contested_spec()
+    spec["assessments"][0]["artifact"]["id"] = spec["assessments"][1]["artifact"]["id"] = "evd-collide"
+    code = fact.main(["--root", str(tmp_path), "add", str(_write(tmp_path, spec)), "--as-of", ASOF])
+    assert code != 0 and _baseline_claims(tmp_path) == []
