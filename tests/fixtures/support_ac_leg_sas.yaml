@@ -1,0 +1,13 @@
+# One of the two counting origin sources (src-a) carries an ACTIVE reliability of B (∈ {A,B,C}) — this
+# is the §6.1 A-C leg that substitutes for authoritative-primary. src-b is rated D (does not qualify),
+# so corroboration rests entirely on src-a's A-C rating.
+schema_version: "2.0"
+source_assessments:
+  - id: sas-a
+    source_id: src-a
+    reliability: B
+    supersedes: null
+  - id: sas-b
+    source_id: src-b
+    reliability: D
+    supersedes: null

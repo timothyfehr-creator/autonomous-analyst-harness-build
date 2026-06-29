@@ -1,0 +1,31 @@
+# Two independent CHECKED SUPPORTS, NEITHER authoritative-primary (no primary_evidence_kind), both at
+# or below the credibility floor, distinct origins src-a / src-b. The only route to CORROBORATED is an
+# A-C rating on a counting origin source (provided by support_ac_leg_sas.yaml).
+schema_version: "2.0"
+claim_evidence_assessments:
+  - id: cea-a
+    claim_id: clm-acleg
+    artifact_id: evd-a
+    support_locator: {kind: PAGE_AND_QUOTE, page: 1, quote: q}
+    support_summary: s
+    stance: SUPPORTS
+    information_credibility: 2
+    temporal_scope: {kind: TIMELESS, start: null, end: null}
+    origin_chain:
+      - {source_id: src-a, artifact_id: evd-a}
+    independence_group: ind-cea-a
+    semantic_review: {status: CHECKED, reviewer: human:tim, reviewed_at: "2026-06-22T11:30:00Z", claim_content_hash: sha256:2601f780ecc7f4654014b5f448426d593a7ab8aed7287238900e41b201c0d3f4, artifact_hash: sha256:26fd04fb35b03a379c8d407fdf783cb7f43e645acbf8ecc92ca480d593c02ab5, relationship_input_hash: sha256:9f41914948e79d951c4d2375b45f83ff96c83b49a4c59a710984e4654889e43f}
+    supersedes: null
+  - id: cea-b
+    claim_id: clm-acleg
+    artifact_id: evd-b
+    support_locator: {kind: PAGE_AND_QUOTE, page: 1, quote: q}
+    support_summary: s
+    stance: SUPPORTS
+    information_credibility: 3
+    temporal_scope: {kind: TIMELESS, start: null, end: null}
+    origin_chain:
+      - {source_id: src-b, artifact_id: evd-b}
+    independence_group: ind-cea-b
+    semantic_review: {status: CHECKED, reviewer: human:tim, reviewed_at: "2026-06-22T11:30:00Z", claim_content_hash: sha256:bbd7bd8c9cfade5f9df2ca4774ca3f6f28d8a2457965d180bc6c87933cbc2845, artifact_hash: sha256:3a0259fe7a02f3e536e7c3153c432adb0783988047bd70ca341b679bf9d19520, relationship_input_hash: sha256:86ea5dca168e2c8e7bd2efb7ba787862bf15b19891ddbfe501b69e6395ebff34}
+    supersedes: null

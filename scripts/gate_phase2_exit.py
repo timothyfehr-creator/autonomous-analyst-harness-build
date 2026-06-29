@@ -11,6 +11,10 @@ gate_phase1_exit):
                      high_impact-recompute (V-P0-1), A5 (cross-dimensional-class recast, V-P1-5),
                      and same-origin-both-sides conflict suppression. A later WP cannot silently
                      regress these.
+  W-CORROBORATE-AC-SOURCE  the §6.1 A-C reliable-source corroboration leg is wired AND load-bearing —
+                     a 2-independent-source claim with no authoritative-primary earns CORROBORATED only
+                     when a counting origin source is rated A-C (composes WITH the sas, over-claims
+                     WITHOUT it). 'In scope' is deferred as ASSUMED (free-text scope not yet matchable).
   W-PHASE1-GREEN     the Phase-1 exit gate still passes (cumulative-drift tripwire).
 
 Complements the pytest suite (run both at the boundary: `pytest -q && python scripts/gate_phase2_exit.py`).
@@ -114,13 +118,29 @@ def _a_exploits() -> str | None:
     return "; ".join(bad) if bad else None
 
 
+def _corroborate_ac_source() -> str | None:
+    """WP-2: the §6.1 A-C reliable-source leg is wired AND load-bearing. A claim backed by two
+    independent CHECKED SUPPORTS with NO authoritative-primary kind earns CORROBORATED only because a
+    counting origin source is rated A-C: WITH the sas it composes (exit 0); WITHOUT it the same claim
+    over-claims (exit 1). The off-case proves the leg — not some other path — is doing the work."""
+    cl, cea = [FIX / "support_ac_leg_claims.yaml"], FIX / "support_ac_leg_cea.yaml"
+    with_leg = v_sup.validate_support(cl, cea, FIX / "support_ac_leg_sas.yaml")[0]
+    without_leg = v_sup.validate_support(cl, cea)[0]
+    if with_leg != 0:
+        return f"A-C leg did NOT corroborate the 2-source claim with the rating present (exit {with_leg})"
+    if without_leg != 1:
+        return f"claim should over-claim with the leg OFF but returned {without_leg} (leg not load-bearing)"
+    return None
+
+
 def _phase1_green() -> str | None:
     return None if gate_phase1_exit.main() == 0 else "Phase-1 exit gate is no longer green (cumulative drift)"
 
 
 def main() -> int:
     witnesses = [("W-RECORDS-EMPTY", _records_empty), ("W-RECORDS-COMPOSE", _records_compose),
-                 ("W-A-EXPLOITS", _a_exploits), ("W-PHASE1-GREEN", _phase1_green)]
+                 ("W-A-EXPLOITS", _a_exploits), ("W-CORROBORATE-AC-SOURCE", _corroborate_ac_source),
+                 ("W-PHASE1-GREEN", _phase1_green)]
     problems = []
     for name, fn in witnesses:
         msg = fn()

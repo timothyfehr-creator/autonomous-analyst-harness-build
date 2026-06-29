@@ -135,6 +135,49 @@ def test_compute_support_conjunction():
     assert vsup.compute_support([])[0] == "UNVERIFIED"
 
 
+# ---- WP-2: §6.1 A-C reliable-source corroboration leg (C2b) ----
+def test_ac_leg_corroborates_two_sources_no_authoritative():
+    def cea(origin, cred=2):  # NO authoritative-primary kind anywhere
+        return {"primary_evidence_kind": None, "information_credibility": cred,
+                "origin_chain": [{"source_id": origin}]}
+    quals = [cea("src-a"), cea("src-b", cred=3)]
+    # 2 independent origins + floor, but no authoritative-primary → SUPPORTED with the leg OFF
+    assert vsup.compute_support(quals)[0] == "SUPPORTED"
+    # turn the leg on: src-a assessed A-C in scope → C2 satisfied → CORROBORATED
+    assert vsup.compute_support(quals, {"src-a"})[0] == "CORROBORATED"
+
+
+def test_ac_leg_does_not_relax_two_origin_requirement():
+    # a single A-C-rated source is still ONE origin → C1 unmet → SUPPORTED (the leg substitutes for
+    # authoritative-primary only, never for ≥2 independent origins)
+    one = [{"primary_evidence_kind": None, "information_credibility": 2,
+            "origin_chain": [{"source_id": "src-a"}]}]
+    assert vsup.compute_support(one, {"src-a"})[0] == "SUPPORTED"
+
+
+def test_ac_leg_first_party_source_cannot_backdoor():
+    # the A-C signal is computed over COUNTING (non-first-party) chains, so an A-C rating on a
+    # belligerent's first-party record can't stand in for corroboration
+    fp = {"primary_evidence_kind": "FIRST_PARTY_ACTION_RECORD", "information_credibility": 1,
+          "origin_chain": [{"source_id": "src-belligerent"}]}
+    indep = {"primary_evidence_kind": None, "information_credibility": 2,
+             "origin_chain": [{"source_id": "src-independent"}]}
+    # only the belligerent is A-C-rated; it is first-party-excluded → still 1 counting origin → SUPPORTED
+    assert vsup.compute_support([fp, indep], {"src-belligerent"})[0] == "SUPPORTED"
+
+
+def test_active_reliabilities_resolver_takes_leaf_and_drops_superseded():
+    sas = [{"id": "sas-1", "source_id": "src-x", "reliability": "D", "supersedes": None},
+           {"id": "sas-2", "source_id": "src-x", "reliability": "B", "supersedes": "sas-1"},  # leaf
+           {"id": "sas-3", "source_id": "src-x", "reliability": "E", "supersedes": None}]    # other scope
+    rel = vsup.active_reliabilities_by_source(sas)
+    assert rel["src-x"] == {"B", "E"}  # superseded D dropped; both active leaves kept
+    assert vsup.ac_rated_sources(sas) == {"src-x"}  # B ∈ {A,B,C}
+    # a source whose only active leaf is D-F is not A-C-rated
+    assert vsup.ac_rated_sources([{"id": "s", "source_id": "src-y", "reliability": "E",
+                                   "supersedes": None}]) == set()
+
+
 def test_first_party_excluded_from_independence():
     fp = {"primary_evidence_kind": "FIRST_PARTY_ACTION_RECORD", "information_credibility": 1,
           "origin_chain": [{"source_id": "src-bel"}]}

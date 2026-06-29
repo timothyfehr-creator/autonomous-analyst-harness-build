@@ -149,7 +149,10 @@ def cmd_add(args):
     # compute-then-store: derive support_status + dispute_status from the FULL cea set so the support
     # and conflict gates pass by construction (both fields are excluded from claim_content_hash).
     all_ceas = docs["claim_evidence.yaml"]["claim_evidence_assessments"]
-    claim["support_status"] = v_sup.compute_support(v_sup.active_supports_by_claim(all_ceas).get(claim["id"], []))[0]
+    # §6.1 A-C corroboration leg: a counting origin source assessed A-C can stand in for authoritative-
+    # primary. Compute from the staged sas so stored == what records_check recomputes (order-safe).
+    ac = v_sup.ac_rated_sources(docs["source_assessments.yaml"]["source_assessments"])
+    claim["support_status"] = v_sup.compute_support(v_sup.active_supports_by_claim(all_ceas).get(claim["id"], []), ac)[0]
     claim["dispute_status"] = v_con.compute_dispute(v_sup.active_checked_by_claim(all_ceas).get(claim["id"], []))
     # stage onto a tmp copy and run the records gates BEFORE persisting (fail-closed)
     with tempfile.TemporaryDirectory() as dd:

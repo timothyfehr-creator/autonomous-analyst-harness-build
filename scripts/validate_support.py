@@ -144,14 +144,43 @@ def active_supports_by_claim(ceas):
     return active_checked_by_claim(ceas, stance="SUPPORTS")
 
 
-def compute_support(qualifying):
-    """Return (computed_label, detail). Lower bound from the active CHECKED SUPPORTS assessments."""
+def active_reliabilities_by_source(sas_records):
+    """Map source_id -> set of ACTIVE reliability letters. Active = an un-superseded leaf of its
+    supersedes chain (sas has no partition key — active is per connected component). A source can hold
+    several active leaves (different scopes), so the value is a set."""
+    by_id = {r.get("id"): r for r in (sas_records or []) if isinstance(r, dict) and r.get("id")}
+    superseded = {r.get("supersedes") for r in by_id.values() if r.get("supersedes") in by_id}
+    out = {}
+    for r in by_id.values():
+        if r.get("id") in superseded:
+            continue
+        sid = r.get("source_id")
+        if sid:
+            out.setdefault(sid, set()).add(r.get("reliability"))
+    return out
+
+
+def ac_rated_sources(sas_records) -> set:
+    """Source_ids with an ACTIVE reliability in {A,B,C} — the §6.1 'a source assessed A-C in scope'
+    corroboration leg (C2b). NOTE: 'in scope' is deferred (ASSUMED) — the sas `scope` is free-text and
+    not structurally matchable today; a future WP can tighten with a structured scope / cea->sas link."""
+    return {sid for sid, rels in active_reliabilities_by_source(sas_records).items()
+            if rels & {"A", "B", "C"}}
+
+
+def compute_support(qualifying, ac_sources=frozenset()):
+    """Return (computed_label, detail). Lower bound from the active CHECKED SUPPORTS assessments.
+    ac_sources = source_ids with an active A-C rating (the §6.1 reliable-source leg, off by default)."""
     if not qualifying:
         return "UNVERIFIED", "no active CHECKED SUPPORTS assessment"
     counting = [a for a in qualifying if a.get("primary_evidence_kind") != FIRST_PARTY]  # C3 exclusion
     n_origins = independence_components(counting)  # §3/§6.1: shared chain source OR independence_group collapses
     c1 = n_origins >= 2
-    c2 = any(a.get("primary_evidence_kind") in AUTHORITATIVE_PRIMARY for a in qualifying)
+    # C2: authoritative-primary kind OR (C2b) a COUNTING origin source assessed A-C — computed over
+    # `counting` so a first-party belligerent source's rating can't back-door corroboration.
+    c2_primary = any(a.get("primary_evidence_kind") in AUTHORITATIVE_PRIMARY for a in qualifying)
+    c2_ac = any(s in ac_sources for a in counting for s in _chain_sources(a))
+    c2 = c2_primary or c2_ac
     c4 = any(_is_floor(a) for a in counting)
     if c1 and c2 and c4:
         return "CORROBORATED", ""
@@ -159,13 +188,13 @@ def compute_support(qualifying):
     if not c1:
         missing.append(f"only {n_origins} independent origin(s) after first-party exclusion (need >=2)")
     if not c2:
-        missing.append("no authoritative-primary evidence kind")
+        missing.append("no authoritative-primary evidence kind and no A-C-rated origin source")
     if not c4:
         missing.append("no counting chain with information_credibility <= 3")
     return "SUPPORTED", "; ".join(missing)
 
 
-def check_support(claims, ceas) -> list[str]:
+def check_support(claims, ceas, ac_sources=frozenset()) -> list[str]:
     """Over-claim findings for the schema-clean merged claim set."""
     findings = []
     active = active_supports_by_claim(ceas)
@@ -175,15 +204,17 @@ def check_support(claims, ceas) -> list[str]:
         stored = c.get("support_status")
         if stored not in ("SUPPORTED", "CORROBORATED"):  # THIN/UNVERIFIED are at/below the floor — never an over-claim
             continue
-        computed, detail = compute_support(active.get(c.get("id"), []))
+        computed, detail = compute_support(active.get(c.get("id"), []), ac_sources)
         if SUPPORT_RANK.get(stored, 0) > SUPPORT_RANK.get(computed, 0):
             findings.append(f"claim {c.get('id')!r}: support_status stored {stored} but the evidence "
                             f"earns only {computed} ({detail})")
     return sorted(findings)
 
 
-def validate_support(claims_paths, cea_path):
-    """Return (exit_code, findings). Schema-first per claims file; recompute on the merged set."""
+def validate_support(claims_paths, cea_path, source_assessments_path=None):
+    """Return (exit_code, findings). Schema-first per claims file; recompute on the merged set.
+    source_assessments_path (optional): enables the §6.1 A-C reliable-source corroboration leg; absent
+    or empty ⇒ leg off (authoritative-primary remains the only path) — preserves prior behavior."""
     schema_findings, code = [], 0
     for p in claims_paths:
         c, f = vs.validate_file(p)
@@ -196,11 +227,18 @@ def validate_support(claims_paths, cea_path):
         ceas = cea_data.get("claim_evidence_assessments") or []
     except Exception as e:  # noqa: BLE001 — registry read/parse failure is §13 fail-closed
         return 2, [f"cannot read the claim-evidence registry for support recompute (fail closed): {e}"]
+    ac_sources = frozenset()
+    if source_assessments_path is not None:
+        try:
+            sd = vs.load_yaml_strict(source_assessments_path) or {}
+            ac_sources = ac_rated_sources(sd.get("source_assessments") or [])
+        except Exception as e:  # noqa: BLE001 — a bad sas registry is §13 fail-closed
+            return 2, [f"cannot read source_assessments for the A-C corroboration leg (fail closed): {e}"]
     merged = []
     for p in claims_paths:
         d = vs.load_yaml_strict(p) or {}
         merged += [c for c in (d.get("claims") or []) if isinstance(c, dict)]
-    findings = check_support(merged, ceas)
+    findings = check_support(merged, ceas, ac_sources)
     return (1 if findings else 0), findings
 
 

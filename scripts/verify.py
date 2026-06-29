@@ -171,7 +171,7 @@ def records_check(root: Path, as_of):
         ("claim_evidence", lambda: v_cea.validate_claim_evidence_file(cea, cea_refs)),
         ("high_impact", _hi),
         ("claims", lambda: v_clm.validate_claims(claims, cea, predictions)),
-        ("support", lambda: v_sup.validate_support(claims, cea)),
+        ("support", lambda: v_sup.validate_support(claims, cea, assessments)),  # assessments → §6.1 A-C leg
         ("conflict", lambda: v_con.validate_conflict(claims, cea)),
         ("freshness", lambda: v_fresh.validate_freshness(claims, as_of)),
         ("observations", lambda: v_obs.validate_observations([observations], obs_claim_ids, obs_cea_ids)),
