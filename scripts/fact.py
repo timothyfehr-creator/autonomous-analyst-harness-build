@@ -420,8 +420,41 @@ def cmd_supersede(args):
     return 2
 
 
+def cmd_review_due(args):
+    """List active facts whose review/expiry date is on/before --as-of (read-only). Stability-aware via
+    validate_freshness.compute_freshness: DURABLE→REVIEW_DUE on review_by, VOLATILE→STALE on expires_at."""
+    root = Path(args.root)
+    as_of = sd.iso_instant(args.as_of)
+    if as_of is None:
+        print(f"[fact review-due] --as-of {args.as_of!r} is not a parseable ISO datetime", file=sys.stderr)
+        return 2
+    claims = []
+    for f in ("baseline/claims.yaml", "live/claims.yaml"):
+        claims += _load(root / "factbase" / f, "claims").get("claims", [])
+    rows = []
+    for c in claims:
+        if c.get("lifecycle") in {"SUPERSEDED", "REJECTED"}:  # mirror validate_freshness._INACTIVE
+            continue
+        status, problem = v_fresh.compute_freshness(c, as_of)
+        gd = c.get("review_by") if c.get("stability") == "DURABLE" else c.get("expires_at")
+        if problem:  # surface, don't crash (a VOLATILE with only a freshness_profile, or no date)
+            rows.append((gd or "", c, "NEEDS_DATE" if problem == "nodate" else "NEEDS_PROFILE"))
+        elif status in ("REVIEW_DUE", "STALE") or (args.include_current and status == "CURRENT"):
+            rows.append((gd or "", c, status))
+    if not rows:
+        print("(no active facts)" if args.include_current else f"(no facts due as of {args.as_of})")
+        return 0
+    rows.sort(key=lambda r: r[0])  # most-overdue (earliest governing date) first
+    for gd, c, status in rows:
+        print(f"\n● {c['id']}  [{status}]  stability={c.get('stability')}  due={gd or '—'}")
+        print(f"  {c.get('text')}")
+    attention = sum(1 for _, _, s in rows if s != "CURRENT")
+    print(f"\n{len(rows)} fact(s) listed; {attention} need attention as of {args.as_of}.")
+    return 0
+
+
 def main(argv=None) -> int:
-    p = argparse.ArgumentParser(description="lean fact-repository tool (add / query / source / supersede)")
+    p = argparse.ArgumentParser(description="lean fact-repository tool (add / query / source / supersede / review-due)")
     p.add_argument("--root", default=".", help="repo/corpus root containing factbase/ (default: .)")
     sub = p.add_subparsers(dest="cmd", required=True)
     pa = sub.add_parser("add", help="add a checked fact from a seed spec (fail-closed)")
@@ -457,6 +490,10 @@ def main(argv=None) -> int:
     pu.add_argument("--stability", choices=sorted(sd.STABILITY), help="(claim) stability class")
     pu.add_argument("--review-by", dest="review_by", help="(claim) next-review date (>= --as-of)")
     pu.set_defaults(fn=cmd_supersede)
+    pr = sub.add_parser("review-due", help="list active facts whose review/expiry date has passed (read-only)")
+    pr.add_argument("--as-of", required=True, help="ISO timestamp to evaluate freshness against")
+    pr.add_argument("--include-current", action="store_true", help="also list CURRENT facts (full picture)")
+    pr.set_defaults(fn=cmd_review_due)
     args = p.parse_args(argv)
     return args.fn(args)
 

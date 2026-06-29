@@ -260,3 +260,33 @@ def test_supersede_wrong_option_for_target_and_missing_fail(tmp_path):
     assert fact.main(["--root", str(tmp_path), "supersede", "--target", cea, "--text", "x", "--as-of", ASOF]) == 2
     assert fact.main(["--root", str(tmp_path), "supersede", "--target", clm, "--credibility", "2", "--as-of", ASOF]) == 2
     assert fact.main(["--root", str(tmp_path), "supersede", "--target", "clm-nope", "--text", "y", "--as-of", ASOF]) == 2
+
+
+# ---- WP-B: review-due (staleness surfacing) ----
+def test_review_due_lists_overdue_and_skips_current(tmp_path, capsys):
+    spec = _spec("The Example Bridge spans the river connecting A and B.",
+                 "The Example Bridge spans the river connecting A and B")  # review_by 2027-06-28
+    fact.main(["--root", str(tmp_path), "add", str(_write(tmp_path, spec)), "--as-of", ASOF])
+    capsys.readouterr()
+    assert fact.main(["--root", str(tmp_path), "review-due", "--as-of", "2027-01-01T00:00:00Z"]) == 0
+    assert "no facts due" in capsys.readouterr().out          # before review_by → nothing
+    assert fact.main(["--root", str(tmp_path), "review-due", "--as-of", "2028-01-01T00:00:00Z"]) == 0
+    out = capsys.readouterr().out                              # after review_by → listed
+    assert "REVIEW_DUE" in out and "Example Bridge" in out
+
+
+def test_review_due_skips_superseded(tmp_path, capsys):
+    spec = _spec("The Example Bridge spans the river, connecting A and B.",
+                 "The Example Bridge spans the river connecting A and B")
+    fact.main(["--root", str(tmp_path), "add", str(_write(tmp_path, spec)), "--as-of", ASOF])
+    old = _baseline_claims(tmp_path)[0]["id"]
+    fact.main(["--root", str(tmp_path), "supersede", "--target", old, "--text",
+               "The Example Bridge spans the Example River, linking towns A and B.", "--as-of", ASOF])
+    capsys.readouterr()
+    fact.main(["--root", str(tmp_path), "review-due", "--as-of", "2028-01-01T00:00:00Z"])
+    # only the active replacement is a live review target; the SUPERSEDED original is skipped
+    assert capsys.readouterr().out.count("REVIEW_DUE") == 1
+
+
+def test_review_due_bad_asof_fails_closed(tmp_path):
+    assert fact.main(["--root", str(tmp_path), "review-due", "--as-of", "not-a-date"]) == 2
