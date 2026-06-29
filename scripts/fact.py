@@ -22,6 +22,7 @@ from __future__ import annotations
 import argparse
 import copy
 import hashlib
+import json
 import re
 import sys
 import tempfile
@@ -217,9 +218,35 @@ def cmd_query(args):
     def match(c):
         return ((not args.id or c.get("id") == args.id)
                 and (not args.topic or args.topic in (c.get("topics") or []))
-                and (not args.text or args.text.lower() in (c.get("text") or "").lower()))
+                and (not args.text or args.text.lower() in (c.get("text") or "").lower())
+                and (not args.support_status or c.get("support_status") == args.support_status)
+                and (not args.dispute_status or c.get("dispute_status") == args.dispute_status)
+                and (not args.freshness_status or c.get("freshness_status") == args.freshness_status)
+                and (not args.stability or c.get("stability") == args.stability)
+                and (not args.lifecycle or c.get("lifecycle") == args.lifecycle))
+
+    def backing(c):  # the source + quote behind each assessment of claim c (cea -> evidence -> source)
+        out = []
+        for a in ceas:
+            if a.get("claim_id") == c["id"]:
+                e = evd.get(a.get("artifact_id"), {})
+                s = srcs.get(e.get("source_id"), {})
+                out.append({"source_title": s.get("title", "?"), "stance": a.get("stance"),
+                            "information_credibility": a.get("information_credibility"),
+                            "quote": (a.get("support_locator") or {}).get("quote", ""),
+                            "canonical_locator": e.get("canonical_locator", "")})
+        return out
 
     hits = [c for c in claims if match(c)]
+    fmt = getattr(args, "format", "text") or "text"
+    if fmt in ("yaml", "json"):  # machine-readable view for slicing/review
+        payload = [{"id": c["id"], "text": c.get("text"), "support_status": c.get("support_status"),
+                    "dispute_status": c.get("dispute_status"), "freshness_status": c.get("freshness_status"),
+                    "stability": c.get("stability"), "lifecycle": c.get("lifecycle"),
+                    "topics": c.get("topics"), "assessments": backing(c)} for c in hits]
+        print(yaml.safe_dump(payload, sort_keys=False, allow_unicode=True) if fmt == "yaml"
+              else json.dumps(payload, indent=2, ensure_ascii=False))
+        return 0
     if not hits:
         print("(no matching facts)")
         return 0
@@ -227,14 +254,10 @@ def cmd_query(args):
         print(f"\n● {c['id']}  [{c.get('support_status')}/{c.get('dispute_status')}/"
               f"{c.get('freshness_status')}]  topics={c.get('topics')}")
         print(f"  {c.get('text')}")
-        for a in ceas:
-            if a.get("claim_id") == c["id"]:
-                e = evd.get(a.get("artifact_id"), {})
-                s = srcs.get(e.get("source_id"), {})
-                q = (a.get("support_locator") or {}).get("quote", "")
-                print(f"    <- {s.get('title', '?')} (credibility {a.get('information_credibility')}): "
-                      f"\"{q[:140]}\"")
-                print(f"       {e.get('canonical_locator', '')}")
+        for b in backing(c):
+            print(f"    <- {b['source_title']} (credibility {b['information_credibility']}): "
+                  f"\"{b['quote'][:140]}\"")
+            print(f"       {b['canonical_locator']}")
     print(f"\n{len(hits)} fact(s).")
     return 0
 
@@ -465,6 +488,12 @@ def main(argv=None) -> int:
     pq.add_argument("--topic")
     pq.add_argument("--text")
     pq.add_argument("--id")
+    pq.add_argument("--support-status", dest="support_status", choices=sorted(sd.SUPPORT_STATUS))
+    pq.add_argument("--dispute-status", dest="dispute_status", choices=sorted(sd.DISPUTE_STATUS))
+    pq.add_argument("--freshness-status", dest="freshness_status", choices=sorted(sd.FRESHNESS_STATUS))
+    pq.add_argument("--stability", choices=sorted(sd.STABILITY))
+    pq.add_argument("--lifecycle", choices=sorted(sd.LIFECYCLE))
+    pq.add_argument("--format", choices=["text", "yaml", "json"], default="text")
     pq.set_defaults(fn=cmd_query)
     ps = sub.add_parser("source", help="ensure a source identity + append scoped reliability ratings")
     ps.add_argument("spec", help="seed-spec YAML (source + ratings[])")

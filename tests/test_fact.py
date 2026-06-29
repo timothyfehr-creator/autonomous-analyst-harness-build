@@ -290,3 +290,40 @@ def test_review_due_skips_superseded(tmp_path, capsys):
 
 def test_review_due_bad_asof_fails_closed(tmp_path):
     assert fact.main(["--root", str(tmp_path), "review-due", "--as-of", "not-a-date"]) == 2
+
+
+# ---- WP-C: query polish (filters + format) ----
+def _bridge_spec():
+    return _spec("The Example Bridge spans the river connecting A and B.",
+                 "The Example Bridge spans the river connecting A and B")
+
+
+def test_query_filter_by_dispute_status(tmp_path, capsys):
+    fact.main(["--root", str(tmp_path), "add", str(_write(tmp_path, _contested_spec())), "--as-of", ASOF])
+    fact.main(["--root", str(tmp_path), "add", str(_write(tmp_path, _bridge_spec())), "--as-of", ASOF])
+    capsys.readouterr()
+    assert fact.main(["--root", str(tmp_path), "query", "--dispute-status", "CONTESTED"]) == 0
+    out = capsys.readouterr().out
+    assert "1 fact(s)" in out and "deaths" in out.lower()  # only the contested casualty claim
+
+
+def test_query_format_json(tmp_path, capsys):
+    fact.main(["--root", str(tmp_path), "add", str(_write(tmp_path, _bridge_spec())), "--as-of", ASOF])
+    capsys.readouterr()
+    assert fact.main(["--root", str(tmp_path), "query", "--format", "json"]) == 0
+    import json as _json
+    data = _json.loads(capsys.readouterr().out)
+    assert len(data) == 1 and data[0]["support_status"] == "SUPPORTED"
+    assert data[0]["assessments"][0]["source_title"] == "Test Reference"
+
+
+def test_query_filter_lifecycle_excludes_superseded(tmp_path, capsys):
+    spec = _spec("The Example Bridge spans the river, connecting A and B.",
+                 "The Example Bridge spans the river connecting A and B")
+    fact.main(["--root", str(tmp_path), "add", str(_write(tmp_path, spec)), "--as-of", ASOF])
+    old = _baseline_claims(tmp_path)[0]["id"]
+    fact.main(["--root", str(tmp_path), "supersede", "--target", old, "--text",
+               "The Example Bridge spans the Example River, linking towns A and B.", "--as-of", ASOF])
+    capsys.readouterr()
+    assert fact.main(["--root", str(tmp_path), "query", "--lifecycle", "REVIEWED"]) == 0
+    assert "1 fact(s)" in capsys.readouterr().out  # only the active replacement, not the SUPERSEDED original
