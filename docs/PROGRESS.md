@@ -19,8 +19,10 @@ after every work package.
 ## Current state
 
 **Phases 0–3 COMPLETE — MILESTONE A reached (2026-06-23); hardened across three cross-vendor
-review rounds (R1/R2/R3) + the CONFLICT-1 honest-use fix (2026-06-28). 464 tests green; all three
-machine phase-gates (`gate_phase1_exit`, `gate_phase2_exit`, `gate_phase3_exit`) exit 0. Governance READY
+review rounds (R1/R2/R3) + the CONFLICT-1 honest-use fix (2026-06-28). Phase 4 is built as a lean MVP
+(`fact.py add/query/source/supersede/review-due`, multi-assessment contested facts, the §6.1c A–C
+corroboration leg). 488 tests green; all three machine phase-gates (`gate_phase1_exit`,
+`gate_phase2_exit`, `gate_phase3_exit`) exit 0. Governance READY
 (ACCEPTED_WITH_LIMITS).** Phase 3 built the committed-answer loop: WP3.0 answer-layer oracle +
 real hash chain + `CONTEXT_PACK_SCHEMA`; WP3.1 `draft` mode (records + manifest_structural +
 context_pack); WP3.2 `validate_output` (output binding + markers + §7 status + the A7 halves);
@@ -40,9 +42,12 @@ governing docs 2026-06-24 (was code-locked):** `CLAIM_CONTENT_EXCLUDE` membershi
 raw-bytes rule (DATA_MODEL §4); the context-pack schema + closed `omitted_candidates.reason` enum
 (DATA_MODEL §8); the refuter per-verdict `high_impact` field + `required_refuter_class` enforcement +
 the empty-markers / observation-backing answer-loop rules + the independence-by-components rule
-(CONSTITUTION §6.1/§10). The 5 preflight anchor tokens are intact (preflight exits 0). **NEXT:**
-Phase 4 (baseline memory) is demand-gated; an independent **cross-vendor** P0 review remains open —
-a bundle (`docs/REVIEW_CROSSVENDOR.md` + a zip) is prepared for the owner to run externally.
+(CONSTITUTION §6.1/§10). The 5 preflight anchor tokens are intact (preflight exits 0). The §6.1c A–C
+corroboration leg is ratified (wired; "in scope" ASSUMED). **NEXT:** Phase 4's fact repository is built
+as a lean MVP and seeded into a PRIVATE corpus (gitignored; the public factbase stays empty). Remaining
+Phase-4 gaps: the context-pack builder (WP4.3) and the candidate/lifecycle eval (WP4.4/WP4.6). The
+threat model is descoped to honest-use (single-user; 2026-06-28), so a further independent cross-vendor
+P0 review is recommended defence-in-depth, **not build-blocking**.
 
 v3 merges two v2 designs (see `MERGE_NOTES.md`): it keeps the rigorous evidence-chain /
 multi-axis data model and adds the **three-tier rigor model** (Constitution §1) so the
@@ -574,14 +579,18 @@ witnesses mutation-proven load-bearing.
 - [x] WP3.3 Refuter artifact and support audit
 - [x] WP3.4 Answer mode
 
-### Phase 4 — Baseline fact repository and context tools
+### Phase 4 — Baseline fact repository and context tools  (lean MVP built; [~] = partial)
 
-- [ ] WP4.1 Knowledge taxonomy and baseline gate
-- [ ] WP4.2 Fact query tool
-- [ ] WP4.3 Context-pack builder
-- [ ] WP4.4 Candidate and promotion workflow
-- [ ] WP4.5 Seed the durable spine
-- [ ] WP4.6 Fact-repository skill
+- [~] WP4.1 Knowledge taxonomy and baseline gate — taxonomy in `docs/KNOWLEDGE.md`; the compartment
+      discipline reuses the Phase-2 `records` gates (no standalone `validate_baseline.py` yet)
+- [x] WP4.2 Fact query tool — `fact.py query` + status/stability/lifecycle filters + `--format yaml|json`
+- [ ] WP4.3 Context-pack builder — not yet built (the remaining Phase-4 gap)
+- [~] WP4.4 Candidate and promotion workflow — `fact.py add` fuses candidate→assess→promote
+      (fail-closed; verbatim-quote honesty guard); `fact.py supersede` is append-only correction;
+      `fact.py review-due` surfaces staleness. Separate `candidate`/`assess`/`refresh` not built.
+- [x] WP4.5 Seed the durable spine — seeded into a PRIVATE corpus (gitignored), owner-review-pending;
+      the public factbase stays empty
+- [~] WP4.6 Fact-repository skill — `skills/fact-repository/SKILL.md` present; scripted eval not built
 
 ### Phase 5 — Visual specifications and renderers
 

@@ -18,7 +18,9 @@ It has four jobs:
 ## Status
 
 **Phases 0–3 are built and green — the full conversational → recorded → committed-answer loop,
-through the refuter (Milestone A). Phase 4 (the baseline fact repository) is next.**
+through the refuter (Milestone A). Phase 4 (the baseline fact repository) is built as a lean MVP:
+`fact.py add / query / source / supersede / review-due`, with multi-assessment contested facts and
+the §6.1c A–C corroboration leg.**
 
 | Layer | State |
 |---|---|
@@ -26,9 +28,10 @@ through the refuter (Milestone A). Phase 4 (the baseline fact repository) is nex
 | Phase 1 — closed record schemas + golden canonicalization vector | **built** (WP1.1–1.6) |
 | Phase 2 — 8 record-integrity gates + `records` composition + exit gate | **built** (WP2.1–2.8) |
 | Phase 3 — `draft` / `answer` modes + output binding + required refuter | **built** (WP3.0–3.4, Milestone A) |
-| Phases 4–7 — baseline memory, visuals, forecast calibration, semantic assist | **planned** |
+| Phase 4 — fact repository: `fact.py add/query/source/supersede/review-due` | **built (lean MVP)** — context-pack builder + lifecycle eval still to come |
+| Phases 5–7 — visuals, forecast calibration, semantic assist | **planned** |
 
-- **464 tests pass** (`pytest`). The three machine phase-gates —
+- **488 tests pass** (`pytest`). The three machine phase-gates —
   `scripts/gate_phase{1,2,3}_exit.py` — each exit `0`.
 - The committed-answer loop has been hardened across three independent cross-vendor review
   rounds (see `docs/REVIEW_CROSSVENDOR.md`). Remaining known gaps are deliberate-adversary
@@ -61,7 +64,7 @@ Requires Python 3.11+.
 ```bash
 python3 -m venv .venv
 .venv/bin/pip install -r requirements-dev.txt
-.venv/bin/python -m pytest                          # 464 tests
+.venv/bin/python -m pytest                          # 488 tests
 .venv/bin/python scripts/verify.py --mode scaffold  # governance + scaffold check → exit 0
 ```
 
@@ -151,7 +154,7 @@ inspectable; they do not automate it into existence.
 **Available now:**
 
 ```bash
-.venv/bin/python -m pytest                                   # full suite (464)
+.venv/bin/python -m pytest                                   # full suite (488)
 .venv/bin/python scripts/verify.py --mode conversational     # Tier-0 notice (exit 0, not a PASS)
 .venv/bin/python scripts/verify.py --mode scaffold           # governance + scaffold (exit 0/2)
 .venv/bin/python scripts/verify.py --mode records --as-of 2026-06-23T00:00:00Z  # integrity composition (exit 0/1/2)
@@ -160,14 +163,21 @@ inspectable; they do not automate it into existence.
 .venv/bin/python scripts/gate_phase1_exit.py                 # Phase-1 machine gate (exit 0/2)
 .venv/bin/python scripts/gate_phase2_exit.py                 # Phase-2 machine gate (exit 0/2)
 .venv/bin/python scripts/gate_phase3_exit.py                 # Phase-3 machine gate (exit 0/2)
+
+# Phase-4 fact repository (lean MVP) — point --root at a corpus dir (default: the repo)
+.venv/bin/python scripts/fact.py add <spec.yaml> --as-of <ts>        # build a checked fact, fail-closed
+.venv/bin/python scripts/fact.py query [--topic/--text/--id] [--support-status …] [--format yaml|json]
+.venv/bin/python scripts/fact.py source <spec.yaml> --as-of <ts>     # scoped A–F reliability ratings
+.venv/bin/python scripts/fact.py supersede --target <id> --as-of <ts> [...]   # append-only correction
+.venv/bin/python scripts/fact.py review-due --as-of <ts>             # facts whose review/expiry passed
 ```
 
 **Planned (not yet built — these scripts do not exist yet):**
 
 ```bash
-# scripts/fact.py        — query / context / candidate / assess / promote / supersede (Phase 4)
-# scripts/prediction.py  — lock / resolve / score (Phase 6)
-# scripts/visual.py      — validate / render / inspect (Phase 5)
+# scripts/fact.py context  — deterministic context-pack builder (Phase 4, remaining)
+# scripts/prediction.py    — lock / resolve / score (Phase 6)
+# scripts/visual.py        — validate / render / inspect (Phase 5)
 ```
 
 Canonical commands use `.venv/bin/python`; there is no split-brain `python` vs `python3`
@@ -211,7 +221,7 @@ scripts/                      # 27 scripts
   supersession.py             #   shared one-active-leaf / cycle helper
   gate_phase{1,2,3}_exit.py   #   per-phase machine exit gates (each wraps the prior)
   check_review_adjudication.py / preflight_phase1.py / sensitive_scan.py
-tests/                        # 260 files (incl. 228 synthetic fixtures); 464-test pytest suite
+tests/                        # synthetic fixtures + the 488-test pytest suite
   fixtures/skeleton/          #   Milestone-A synthetic assembly oracle
 config/
   high_impact_triggers.yaml   # high_impact recompute trigger oracle

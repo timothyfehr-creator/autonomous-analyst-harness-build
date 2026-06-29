@@ -2,6 +2,15 @@
 
 This synthetic example shows how the pieces fit. It contains no real-world claim.
 
+> **What is built today vs. illustrative.** This walkthrough shows the *full intended* workflow.
+> Built and runnable now: `fact.py query` (step 1), authoring a checked fact (step 8 is done today
+> with **`fact.py add`**, which fuses candidate→assess→promote and fails closed), append-only
+> correction (`fact.py supersede`), staleness (`fact.py review-due`), and `verify.py --mode
+> records|draft|answer`. **Not yet built** (the steps are kept to show the architecture): the
+> context-pack *builder* `fact.py context` (step 9 — context packs are hand-authored for now) and
+> the visual generator `scripts/visual.py` (step 11 — Phase 5). Lines invoking those commands will
+> not run yet; they mark planned tooling.
+
 ## Question
 
 > Which transport modes use the Example Crossing, and can you show it simply?
@@ -299,8 +308,11 @@ Promote:
   --review ref-example-baseline-review
 ```
 
-The command changes only `lifecycle: CANDIDATE` to `REVIEWED` and appends a hash-bound
-promotion event. It does not rewrite claim text, support, or artifacts.
+> **Today:** there is no separate `promote` step. **`fact.py add`** builds the checked fact and
+> promotes it in one fail-closed operation (it composes the records through the integrity gates and
+> persists only on a clean pass), writing `lifecycle: REVIEWED` directly. A separate
+> candidate→promote lifecycle (the snippet above) is planned but not built; to *correct* an existing
+> fact use **`fact.py supersede`** (append-only).
 
 ## 9. Build a context pack for a later answer
 
@@ -312,6 +324,10 @@ research round.
   --topic example-crossing \
   --output contexts/ctx-example-crossing.yaml
 ```
+
+> **Not yet built.** The deterministic context-pack *builder* (`fact.py context`) is the remaining
+> Phase-4 gap. A context pack is validated by `validate_context_pack.py` and resolved by
+> `verify.py --mode draft|answer`, but for now the pack YAML (below) is authored by hand.
 
 Synthetic pack:
 
@@ -439,6 +455,11 @@ visuals:
 .venv/bin/python scripts/visual.py inspect \
   visuals/specs/vis-example-crossing-modes.yaml
 ```
+
+> **Not yet built (Phase 5).** `scripts/visual.py` does not exist; no renderer is wired. The visual
+> *schema* is enforced and a spec with `renderer_version: planned` is an allowed SKIP (never a PASS)
+> when bound into an answer manifest — so the answer loop tolerates a planned visual, but no chart or
+> map can actually be produced yet.
 
 After rendering, add the final visual ID/hash to the manifest and recompute manifest/output
 hashes.
