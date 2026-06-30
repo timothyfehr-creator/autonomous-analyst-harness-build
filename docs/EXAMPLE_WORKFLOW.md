@@ -324,7 +324,9 @@ research round.
 ```bash
 .venv/bin/python scripts/fact.py context \
   --topic example-crossing \
-  --output contexts/ctx-example-crossing.yaml
+  --query "What does the Example Crossing connect?" \
+  --as-of 2026-06-29
+# (--as-of is required; the pack is appended to factbase/context_packs.yaml — there is no --output flag)
 ```
 
 > **Built (WP-AL.2 / WP4.3).** `fact.py context` deterministically selects the REVIEWED+CURRENT

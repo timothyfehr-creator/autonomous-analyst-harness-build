@@ -22,23 +22,37 @@ All runtime commands use `.venv/bin/python`.
 
 ## 2. Fact repository tools
 
-Planned CLI:
+Built CLI (file-backed YAML; fail-closed):
 
 ```bash
-.venv/bin/python scripts/fact.py query ...
-.venv/bin/python scripts/fact.py context ...
-.venv/bin/python scripts/fact.py candidate ...
-.venv/bin/python scripts/fact.py assess ...
-.venv/bin/python scripts/fact.py review-due
-.venv/bin/python scripts/fact.py refresh ...
-.venv/bin/python scripts/fact.py promote ...
-.venv/bin/python scripts/fact.py supersede ...
+.venv/bin/python scripts/fact.py add <seed-spec> --as-of <ts>   # checked fact -> records gates -> persist
+.venv/bin/python scripts/fact.py query ...                      # list/search baseline facts
+.venv/bin/python scripts/fact.py source ...                     # source identity + scoped reliability ratings
+.venv/bin/python scripts/fact.py supersede ...                  # append-only correction of a claim/assessment
+.venv/bin/python scripts/fact.py review-due                     # facts whose review/expiry date has passed
+.venv/bin/python scripts/fact.py context ... --as-of <ts>       # deterministic hash-pinned context pack
 ```
 
-The initial implementation is file-backed YAML/JSONL. Do not add a database until a fixed
-query benchmark shows file-backed retrieval is inadequate.
+There is no separate `candidate`/`assess`/`refresh`/`promote` step: `add` creates a CHECKED
+fact directly (honesty guard: the quote must be a verbatim substring of the retrieved
+artifact) and `supersede` corrects it append-only.
+
+The implementation is file-backed YAML. Do not add a database until a fixed query benchmark
+shows file-backed retrieval is inadequate.
+
+## 2a. Answer-authoring tools
+
+Built CLI (the Tier-2 answer layer; reuses the gates' own hashing; fail-closed):
+
+```bash
+.venv/bin/python scripts/answer_build.py fill                   # fill answer-layer binding hashes from live records
+.venv/bin/python scripts/answer_build.py manifest ...           # scaffold an ANSWER manifest from a pack + author prose
+.venv/bin/python scripts/answer_build.py refuter ...            # scaffold a gate-scoped, UNSIGNED (blocking) refuter
+```
 
 ## 3. Prediction tools
+
+Planned (Phase 6 — `scripts/prediction.py` does not exist yet):
 
 ```bash
 .venv/bin/python scripts/prediction.py lock <prediction-id>

@@ -19,8 +19,9 @@ It has four jobs:
 
 **Phases 0–3 are built and green — the full conversational → recorded → committed-answer loop,
 through the refuter (Milestone A). Phase 4 (the baseline fact repository) is built as a lean MVP:
-`fact.py add / query / source / supersede / review-due`, with multi-assessment contested facts and
-the §6.1c A–C corroboration leg.**
+`fact.py add / query / source / supersede / review-due / context`, with multi-assessment contested
+facts and the §6.1c A–C corroboration leg, plus the answer-authoring layer (`answer_build.py
+fill / manifest / refuter`).**
 
 | Layer | State |
 |---|---|
@@ -214,7 +215,7 @@ public/redacted export would be a separate, explicitly threat-modeled mode, not 
 
 ```text
 README.md  AGENTS.md  CLAUDE.md  LICENSE  requirements-dev.txt  IMPLEMENTATION_PLAN.md
-scripts/                      # 27 scripts
+scripts/                      # 29 scripts
   verify.py                   #   unified mode ladder (conversational/scaffold/records/draft/answer)
   validate_schema.py          #   Phase-1 closed-schema envelope + canonicalization vector
   schema_defs.py              #   per-record closed schemas + vocabularies

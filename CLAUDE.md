@@ -93,11 +93,19 @@ Do not guess missing coordinates, units, denominators, or transformations.
 ## Commands
 
 ```bash
+# compose / verify (records -> draft -> committed answer)
 .venv/bin/python scripts/verify.py --mode scaffold
-.venv/bin/python scripts/verify.py --mode records
-.venv/bin/python scripts/verify.py --mode draft
-.venv/bin/python scripts/verify.py --mode answer --analysis ana-id
-pytest
+.venv/bin/python scripts/verify.py --mode records --as-of <ts>
+.venv/bin/python scripts/verify.py --mode draft --as-of <ts> [--analysis ana-id]
+.venv/bin/python scripts/verify.py --mode answer --analysis ana-id --as-of <ts>
+
+# fact repository (file-backed YAML; use --root private/corpus for the real corpus)
+.venv/bin/python scripts/fact.py {add,query,source,supersede,review-due,context} ...
+
+# answer authoring (Tier-2 answer layer)
+.venv/bin/python scripts/answer_build.py {fill,manifest,refuter} ...
+
+.venv/bin/python -m pytest
 ```
 
 Until a mode's WP lands, it must exit `2` as explicitly unavailable. `SKIP` is not `PASS`.

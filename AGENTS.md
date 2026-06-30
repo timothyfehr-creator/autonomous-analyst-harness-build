@@ -95,7 +95,9 @@ Missing ideas go to the candidate backlog in `docs/PROGRESS.md`, not into the cu
 
 ## Research work
 
-Real research begins only in WP4.5 or an explicitly named later WP. During research:
+Real research begins only in WP4.5 or an explicitly named later WP (WP4.5 has landed; real
+seeding lives in the private corpus via `--root private/corpus`, and the public factbase stays
+empty). During research:
 
 1. query the fact repository first;
 2. mark model-memory suggestions as candidates, never facts;

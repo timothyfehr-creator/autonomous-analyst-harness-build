@@ -332,7 +332,7 @@ def _cmd_manifest(args) -> int:
 
 
 def main(argv=None) -> int:
-    p = argparse.ArgumentParser(description="answer-authoring helper (fill / manifest)")
+    p = argparse.ArgumentParser(description="answer-authoring helper (fill / manifest / refuter)")
     sub = p.add_subparsers(dest="cmd", required=True)
     pf = sub.add_parser("fill", help="fill answer-layer binding hashes from live records (AL.1)")
     pf.add_argument("--root", default=".")
