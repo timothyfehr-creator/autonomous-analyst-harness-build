@@ -218,8 +218,8 @@ CLAIM_SCHEMA = {
 # premise/reasoning/rationale/projection legs, id) stays IN. `high_impact` and `impact_category`
 # are deliberately IN: a false→true flip or a re-categorization SHOULD break a binding and force
 # re-review (§10, FR-2). claim_content_hash =
-# validate_schema.record_hash(claim, exclude=CLAIM_CONTENT_EXCLUDE). ASSUMED — surfaced for owner
-# ratification (DATA_MODEL §4); locked for the run by a frozen test.
+# validate_schema.record_hash(claim, exclude=CLAIM_CONTENT_EXCLUDE). Ratified into DATA_MODEL §4
+# (2026-06-24, the exact 9-field set below); code-locked by a frozen test.
 CLAIM_CONTENT_EXCLUDE = frozenset({
     "lifecycle", "support_status", "dispute_status", "freshness_status",
     "created_at", "supersedes", "review_by", "expires_at", "freshness_profile",
