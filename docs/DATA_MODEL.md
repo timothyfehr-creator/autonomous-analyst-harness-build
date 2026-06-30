@@ -235,6 +235,16 @@ Required fields:
 - `semantic_review`;
 - `supersedes`.
 
+Optional fields:
+
+- `primary_evidence_kind` (closed enum; Constitution §6.1a, V-P1-4) — declares an authoritative-primary
+  evidence kind for the corroboration C2 path.
+- `corroboration_rating_id` (`ref:sas-`) — names the scoped source-reliability rating that backs this
+  assessment's §6.1c A–C corroboration leg. `validate_support` honors it only when the named rating is
+  an active (un-superseded) leaf, reliability ∈ `{A,B,C}`, and owned by a source in this assessment's
+  `origin_chain`. It is the explicit, author-declared "in scope" judgment (the free-text `scope` is not
+  machine-matched). Absent ⇒ this assessment does not corroborate via the reliable-source leg.
+
 Temporal scope kinds:
 
 ```text
