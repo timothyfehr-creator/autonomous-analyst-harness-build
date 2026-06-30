@@ -101,12 +101,17 @@ def fill_manifest(ana: dict, live: Live, root: Path) -> list:
     _fill_refs(ana.get("observation_refs"), live.observations, "record_hash", Live.record_ref_hash, missing)
     _fill_refs(ana.get("prediction_refs"), live.predictions, "record_hash", Live.record_ref_hash, missing)
     _fill_refs(ana.get("visual_refs"), live.visuals, "record_hash", Live.visual_ref_hash, missing)
-    if ana.get("output_path"):
-        op = root / ana["output_path"]
+    op_rel = ana.get("output_path")
+    if op_rel:
+        op = root / op_rel
         if op.is_file():
             ana["output_hash"] = vs.file_content_hash(op)
         else:
-            missing.append(ana["output_path"])
+            missing.append(op_rel)
+    else:
+        # a falsy output_path passes the closed schema (key present, no traversal) but binds no
+        # file — fail closed so output_hash can never be left stale/unbound while fill reports clean
+        missing.append("output_path: missing/empty (answer text would be unbound)")
     pack = live.context_packs.get(ana.get("context_pack_id"))
     if pack is None:
         missing.append(ana.get("context_pack_id"))

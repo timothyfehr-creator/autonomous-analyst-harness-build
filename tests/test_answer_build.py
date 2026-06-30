@@ -111,6 +111,24 @@ def test_refill_tracks_a_changed_source_record(tmp_path):
     assert _read(fb / "analyses.yaml")["analyses"][0]["manifest_hash"] != h_before
 
 
+def test_fill_fails_closed_on_empty_output_path(tmp_path):
+    """A manifest whose output_path is falsy (empty/missing) must NOT fill 'clean' with the answer
+    text left unbound: an empty string passes the closed schema (key present, no traversal), so the
+    fill helper is the only place that can catch it — it must flag it missing and write nothing,
+    never leave a stale/placeholder output_hash silently in place."""
+    fb = _stage(tmp_path)
+    _zero_answer_layer(fb)
+    ap = fb / "analyses.yaml"
+    doc = _read(ap)
+    doc["analyses"][0]["output_path"] = ""  # binds no file, yet passes the closed analysis schema
+    ap.write_text(yaml.safe_dump(doc, sort_keys=False))
+    before = ap.read_bytes()
+    code, missing, _ = answer_build.fill_root(tmp_path)
+    assert code == 1, "fill must fail closed when output_path binds no file"
+    assert any("output_path" in m for m in missing.get("analyses.yaml", [])), missing
+    assert ap.read_bytes() == before  # fail-closed: nothing written
+
+
 # ---- WP-AL.3: manifest scaffold ----
 def _w(tmp, name, obj):
     p = tmp / name
