@@ -158,3 +158,37 @@ def test_manifest_refuses_high_impact_without_category(tmp_path):
             "markers": {"c1": claim_id}}
     ana, problems = answer_build.scaffold_manifest(spec, live, tmp_path)
     assert ana is None and any("high_impact" in p for p in problems)
+
+
+# ---- WP-AL.4: refuter scaffold (gate-scoped coverage, blank judgment) ----
+def test_refuter_scaffold_fails_closed_then_passes_when_signed(tmp_path):
+    fb = _stage(tmp_path)  # the skeleton: a known answer-mode-passing substrate
+    (fb / "refuters.yaml").write_text('schema_version: "2.0"\nrefuters: []\n')  # drop its refuter
+    assert answer_build.main(["refuter", "--analysis", "ana-skeleton", "--root", str(tmp_path),
+                              "--as-of", ASOF]) == 0
+    ref = _read(fb / "refuters.yaml")["refuters"][0]
+    # coverage is correct-by-construction (gate-scoped); judgment is blank-and-blocking
+    rc, rce, _floor = verify._gate_computed_refuter_scope(
+        _read(fb / "analyses.yaml")["analyses"][0], answer_build.Live(tmp_path))
+    assert set(ref["reviewed_claim_ids"]) >= rc and set(ref["reviewed_assessment_ids"]) >= rce
+    assert ref["reviewer_class"] == "SAME_MODEL_FRESH_CONTEXT"
+    assert ref["verdicts"] and all(v["verdict"] == "REVISE" for v in ref["verdicts"])
+    # UNSIGNED → the committed-answer gate fails closed
+    assert verify.answer_check(tmp_path, "ana-skeleton", ASOF)[0] != 0
+    # an independent reviewer signs (HUMAN + SURVIVES + checks run) → answer-mode passes
+    doc = _read(fb / "refuters.yaml")
+    r = doc["refuters"][0]
+    r["reviewer_class"], r["reviewer"] = "HUMAN", "human:tim"
+    r["disconfirming_searches"] = [{"query": "skeleton crossing not road", "result": "no contrary artifact"}]
+    for v in r["verdicts"]:
+        v["verdict"] = "SURVIVES"
+        for chk in ("displacement_check", "independence_check", "freshness_check", "observation_check"):
+            v[chk] = "PASS"
+    (fb / "refuters.yaml").write_text(yaml.safe_dump(doc, sort_keys=False))
+    assert verify.answer_check(tmp_path, "ana-skeleton", ASOF)[0] == 0
+
+
+def test_refuter_scaffold_rejects_second_for_same_analysis(tmp_path):
+    fb = _stage(tmp_path)  # the skeleton already ships one refuter for ana-skeleton
+    assert answer_build.main(["refuter", "--analysis", "ana-skeleton", "--root", str(tmp_path),
+                              "--as-of", ASOF]) == 1  # one refuter per analysis

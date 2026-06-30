@@ -32,6 +32,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import answer_layer as al  # noqa: E402
+import validate_high_impact as v_hi  # noqa: E402
 import validate_schema as vs  # noqa: E402
 import verify  # noqa: E402
 import yaml  # noqa: E402
@@ -211,6 +212,82 @@ def _drop_record(path: Path, collection: str, rec_id: str, doc: dict):
     path.write_text(yaml.safe_dump(doc, sort_keys=False, allow_unicode=True))
 
 
+def scaffold_refuter(ana: dict, live: Live, as_of: str, triggers=None):
+    """WP-AL.4 — emit a refuter stub whose COVERAGE is correct-by-construction (the gate-computed
+    required claim+assessment scope) but whose JUDGMENT is left for an independent reviewer:
+    reviewer_class=SAME_MODEL_FRESH_CONTEXT (never independent, §10) and every verdict=REVISE, so an
+    UNFILLED scaffold fails `verify.py --mode answer` closed. The reviewer (a human or different model)
+    flips reviewer_class to HUMAN/DIFFERENT_MODEL/MIXED and each verdict to SURVIVES (running the
+    checks) to certify. Returns (refuter, floor) where floor lists any required factual claim lacking a
+    scored support (the answer cannot commit until that is fixed). high_impact is pre-set per claim so
+    the reviewer need not recompute it."""
+    triggers = triggers if triggers is not None else v_hi.trigger_set()
+    required_claims, required_ceas, floor = verify._gate_computed_refuter_scope(ana, live)
+    verdicts = []
+    for cid in sorted(required_claims):
+        claim = live.claims.get(cid) or {}
+        computed, _ = v_hi.compute_high_impact(claim, triggers)
+        verdicts.append({
+            "claim_id": cid, "verdict": "REVISE",  # non-SURVIVES placeholder → blocks the answer until signed
+            "high_impact": bool(computed or claim.get("high_impact") is True),
+            "displacement_check": "NOT_APPLICABLE", "independence_check": "NOT_APPLICABLE",
+            "freshness_check": "NOT_APPLICABLE", "observation_check": "NOT_APPLICABLE",
+            "reasoning_check": "NOT_APPLICABLE",
+            "notes": "TODO (independent reviewer): run displacement/independence/freshness/observation/"
+                     "reasoning, add disconfirming searches for any high-impact claim, then set SURVIVES "
+                     "or an honest REVISE/DOWNGRADE/REJECT.",
+        })
+    base = ana["id"][4:] if ana["id"].startswith("ana-") else ana["id"]
+    refuter = {
+        "id": _fresh_id(f"ref-{base}", set(live.refuters)),
+        "analysis_id": ana["id"],
+        "manifest_hash": ana.get("manifest_hash"),
+        "output_hash": ana.get("output_hash"),
+        "reviewer_class": "SAME_MODEL_FRESH_CONTEXT",  # NOT independent → fails closed until a human/different model signs
+        "reviewer": "UNSIGNED-independent-review-required",
+        "reviewed_at": as_of,
+        "reviewed_claim_ids": sorted(required_claims),
+        "reviewed_assessment_ids": sorted(required_ceas),
+        "verdicts": verdicts,
+        "alternative_hypotheses": [],
+        "disconfirming_searches": [],  # the reviewer adds real searches (required for high-impact claims)
+        "unresolved_gaps": [],
+        "exemptions_reviewed": sorted(ana.get("narrative_exemptions") or []),
+    }
+    return refuter, floor
+
+
+def _cmd_refuter(args) -> int:
+    root = Path(args.root)
+    live = Live(root)
+    ana = live.analyses.get(args.analysis)
+    if ana is None:
+        print(f"[answer_build refuter] analysis {args.analysis!r} not found", file=sys.stderr)
+        return 2
+    if live.refuter_for_analysis(args.analysis) is not None:
+        print(f"[answer_build refuter] a refuter already binds {args.analysis!r} (one per analysis)",
+              file=sys.stderr)
+        return 1
+    refuter, floor = scaffold_refuter(ana, live, args.as_of)
+    rpath = root / "factbase" / "refuters.yaml"
+    doc = _append_record(rpath, "refuters", refuter)
+    sc, sf = vs.validate_file(rpath)
+    if sc != 0:
+        _drop_record(rpath, "refuters", refuter["id"], doc)
+        print("\n".join(sf), file=sys.stderr)
+        print(f"\n[answer_build refuter] NOT persisted — scaffold does not schema-validate (exit {sc}).",
+              file=sys.stderr)
+        return sc
+    print(f"[answer_build refuter] OK — scaffolded {refuter['id']!r} (UNSIGNED): covers "
+          f"{len(refuter['reviewed_claim_ids'])} claim(s) / {len(refuter['reviewed_assessment_ids'])} "
+          f"assessment(s). reviewer_class=SAME_MODEL_FRESH_CONTEXT + verdicts=REVISE → fails `--mode "
+          f"answer` until an independent reviewer (HUMAN/DIFFERENT_MODEL/MIXED) signs.")
+    if floor:
+        print("[answer_build refuter] NOTE — support floor not met for: "
+              + "; ".join(floor) + " (the answer cannot commit until fixed via fact.py supersede).")
+    return 0
+
+
 def _cmd_fill(args) -> int:
     code, missing, filled = fill_root(Path(args.root))
     if code != 0:
@@ -260,6 +337,11 @@ def main(argv=None) -> int:
     pm.add_argument("--root", default=".")
     pm.add_argument("--as-of", required=True)
     pm.set_defaults(fn=_cmd_manifest)
+    pr = sub.add_parser("refuter", help="scaffold a gate-scoped, UNSIGNED refuter for an analysis (AL.4)")
+    pr.add_argument("--analysis", required=True)
+    pr.add_argument("--root", default=".")
+    pr.add_argument("--as-of", required=True)
+    pr.set_defaults(fn=_cmd_refuter)
     args = p.parse_args(argv)
     return args.fn(args)
 
