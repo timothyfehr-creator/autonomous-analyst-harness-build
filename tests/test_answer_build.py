@@ -12,6 +12,7 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "scripts"))
 
 import answer_build  # noqa: E402
+import fact  # noqa: E402
 import validate_schema as vs  # noqa: E402
 import verify  # noqa: E402
 
@@ -108,3 +109,52 @@ def test_refill_tracks_a_changed_source_record(tmp_path):
     cp.write_text(yaml.safe_dump(doc, sort_keys=False))
     assert answer_build.fill_root(tmp_path)[0] == 0
     assert _read(fb / "analyses.yaml")["analyses"][0]["manifest_hash"] != h_before
+
+
+# ---- WP-AL.3: manifest scaffold ----
+def _w(tmp, name, obj):
+    p = tmp / name
+    p.write_text(yaml.safe_dump(obj, sort_keys=False))
+    return str(p)
+
+
+def _corpus_with_pack(tmp):
+    spec = {"source": {"id": "src-ref", "title": "Ref", "source_type": "REFERENCE"},
+            "artifact": {"artifact_type": "ARTICLE", "url": "https://x.invalid", "retrieved_at": ASOF,
+                         "text": "The Example Bridge connects town A and town B."},
+            "claim": {"text": "The Example Bridge connects town A and town B.", "topics": ["geography"],
+                      "stability": "DURABLE", "review_by": "2027-06-28"},
+            "assessment": {"quote": "The Example Bridge connects town A and town B", "summary": "lead",
+                           "information_credibility": 2, "reviewer": "model:test"}}
+    assert fact.main(["--root", str(tmp), "add", _w(tmp, "f.yaml", spec), "--as-of", ASOF]) == 0
+    assert fact.main(["--root", str(tmp), "context", "--topic", "geography",
+                      "--query", "What does the Example Bridge connect?", "--as-of", ASOF]) == 0
+    pack_id = _read(tmp / "factbase" / "context_packs.yaml")["context_packs"][0]["id"]
+    claim_id = _read(tmp / "factbase" / "baseline" / "claims.yaml")["claims"][0]["id"]
+    return pack_id, claim_id
+
+
+def test_manifest_scaffold_composes_in_draft(tmp_path):
+    pack_id, claim_id = _corpus_with_pack(tmp_path)
+    (tmp_path / "outputs").mkdir(exist_ok=True)
+    (tmp_path / "outputs" / "ana-bridge.md").write_text(
+        "The Example Bridge connects town A and town B. [[c1]]\n")
+    spec = {"question": "What does the Example Bridge connect?", "context_pack_id": pack_id,
+            "output_path": "outputs/ana-bridge.md", "markers": {"c1": claim_id}}
+    code = answer_build.main(["manifest", _w(tmp_path, "m.yaml", spec), "--root", str(tmp_path), "--as-of", ASOF])
+    assert code == 0
+    ana = _read(tmp_path / "factbase" / "analyses.yaml")["analyses"][0]
+    assert ana["lifecycle"] == "ANSWER" and ana["manifest_hash"].startswith("sha256:")
+    assert ana["claim_markers"]["c1"]["claim_hash"].startswith("sha256:")
+    assert ana["context_pack_hash"].startswith("sha256:") and ana["output_hash"].startswith("sha256:")
+
+
+def test_manifest_refuses_high_impact_without_category(tmp_path):
+    pack_id, claim_id = _corpus_with_pack(tmp_path)
+    live = answer_build.Live(tmp_path)
+    live.claims[claim_id]["high_impact"] = True       # simulate a high-impact claim...
+    live.claims[claim_id]["impact_category"] = "NONE"  # ...lacking its category
+    spec = {"question": "q", "context_pack_id": pack_id, "output_path": "outputs/x.md",
+            "markers": {"c1": claim_id}}
+    ana, problems = answer_build.scaffold_manifest(spec, live, tmp_path)
+    assert ana is None and any("high_impact" in p for p in problems)

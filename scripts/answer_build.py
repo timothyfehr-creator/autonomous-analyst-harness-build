@@ -26,15 +26,31 @@ and visuals' self-hashes).
 from __future__ import annotations
 
 import argparse
+import re
 import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import answer_layer as al  # noqa: E402
 import validate_schema as vs  # noqa: E402
+import verify  # noqa: E402
 import yaml  # noqa: E402
 
 Live = al.Live
+
+
+def _slug(text, n=6):
+    words = re.findall(r"[a-z0-9]+", (text or "").lower())
+    return "-".join(words[:n])[:48] or "x"
+
+
+def _fresh_id(base, taken):
+    if base not in taken:
+        return base
+    k = 2
+    while f"{base}-v{k}" in taken:
+        k += 1
+    return f"{base}-v{k}"
 
 
 def _fill_refs(refs, resolver, field, hash_fn, missing):
@@ -139,19 +155,113 @@ def fill_root(root: Path):
     return 0, {}, filled
 
 
-def main(argv=None) -> int:
-    p = argparse.ArgumentParser(description="WP-AL.1 — fill answer-layer binding hashes from live records")
-    p.add_argument("--root", default=".", help="corpus root containing factbase/ (default: .)")
-    args = p.parse_args(argv)
+def scaffold_manifest(spec: dict, live: Live, root: Path):
+    """WP-AL.3 — emit an ANSWER-lifecycle analysis manifest from a small author spec
+    {question, context_pack_id, output_path, markers:{marker->claim_id}, [required_refuter_class]}.
+    Carries the named pack's cea/artifact/observation/prediction refs; markers bind claim_content_hash;
+    output_hash/context_pack_hash/manifest_hash filled via the AL.1 helper. REFUSES (returns problems)
+    if a marked claim is high-impact but lacks an impact_category (no laundering a high-impact claim
+    into an answer without its category). Returns (manifest|None, problems)."""
+    pack = live.context_packs.get(spec.get("context_pack_id"))
+    if pack is None:
+        return None, [f"context pack {spec.get('context_pack_id')!r} not found"]
+    markers = spec.get("markers") or {}
+    if not markers:
+        return None, ["spec needs a non-empty markers map (marker -> claim_id)"]
+    problems = []
+    for m, cid in markers.items():
+        claim = live.claims.get(cid)
+        if claim is None:
+            problems.append(f"marker {m!r}: claim {cid!r} not found in the corpus")
+        elif claim.get("high_impact") and claim.get("impact_category") in (None, "NONE"):
+            problems.append(f"marker {m!r}: claim {cid!r} is high_impact but has no impact_category "
+                            "(refusing to land a high-impact claim in an answer without its category)")
+    if problems:
+        return None, problems
+    ana = {
+        "id": _fresh_id(f"ana-{_slug(spec['question'])}", set(live.analyses)),
+        "lifecycle": "ANSWER",
+        "question": spec["question"],
+        "context_pack_id": pack["id"],
+        "context_pack_hash": None,
+        "output_path": spec["output_path"],
+        "output_hash": None,
+        "claim_markers": {m: {"claim_id": cid, "claim_hash": None} for m, cid in markers.items()},
+        "claim_evidence_assessment_refs": [dict(r) for r in pack.get("assessment_refs") or []],
+        "artifact_refs": [dict(r) for r in pack.get("artifact_refs") or []],
+        "observation_refs": [dict(r) for r in pack.get("observation_refs") or []],
+        "prediction_refs": [dict(r) for r in pack.get("prediction_refs") or []],
+        "visual_refs": [],
+        "required_refuter_class": spec.get("required_refuter_class", "HUMAN_OR_DIFFERENT_MODEL"),
+        "manifest_hash": None,
+    }
+    fill_manifest(ana, live, root)
+    return ana, []
+
+
+def _append_record(path: Path, collection: str, record: dict):
+    doc = (vs.load_yaml_strict(path) if path.is_file() else None) or {"schema_version": "2.0", collection: []}
+    doc.setdefault(collection, []).append(record)
+    path.write_text(yaml.safe_dump(doc, sort_keys=False, allow_unicode=True))
+    return doc
+
+
+def _drop_record(path: Path, collection: str, rec_id: str, doc: dict):
+    doc[collection] = [r for r in doc[collection] if r.get("id") != rec_id]
+    path.write_text(yaml.safe_dump(doc, sort_keys=False, allow_unicode=True))
+
+
+def _cmd_fill(args) -> int:
     code, missing, filled = fill_root(Path(args.root))
     if code != 0:
-        print("[answer_build] NOT written — unresolved refs (fail closed):", file=sys.stderr)
+        print("[answer_build fill] NOT written — unresolved refs (fail closed):", file=sys.stderr)
         for f, ids in missing.items():
             print(f"  {f}: {ids}", file=sys.stderr)
         return code
-    print(f"[answer_build] OK — filled answer-layer hashes under {args.root}/factbase: "
+    print(f"[answer_build fill] OK — filled answer-layer hashes under {args.root}/factbase: "
           + ", ".join(f"{k}={v}" for k, v in filled.items() if v))
     return 0
+
+
+def _cmd_manifest(args) -> int:
+    root = Path(args.root)
+    spec = vs.load_yaml_strict(Path(args.spec))
+    try:
+        ana, problems = scaffold_manifest(spec, Live(root), root)
+    except (KeyError, ValueError) as e:
+        print(f"[answer_build manifest] spec error: {e}", file=sys.stderr)
+        return 2
+    if problems:
+        for p in problems:
+            print(f"[answer_build manifest] {p}", file=sys.stderr)
+        return 1
+    apath = root / "factbase" / "analyses.yaml"
+    doc = _append_record(apath, "analyses", ana)  # write, then prove it composes in --mode draft
+    code, lines = verify.draft_check(root, ana["id"], args.as_of)
+    if code != 0:
+        _drop_record(apath, "analyses", ana["id"], doc)  # fail-closed rollback
+        print("\n".join(lines[-6:]), file=sys.stderr)
+        print(f"\n[answer_build manifest] NOT persisted — does not compose in --mode draft (exit {code}). "
+              f"(check the [[markers]] in {spec.get('output_path')!r} match the marker map.)", file=sys.stderr)
+        return code
+    print(f"[answer_build manifest] OK — {ana['id']!r} composes in --mode draft. persisted under "
+          f"{root}/factbase/analyses.yaml")
+    return 0
+
+
+def main(argv=None) -> int:
+    p = argparse.ArgumentParser(description="answer-authoring helper (fill / manifest)")
+    sub = p.add_subparsers(dest="cmd", required=True)
+    pf = sub.add_parser("fill", help="fill answer-layer binding hashes from live records (AL.1)")
+    pf.add_argument("--root", default=".")
+    pf.set_defaults(fn=_cmd_fill)
+    pm = sub.add_parser("manifest", help="scaffold an ANSWER manifest from a spec + author output.md (AL.3)")
+    pm.add_argument("spec", help="manifest spec YAML (question/context_pack_id/output_path/markers)")
+    pm.add_argument("--root", default=".")
+    pm.add_argument("--as-of", required=True)
+    pm.set_defaults(fn=_cmd_manifest)
+    args = p.parse_args(argv)
+    return args.fn(args)
 
 
 if __name__ == "__main__":
