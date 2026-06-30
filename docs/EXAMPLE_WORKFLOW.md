@@ -3,13 +3,15 @@
 This synthetic example shows how the pieces fit. It contains no real-world claim.
 
 > **What is built today vs. illustrative.** This walkthrough shows the *full intended* workflow.
-> Built and runnable now: `fact.py query` (step 1), authoring a checked fact (step 8 is done today
-> with **`fact.py add`**, which fuses candidate→assess→promote and fails closed), append-only
-> correction (`fact.py supersede`), staleness (`fact.py review-due`), and `verify.py --mode
-> records|draft|answer`. **Not yet built** (the steps are kept to show the architecture): the
-> context-pack *builder* `fact.py context` (step 9 — context packs are hand-authored for now) and
-> the visual generator `scripts/visual.py` (step 11 — Phase 5). Lines invoking those commands will
-> not run yet; they mark planned tooling.
+> Built and runnable now: `fact.py query` (step 1); authoring a checked fact (step 8 is done today
+> with **`fact.py add`**, which fuses candidate→assess→promote and fails closed); append-only
+> correction (`fact.py supersede`); staleness (`fact.py review-due`); the deterministic context-pack
+> **builder** `fact.py context` (step 9); the ANSWER-manifest and refuter **scaffolds**
+> `answer_build.py manifest` / `answer_build.py refuter` (which fill all binding hashes and leave the
+> refuter's judgment blank for an independent reviewer); and `verify.py --mode records|draft|answer`.
+> **Not yet built** (kept to show the architecture): the visual generator `scripts/visual.py` (step
+> 11 — Phase 5). A committed Tier-2 answer additionally requires an **independent** refuter (human or
+> different-model) — the autonomous tooling stops at a green draft + a blank, gate-scoped refuter.
 
 ## Question
 
@@ -325,9 +327,12 @@ research round.
   --output contexts/ctx-example-crossing.yaml
 ```
 
-> **Not yet built.** The deterministic context-pack *builder* (`fact.py context`) is the remaining
-> Phase-4 gap. A context pack is validated by `validate_context_pack.py` and resolved by
-> `verify.py --mode draft|answer`, but for now the pack YAML (below) is authored by hand.
+> **Built (WP-AL.2 / WP4.3).** `fact.py context` deterministically selects the REVIEWED+CURRENT
+> claims matching `--topic`/`--text`, their active CHECKED assessments + backing evidence + linked
+> observations, fills all binding hashes, records `omitted_candidates` (SUPERSEDED/STALE) and retains
+> CONTESTED claims whole — then validates and persists fail-closed. The manifest and refuter that
+> follow are scaffolded by `answer_build.py manifest` / `answer_build.py refuter` (hashes filled; the
+> refuter's judgment left blank for an independent reviewer).
 
 Synthetic pack:
 

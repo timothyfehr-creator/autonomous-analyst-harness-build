@@ -20,8 +20,12 @@ after every work package.
 
 **Phases 0–3 COMPLETE — MILESTONE A reached (2026-06-23); hardened across three cross-vendor
 review rounds (R1/R2/R3) + the CONFLICT-1 honest-use fix (2026-06-28). Phase 4 is built as a lean MVP
-(`fact.py add/query/source/supersede/review-due`, multi-assessment contested facts, the §6.1c A–C
-corroboration leg). 488 tests green; all three machine phase-gates (`gate_phase1_exit`,
+(`fact.py add/query/source/supersede/review-due/context`, multi-assessment contested facts, the §6.1c A–C
+corroboration leg) PLUS answer authoring (`answer_build.py` fill/manifest/refuter): the FIRST real
+repo-backed DRAFT composes over the private corpus, and a committed Tier-2 answer is independent-refuter-
+gated by design (DRAFT is autonomous; the COMMITTED answer needs a human/different-model refuter — the
+autonomous tooling stops at a green draft + a blank, gate-scoped refuter packet and never self-attests).
+501 tests green; all three machine phase-gates (`gate_phase1_exit`,
 `gate_phase2_exit`, `gate_phase3_exit`) exit 0. Governance READY
 (ACCEPTED_WITH_LIMITS).** Phase 3 built the committed-answer loop: WP3.0 answer-layer oracle +
 real hash chain + `CONTEXT_PACK_SCHEMA`; WP3.1 `draft` mode (records + manifest_structural +
@@ -584,7 +588,10 @@ witnesses mutation-proven load-bearing.
 - [~] WP4.1 Knowledge taxonomy and baseline gate — taxonomy in `docs/KNOWLEDGE.md`; the compartment
       discipline reuses the Phase-2 `records` gates (no standalone `validate_baseline.py` yet)
 - [x] WP4.2 Fact query tool — `fact.py query` + status/stability/lifecycle filters + `--format yaml|json`
-- [ ] WP4.3 Context-pack builder — not yet built (the remaining Phase-4 gap)
+- [x] WP4.3 Context-pack builder — `fact.py context` (deterministic, hash-pinned, omitted_candidates,
+      CONTESTED retained); answer authoring added: `answer_build.py` fill/manifest/refuter scaffolds, and
+      the FIRST real repo-backed DRAFT composes over the private corpus. The committed answer is
+      independent-refuter-gated (the autonomous tooling stops at a green draft + a blank refuter).
 - [~] WP4.4 Candidate and promotion workflow — `fact.py add` fuses candidate→assess→promote
       (fail-closed; verbatim-quote honesty guard); `fact.py supersede` is append-only correction;
       `fact.py review-due` surfaces staleness. Separate `candidate`/`assess`/`refresh` not built.

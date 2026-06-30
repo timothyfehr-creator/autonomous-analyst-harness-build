@@ -28,10 +28,10 @@ the §6.1c A–C corroboration leg.**
 | Phase 1 — closed record schemas + golden canonicalization vector | **built** (WP1.1–1.6) |
 | Phase 2 — 8 record-integrity gates + `records` composition + exit gate | **built** (WP2.1–2.8) |
 | Phase 3 — `draft` / `answer` modes + output binding + required refuter | **built** (WP3.0–3.4, Milestone A) |
-| Phase 4 — fact repository: `fact.py add/query/source/supersede/review-due` | **built (lean MVP)** — context-pack builder + lifecycle eval still to come |
+| Phase 4 — fact repository (`fact.py add/query/source/supersede/review-due/context`) + answer authoring (`answer_build.py fill/manifest/refuter`) | **built (lean MVP)** — a real repo-backed DRAFT composes; the committed answer is independent-refuter-gated |
 | Phases 5–7 — visuals, forecast calibration, semantic assist | **planned** |
 
-- **488 tests pass** (`pytest`). The three machine phase-gates —
+- **501 tests pass** (`pytest`). The three machine phase-gates —
   `scripts/gate_phase{1,2,3}_exit.py` — each exit `0`.
 - The committed-answer loop has been hardened across three independent cross-vendor review
   rounds (see `docs/REVIEW_CROSSVENDOR.md`). Remaining known gaps are deliberate-adversary
@@ -64,7 +64,7 @@ Requires Python 3.11+.
 ```bash
 python3 -m venv .venv
 .venv/bin/pip install -r requirements-dev.txt
-.venv/bin/python -m pytest                          # 488 tests
+.venv/bin/python -m pytest                          # 501 tests
 .venv/bin/python scripts/verify.py --mode scaffold  # governance + scaffold check → exit 0
 ```
 
@@ -154,7 +154,7 @@ inspectable; they do not automate it into existence.
 **Available now:**
 
 ```bash
-.venv/bin/python -m pytest                                   # full suite (488)
+.venv/bin/python -m pytest                                   # full suite (501)
 .venv/bin/python scripts/verify.py --mode conversational     # Tier-0 notice (exit 0, not a PASS)
 .venv/bin/python scripts/verify.py --mode scaffold           # governance + scaffold (exit 0/2)
 .venv/bin/python scripts/verify.py --mode records --as-of 2026-06-23T00:00:00Z  # integrity composition (exit 0/1/2)
@@ -170,12 +170,17 @@ inspectable; they do not automate it into existence.
 .venv/bin/python scripts/fact.py source <spec.yaml> --as-of <ts>     # scoped A–F reliability ratings
 .venv/bin/python scripts/fact.py supersede --target <id> --as-of <ts> [...]   # append-only correction
 .venv/bin/python scripts/fact.py review-due --as-of <ts>             # facts whose review/expiry passed
+.venv/bin/python scripts/fact.py context --topic T --query "..." --as-of <ts>  # deterministic context pack (WP4.3)
+
+# Answer authoring (lean MVP) — turn the corpus into a real repo-backed draft
+.venv/bin/python scripts/answer_build.py manifest <spec.yaml> --root R --as-of <ts>  # scaffold an ANSWER manifest
+.venv/bin/python scripts/answer_build.py refuter --analysis <id> --root R --as-of <ts>  # blank gate-scoped refuter
+.venv/bin/python scripts/answer_build.py fill --root R               # (re)fill answer-layer binding hashes
 ```
 
 **Planned (not yet built — these scripts do not exist yet):**
 
 ```bash
-# scripts/fact.py context  — deterministic context-pack builder (Phase 4, remaining)
 # scripts/prediction.py    — lock / resolve / score (Phase 6)
 # scripts/visual.py        — validate / render / inspect (Phase 5)
 ```
@@ -221,7 +226,7 @@ scripts/                      # 27 scripts
   supersession.py             #   shared one-active-leaf / cycle helper
   gate_phase{1,2,3}_exit.py   #   per-phase machine exit gates (each wraps the prior)
   check_review_adjudication.py / preflight_phase1.py / sensitive_scan.py
-tests/                        # synthetic fixtures + the 488-test pytest suite
+tests/                        # synthetic fixtures + the 501-test pytest suite
   fixtures/skeleton/          #   Milestone-A synthetic assembly oracle
 config/
   high_impact_triggers.yaml   # high_impact recompute trigger oracle

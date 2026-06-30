@@ -215,6 +215,63 @@ Stop and report a gap rather than:
 - [ ] Promotion event binds unchanged content and review hashes.
 - [ ] Context pack freezes exact inputs and records omissions.
 
+## Authoring an answer from the repository (lean MVP)
+
+Once the facts exist, turn them into a repo-backed answer with this sequence (point `--root` at the
+corpus; use the private corpus for real work):
+
+```bash
+# 1. find/extend the facts
+fact.py --root R query --topic T                         # what do we already have?
+# 2. build a deterministic, hash-pinned context pack of the matching REVIEWED+CURRENT facts
+fact.py --root R context --text "<selector>" --query "<the question>" --as-of <ts>
+# 3. write the answer prose to R/outputs/<name>.md with [[marker]] tokens (template below)
+# 4. scaffold the ANSWER manifest (fills all hashes; refuses a high-impact claim without a category)
+answer_build.py manifest <manifest-spec.yaml> --root R --as-of <ts>   # composes in --mode draft
+# 5. scaffold the gate-scoped, UNSIGNED refuter (coverage correct-by-construction)
+answer_build.py refuter --analysis <ana-id> --root R --as-of <ts>
+# 6. an INDEPENDENT reviewer (human or different model) signs the refuter → --mode answer passes
+verify.py --root R --mode answer --analysis <ana-id> --as-of <ts>
+```
+
+**Copy-paste prose template** (`R/outputs/<name>.md`):
+
+```text
+<your answer, in plain prose>. [[c1]]
+<another sentence backed by a different fact>. [[c2|CONTESTED]]
+
+(Tier-2 DRAFT — repo-backed; pending an independent refuter before it can be committed.)
+```
+
+**Copy-paste manifest spec** (passed to `answer_build.py manifest`):
+
+```yaml
+question: "<the question>"
+context_pack_id: ctx-<...>          # the id printed by `fact.py context`
+output_path: outputs/<name>.md
+markers:
+  c1: clm-<...>                     # each [[marker]] in the prose maps to one claim id
+  c2: clm-<...>
+```
+
+**§7 status tags — when a marker needs one** (`[[c1|TAG]]`). A clean SUPPORTED FACT needs no tag
+(`[[c1]]`); otherwise the marker MUST carry the matching visible tag (the gate enforces it), and a
+claim can need several (`[[c1|CONTESTED|STALE]]`):
+
+| Claim state | Required tag |
+|---|---|
+| support_status UNVERIFIED / THIN | `UNVERIFIED` / `THIN` |
+| dispute_status CONTESTED | `CONTESTED` |
+| freshness_status STALE | `STALE` |
+| epistemic_type ASSUMPTION / INFERENCE / PROJECTION | `ASSUMPTION` / `INFERENCE` / `PROJECTION` |
+
+**The honest stop.** The scaffolded refuter is deliberately blank-and-blocking
+(`reviewer_class: SAME_MODEL_FRESH_CONTEXT`, every verdict `REVISE`) so `--mode answer` fails closed
+until an **independent** reviewer signs (a human, or a different model — never the same autonomous
+model self-attesting). Signing = set `reviewer_class` to `HUMAN`/`DIFFERENT_MODEL`/`MIXED`, run the
+checks, set each verdict to `SURVIVES` (or an honest `REVISE`/`DOWNGRADE`/`REJECT`), and add a
+disconfirming search for any high-impact claim.
+
 ## Evaluation scenarios for WP4.6
 
 1. Repository already contains a reviewed durable fact: agent queries and reuses it.
