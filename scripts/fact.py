@@ -489,8 +489,11 @@ def cmd_review_due(args):
 def cmd_context(args):
     """Build a deterministic context pack (WP4.3): the REVIEWED+CURRENT claims matching --topic/--text,
     their active CHECKED assessments + backing evidence + linked observations, hash-pinned via the
-    AL.1 filler. SUPERSEDED/STALE matches are recorded in omitted_candidates (so a dropped claim says
-    WHY in the closed vocabulary, never silently). Append-only, fresh id, fail-closed."""
+    AL.1 filler. SUPERSEDED and STALE matches are recorded in omitted_candidates with their reason.
+    KNOWN GAP: a match excluded for any OTHER reason (not-yet-REVIEWED/REJECTED lifecycle, or
+    REVIEW_DUE freshness) is dropped and NOT recorded — the closed OMITTED_REASON enum has no value
+    for them yet (extension is owner-gated; see the honest-use audit). Append-only, fresh id,
+    fail-closed."""
     if not (args.topic or args.text):
         print("[fact context] need --topic or --text to select claims", file=sys.stderr)
         return 2
@@ -533,8 +536,11 @@ def cmd_context(args):
         "topics": sorted({t for c in selected for t in (c.get("topics") or [])}),
         "generated_at": args.as_of, "generator_version": "fact.py-context-v1",
         "selection_policy": ("REVIEWED+CURRENT claims matching topic/text; their active CHECKED "
-                             "assessments + backing evidence + linked observations; SUPERSEDED/STALE "
-                             "matches omitted; deterministic (id-sorted)."),
+                             "assessments + backing evidence + linked observations. SUPERSEDED and "
+                             "STALE matches are recorded in omitted_candidates; matches excluded for "
+                             "any other reason (not-yet-REVIEWED/REJECTED, or REVIEW_DUE freshness) "
+                             "are dropped and not yet recorded (omission-vocabulary extension "
+                             "pending). Deterministic (id-sorted)."),
         "token_budget": args.token_budget,
         "claim_refs": [{"id": cid, "record_hash": None} for cid in sorted(sel_ids)],
         "assessment_refs": [{"id": x, "record_hash": None} for x in sorted(sel_cea_ids)],
