@@ -29,9 +29,11 @@ import tempfile
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+import answer_build as ab  # noqa: E402
 import schema_defs as sd  # noqa: E402
 import validate_assessment_governance as v_gov  # noqa: E402
 import validate_conflict as v_con  # noqa: E402
+import validate_context_pack as v_ctx  # noqa: E402
 import validate_freshness as v_fresh  # noqa: E402
 import validate_schema as vs  # noqa: E402
 import validate_sources as v_src  # noqa: E402
@@ -484,8 +486,93 @@ def cmd_review_due(args):
     return 0
 
 
+def cmd_context(args):
+    """Build a deterministic context pack (WP4.3): the REVIEWED+CURRENT claims matching --topic/--text,
+    their active CHECKED assessments + backing evidence + linked observations, hash-pinned via the
+    AL.1 filler. SUPERSEDED/STALE matches are recorded in omitted_candidates (so a dropped claim says
+    WHY in the closed vocabulary, never silently). Append-only, fresh id, fail-closed."""
+    if not (args.topic or args.text):
+        print("[fact context] need --topic or --text to select claims", file=sys.stderr)
+        return 2
+    root = Path(args.root)
+    claims = (_load(root / "factbase" / "baseline" / "claims.yaml", "claims").get("claims", [])
+              + _load(root / "factbase" / "live" / "claims.yaml", "claims").get("claims", []))
+    all_ceas = _load(root / "factbase" / "claim_evidence.yaml",
+                     "claim_evidence_assessments").get("claim_evidence_assessments", [])
+    obs = _load(root / "factbase" / "observations.yaml", "observations").get("observations", [])
+
+    def matches(c):
+        return ((not args.topic or args.topic in (c.get("topics") or []))
+                and (not args.text or args.text.lower() in (c.get("text") or "").lower()))
+
+    selected, omitted = [], []
+    for c in sorted([c for c in claims if matches(c)], key=lambda x: x.get("id", "")):
+        lc, fr = c.get("lifecycle"), c.get("freshness_status")
+        if lc == "SUPERSEDED":
+            omitted.append({"id": c["id"], "reason": "SUPERSEDED"})
+        elif fr == "STALE":
+            omitted.append({"id": c["id"], "reason": "STALE"})
+        elif lc == "REVIEWED" and fr == "CURRENT":
+            selected.append(c)  # CONTESTED claims are retained whole (both stances come via the cea set)
+    if not selected:
+        print("[fact context] no REVIEWED+CURRENT claims match — nothing to pack", file=sys.stderr)
+        return 1
+    sel_ids = {c["id"] for c in selected}
+    active = v_sup.active_checked_by_claim(all_ceas)
+    sel_cea_ids, art_ids = [], set()
+    for cid in sorted(sel_ids):
+        for a in active.get(cid, []):
+            sel_cea_ids.append(a["id"])
+            if a.get("artifact_id"):
+                art_ids.add(a["artifact_id"])
+    pack = {
+        "id": _fresh_id(f"ctx-{_slug(args.query or args.topic or args.text)}",
+                        {p.get("id") for p in _load(root / "factbase" / "context_packs.yaml",
+                         "context_packs").get("context_packs", [])}),
+        "query": args.query or f"facts on {args.topic or args.text}",
+        "topics": sorted({t for c in selected for t in (c.get("topics") or [])}),
+        "generated_at": args.as_of, "generator_version": "fact.py-context-v1",
+        "selection_policy": ("REVIEWED+CURRENT claims matching topic/text; their active CHECKED "
+                             "assessments + backing evidence + linked observations; SUPERSEDED/STALE "
+                             "matches omitted; deterministic (id-sorted)."),
+        "token_budget": args.token_budget,
+        "claim_refs": [{"id": cid, "record_hash": None} for cid in sorted(sel_ids)],
+        "assessment_refs": [{"id": x, "record_hash": None} for x in sorted(sel_cea_ids)],
+        "artifact_refs": [{"id": x, "content_hash": None} for x in sorted(art_ids)],
+        "observation_refs": [{"id": o["id"], "record_hash": None}
+                             for o in sorted(obs, key=lambda z: z.get("id", ""))
+                             if o.get("claim_id") in sel_ids],
+        "prediction_refs": [],
+        "omitted_candidates": omitted,
+        "pack_hash": None,
+    }
+    live = ab.Live(root)
+    miss = ab.fill_pack(pack, live)  # AL.1: one hashing source of truth
+    if miss:
+        print(f"[fact context] unresolved refs (fail closed): {miss}", file=sys.stderr)
+        return 1
+    # fail-closed: schema-validate the pack file + run the context-pack integrity gate before persisting
+    with tempfile.TemporaryDirectory() as dd:
+        tf = Path(dd) / "context_packs.yaml"
+        _dump(tf, {"schema_version": "2.0", "context_packs": [pack]})
+        sc, sf = vs.validate_file(tf)
+    ic, intg = v_ctx.validate_context_pack(pack, live)
+    if sc != 0 or ic != 0:
+        print("\n".join(sf + intg), file=sys.stderr)
+        print(f"\n[fact context] NOT persisted — pack does not validate (schema {sc}/integrity {ic}).",
+              file=sys.stderr)
+        return max(sc, ic)
+    cp = _load(root / "factbase" / "context_packs.yaml", "context_packs")
+    cp["context_packs"].append(pack)
+    _dump(root / "factbase" / "context_packs.yaml", cp)
+    print(f"[fact context] OK — pack {pack['id']!r}: {len(pack['claim_refs'])} claim(s), "
+          f"{len(pack['assessment_refs'])} assessment(s), {len(omitted)} omitted. persisted under "
+          f"{root}/factbase/context_packs.yaml")
+    return 0
+
+
 def main(argv=None) -> int:
-    p = argparse.ArgumentParser(description="lean fact-repository tool (add / query / source / supersede / review-due)")
+    p = argparse.ArgumentParser(description="lean fact-repository tool (add / query / source / supersede / review-due / context)")
     p.add_argument("--root", default=".", help="repo/corpus root containing factbase/ (default: .)")
     sub = p.add_subparsers(dest="cmd", required=True)
     pa = sub.add_parser("add", help="add a checked fact from a seed spec (fail-closed)")
@@ -533,6 +620,13 @@ def main(argv=None) -> int:
     pr.add_argument("--as-of", required=True, help="ISO timestamp to evaluate freshness against")
     pr.add_argument("--include-current", action="store_true", help="also list CURRENT facts (full picture)")
     pr.set_defaults(fn=cmd_review_due)
+    pc = sub.add_parser("context", help="build a deterministic hash-pinned context pack from the corpus (WP4.3)")
+    pc.add_argument("--topic", help="select claims carrying this topic")
+    pc.add_argument("--text", help="select claims whose text contains this (case-insensitive)")
+    pc.add_argument("--query", help="the question the pack answers (recorded on the pack)")
+    pc.add_argument("--as-of", required=True, help="ISO timestamp for generated_at")
+    pc.add_argument("--token-budget", dest="token_budget", type=int, default=4000)
+    pc.set_defaults(fn=cmd_context)
     args = p.parse_args(argv)
     return args.fn(args)
 

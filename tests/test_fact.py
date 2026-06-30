@@ -347,3 +347,46 @@ def test_supersede_link_reaches_corroborated_end_to_end(tmp_path):
                       "--corroboration-rating-id", sas_id, "--reviewer", "human:tim", "--as-of", ASOF])
     assert code == 0
     assert _baseline_claims(tmp_path)[0]["support_status"] == "CORROBORATED"
+
+
+# ---- WP-AL.2: fact.py context (deterministic context-pack builder) ----
+def _packs(root):
+    f = root / "factbase" / "context_packs.yaml"
+    return (vs.load_yaml_strict(f) or {}).get("context_packs", []) if f.is_file() else []
+
+
+def test_context_builds_validates_and_is_deterministic(tmp_path):
+    # two facts on distinct topics; the pack must pick only the matching one + its assessment, hash-pinned
+    fact.main(["--root", str(tmp_path), "add", str(_write(tmp_path, _bridge_spec())), "--as-of", ASOF])
+    other = _spec("The Example Dam holds back the Example Reservoir.",
+                  "The Example Dam holds back the Example Reservoir", topics=("energy",))
+    fact.main(["--root", str(tmp_path), "add", str(_write(tmp_path, other)), "--as-of", ASOF])
+    code = fact.main(["--root", str(tmp_path), "context", "--topic", "geography",
+                      "--query", "What does the Example Bridge connect?", "--as-of", ASOF])
+    assert code == 0
+    packs = _packs(tmp_path)
+    assert len(packs) == 1
+    pack = packs[0]
+    # only the geography claim is packed; the energy claim is not
+    assert [r["id"] for r in pack["claim_refs"]] == ["clm-the-example-bridge-spans-the-river"]
+    assert len(pack["assessment_refs"]) == 1 and pack["claim_refs"][0]["record_hash"].startswith("sha256:")
+    assert pack["pack_hash"].startswith("sha256:")
+    # deterministic: a second build over the same corpus yields identical refs (modulo the fresh id)
+    fact.main(["--root", str(tmp_path), "context", "--topic", "geography", "--as-of", ASOF])
+    p2 = _packs(tmp_path)[1]
+    assert [r["id"] for r in p2["claim_refs"]] == [r["id"] for r in pack["claim_refs"]]
+    assert p2["assessment_refs"] == pack["assessment_refs"]
+
+
+def test_context_retains_contested_claim_both_sides(tmp_path):
+    fact.main(["--root", str(tmp_path), "add", str(_write(tmp_path, _contested_spec())), "--as-of", ASOF])
+    code = fact.main(["--root", str(tmp_path), "context", "--topic", "casualties", "--as-of", ASOF])
+    assert code == 0
+    pack = _packs(tmp_path)[0]
+    # the contested claim is retained WHOLE — both opposing assessments come along (never truncated)
+    assert len(pack["claim_refs"]) == 1 and len(pack["assessment_refs"]) == 2
+
+
+def test_context_no_match_fails(tmp_path):
+    fact.main(["--root", str(tmp_path), "add", str(_write(tmp_path, _bridge_spec())), "--as-of", ASOF])
+    assert fact.main(["--root", str(tmp_path), "context", "--topic", "nonexistent-topic", "--as-of", ASOF]) == 1
