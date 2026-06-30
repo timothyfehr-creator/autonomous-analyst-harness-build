@@ -25,7 +25,7 @@ corroboration leg) PLUS answer authoring (`answer_build.py` fill/manifest/refute
 repo-backed DRAFT composes over the private corpus, and a committed Tier-2 answer is independent-refuter-
 gated by design (DRAFT is autonomous; the COMMITTED answer needs a human/different-model refuter — the
 autonomous tooling stops at a green draft + a blank, gate-scoped refuter packet and never self-attests).
-501 tests green; all three machine phase-gates (`gate_phase1_exit`,
+503 tests green; all three machine phase-gates (`gate_phase1_exit`,
 `gate_phase2_exit`, `gate_phase3_exit`) exit 0. Governance READY
 (ACCEPTED_WITH_LIMITS).** Phase 3 built the committed-answer loop: WP3.0 answer-layer oracle +
 real hash chain + `CONTEXT_PACK_SCHEMA`; WP3.1 `draft` mode (records + manifest_structural +
@@ -49,9 +49,30 @@ the empty-markers / observation-backing answer-loop rules + the independence-by-
 (CONSTITUTION §6.1/§10). The 5 preflight anchor tokens are intact (preflight exits 0). The §6.1c A–C
 corroboration leg is ratified (wired; "in scope" ASSUMED). **NEXT:** Phase 4's fact repository is built
 as a lean MVP and seeded into a PRIVATE corpus (gitignored; the public factbase stays empty). Remaining
-Phase-4 gaps: the context-pack builder (WP4.3) and the candidate/lifecycle eval (WP4.4/WP4.6). The
+Phase-4 gaps: the candidate/lifecycle eval (WP4.4/WP4.6). The
 threat model is descoped to honest-use (single-user; 2026-06-28), so a further independent cross-vendor
 P0 review is recommended defence-in-depth, **not build-blocking**.
+
+**HONEST-USE AUDIT (2026-06-30).** A focused single-session audit of the new answer-authoring surface
+(`answer_build.py` + `fact.py context`), deliberately NOT another cross-vendor round (threat model is
+honest-use, single-user). The structural core held (fill reuses the gates' own hashing, fails closed on
+any unresolved ref, is idempotent, cannot shrink gate-computed refuter scope; the blank refuter fails
+`--mode answer` closed two independent ways). Three fixes shipped: **1a** — `answer_build.fill` now fails
+closed when a manifest's `output_path` binds no file (an empty path passes the closed analysis schema but
+would otherwise leave the answer text unbound); **1b** — `cmd_context`'s omission policy + docstring
+corrected to stop over-claiming completeness, with a test pinning the known gap (a topic-matching
+REVIEWED-but-`REVIEW_DUE` / `CANDIDATE` / `REJECTED` claim is dropped and NOT recorded, because the closed
+`OMITTED_REASON` enum has no value for it); plus a docs reconciliation pass (TOOLING/CLAUDE/README/AGENTS/
+EXAMPLE_WORKFLOW + the `answer_build --help` string) to the built state. 503 tests; gate1/2/3 + preflight +
+sensitive_scan green; the private corpus draft composes. **Surfaced + DEFERRED (owner-gated, NOT changed):**
+(1c) extend the closed `OMITTED_REASON` enum so a dropped `REVIEW_DUE`/ineligible match is recorded like
+STALE (DATA_MODEL §8 + `schema_defs`); (1d) ratify the still-`ASSUMED` `CLAIM_CONTENT_EXCLUDE` membership
+(CONSTITUTION/DATA_MODEL). **Documented residuals (out of threat model — no change):** non-atomic
+write→validate→drop rollback in `_cmd_manifest`/`_cmd_refuter`; `artifact_ref_hash` carries
+`evidence.content_hash` un-recomputed at that layer; a flipped-to-SURVIVES refuter the reviewer didn't
+truly run (the independent human/different-model refuter is the control, by design). The repo's gitignored
+`.claude/settings.local.json` gained a `deny` backstop (git push / rm -rf / curl / wget). **Pushed to
+public `origin/main` @ `6ad85d4` (2026-06-30, owner-approved fast-forward; 7647512..6ad85d4, 14 commits).**
 
 v3 merges two v2 designs (see `MERGE_NOTES.md`): it keeps the rigorous evidence-chain /
 multi-axis data model and adds the **three-tier rigor model** (Constitution §1) so the
@@ -592,6 +613,9 @@ witnesses mutation-proven load-bearing.
       CONTESTED retained); answer authoring added: `answer_build.py` fill/manifest/refuter scaffolds, and
       the FIRST real repo-backed DRAFT composes over the private corpus. The committed answer is
       independent-refuter-gated (the autonomous tooling stops at a green draft + a blank refuter).
+      Honest-use audit (2026-06-30): `fill` fails closed on an unbound `output_path`; the omission policy
+      was made honest (REVIEW_DUE/ineligible drops are a documented gap pending an `OMITTED_REASON`
+      extension). See the audit paragraph under Current state.
 - [~] WP4.4 Candidate and promotion workflow — `fact.py add` fuses candidate→assess→promote
       (fail-closed; verbatim-quote honesty guard); `fact.py supersede` is append-only correction;
       `fact.py review-due` surfaces staleness. Separate `candidate`/`assess`/`refresh` not built.
