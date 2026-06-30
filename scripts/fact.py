@@ -81,11 +81,11 @@ def _fresh_id(base, taken):
 
 def _recompute_claim_status(claim, all_ceas, sas_records):
     """Set support_status + dispute_status from the FULL cea set (both fields are excluded from
-    claim_content_hash, so this is order-safe vs the per-cea binding). The §6.1 A-C leg is computed
-    from the staged sas so stored == what records_check recomputes."""
-    ac = v_sup.ac_rated_sources(sas_records)
+    claim_content_hash, so this is order-safe vs the per-cea binding). The §6.1c declared-link A-C leg
+    is resolved from the staged sas so stored == what records_check recomputes."""
+    sas_by_id = v_sup.active_sas_by_id(sas_records)
     claim["support_status"] = v_sup.compute_support(
-        v_sup.active_supports_by_claim(all_ceas).get(claim["id"], []), ac)[0]
+        v_sup.active_supports_by_claim(all_ceas).get(claim["id"], []), sas_by_id)[0]
     claim["dispute_status"] = v_con.compute_dispute(
         v_sup.active_checked_by_claim(all_ceas).get(claim["id"], []))
 
@@ -158,17 +158,20 @@ def build_records(spec: dict, as_of: str):
                          "content_hash": content_hash, "published_at": a.get("published_at", a["retrieved_at"]),
                          "retrieved_at": a["retrieved_at"]})
         rih = "sha256:" + hashlib.sha256(("REL|" + _norm(quote)).encode("utf-8")).hexdigest()
-        ceas.append({"id": u.get("id") or f"cea-{key}", "claim_id": clm_id, "artifact_id": evd_id,
-                     "support_locator": {"kind": "PAGE_AND_QUOTE", "page": 1, "quote": quote},
-                     "support_summary": u.get("summary", quote[:120]), "stance": u.get("stance", "SUPPORTS"),
-                     "information_credibility": u["information_credibility"],
-                     "temporal_scope": {"kind": "TIMELESS", "start": None, "end": None},
-                     "origin_chain": [{"source_id": src_id, "artifact_id": evd_id}],
-                     "independence_group": f"ind-{key}",
-                     "semantic_review": {"status": "CHECKED", "reviewer": u.get("reviewer", "model:unknown"),
-                                         "reviewed_at": as_of, "claim_content_hash": cch,
-                                         "artifact_hash": content_hash, "relationship_input_hash": rih},
-                     "supersedes": None})
+        cea = {"id": u.get("id") or f"cea-{key}", "claim_id": clm_id, "artifact_id": evd_id,
+               "support_locator": {"kind": "PAGE_AND_QUOTE", "page": 1, "quote": quote},
+               "support_summary": u.get("summary", quote[:120]), "stance": u.get("stance", "SUPPORTS"),
+               "information_credibility": u["information_credibility"],
+               "temporal_scope": {"kind": "TIMELESS", "start": None, "end": None},
+               "origin_chain": [{"source_id": src_id, "artifact_id": evd_id}],
+               "independence_group": f"ind-{key}",
+               "semantic_review": {"status": "CHECKED", "reviewer": u.get("reviewer", "model:unknown"),
+                                   "reviewed_at": as_of, "claim_content_hash": cch,
+                                   "artifact_hash": content_hash, "relationship_input_hash": rih},
+               "supersedes": None}
+        if u.get("corroboration_rating_id"):  # §6.1c declared scope-matched corroboration link
+            cea["corroboration_rating_id"] = u["corroboration_rating_id"]
+        ceas.append(cea)
     return sources, evidence, claim, ceas
 
 
@@ -314,19 +317,22 @@ def cmd_source(args):
     return 0
 
 
-CEA_OPTS = ("credibility", "stance", "summary", "retract")
+CEA_OPTS = ("credibility", "stance", "summary", "retract", "corroboration_rating_id")
 CLAIM_OPTS = ("text", "topics", "impact_category", "high_impact", "stability", "review_by")
 
 
 def _supersede_cea(args, docs, root, all_ceas, claims_all, sas, old):
     """Append a superseding cea in the SAME (claim_id, artifact_id) partition (re-rate / fix stance /
-    fix summary / retract), then recompute-and-restore the parent claim's status (trap T1)."""
+    fix summary / retract / set the §6.1c corroboration link), then recompute-and-restore the parent
+    claim's status (trap T1)."""
     bad = [o for o in CLAIM_OPTS if getattr(args, o)]
     if bad:
         print(f"[fact supersede] {bad} are claim options; target {old['id']!r} is an assessment "
-              f"(use --credibility/--stance/--summary/--retract/--reviewer)", file=sys.stderr)
+              f"(use --credibility/--stance/--summary/--retract/--corroboration-rating-id/--reviewer)",
+              file=sys.stderr)
         return 2
-    if not any([args.credibility, args.stance, args.summary, args.reviewer, args.retract]):
+    if not any([args.credibility, args.stance, args.summary, args.reviewer, args.retract,
+                args.corroboration_rating_id]):
         print("[fact supersede] no change specified for the assessment", file=sys.stderr)
         return 2
     parent = next((c for c in claims_all if c.get("id") == old.get("claim_id")), None)
@@ -342,6 +348,8 @@ def _supersede_cea(args, docs, root, all_ceas, claims_all, sas, old):
         new["stance"] = args.stance
     if args.summary:
         new["support_summary"] = args.summary
+    if args.corroboration_rating_id:  # §6.1c declared scope-matched corroboration link
+        new["corroboration_rating_id"] = args.corroboration_rating_id
     sr = new["semantic_review"]
     sr["status"] = "REJECTED" if args.retract else "CHECKED"
     sr["reviewed_at"] = args.as_of
@@ -510,6 +518,8 @@ def main(argv=None) -> int:
     pu.add_argument("--summary", help="(assessment) fix the support summary")
     pu.add_argument("--retract", action="store_true",
                     help="(assessment) deactivate it (REJECTED) — drops it from the active support/conflict set")
+    pu.add_argument("--corroboration-rating-id", dest="corroboration_rating_id",
+                    help="(assessment) name the scoped sas- rating that backs its §6.1c A-C corroboration leg")
     # claim corrections
     pu.add_argument("--text", help="(claim) corrected claim text")
     pu.add_argument("--topics", help="(claim) comma-separated topics")

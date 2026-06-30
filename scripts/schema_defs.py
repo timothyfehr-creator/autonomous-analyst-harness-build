@@ -297,11 +297,11 @@ CLAIM_EVIDENCE_SCHEMA = {
     "required": {"id", "claim_id", "artifact_id", "support_locator", "support_summary",
                  "stance", "information_credibility", "temporal_scope", "origin_chain",
                  "independence_group", "semantic_review", "supersedes"},
-    "optional": {"primary_evidence_kind"},
+    "optional": {"primary_evidence_kind", "corroboration_rating_id"},
     "enums": {"stance": STANCE, "information_credibility": INFO_CREDIBILITY,
               "primary_evidence_kind": PRIMARY_EVIDENCE_KIND},
     "types": {"id": "id", "claim_id": "ref:clm-", "artifact_id": "ref:evd-",
-              "supersedes": "ref:cea-"},
+              "supersedes": "ref:cea-", "corroboration_rating_id": "ref:sas-"},
     "extra": _cea_extra,
 }
 

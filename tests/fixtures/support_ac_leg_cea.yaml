@@ -1,6 +1,7 @@
 # Two independent CHECKED SUPPORTS, NEITHER authoritative-primary (no primary_evidence_kind), both at
-# or below the credibility floor, distinct origins src-a / src-b. The only route to CORROBORATED is an
-# A-C rating on a counting origin source (provided by support_ac_leg_sas.yaml).
+# or below the credibility floor, distinct origins src-a / src-b. The only route to CORROBORATED is the
+# §6.1c declared link: cea-a NAMES rating sas-a (active, B, owned by src-a ∈ its origin_chain), provided
+# by support_ac_leg_sas.yaml. Without that sas registry the named link cannot resolve → SUPPORTED.
 schema_version: "2.0"
 claim_evidence_assessments:
   - id: cea-a
@@ -10,6 +11,7 @@ claim_evidence_assessments:
     support_summary: s
     stance: SUPPORTS
     information_credibility: 2
+    corroboration_rating_id: sas-a
     temporal_scope: {kind: TIMELESS, start: null, end: null}
     origin_chain:
       - {source_id: src-a, artifact_id: evd-a}

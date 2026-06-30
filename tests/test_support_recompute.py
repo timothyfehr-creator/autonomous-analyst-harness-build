@@ -135,47 +135,59 @@ def test_compute_support_conjunction():
     assert vsup.compute_support([])[0] == "UNVERIFIED"
 
 
-# ---- WP-2: §6.1 A-C reliable-source corroboration leg (C2b) ----
-def test_ac_leg_corroborates_two_sources_no_authoritative():
-    def cea(origin, cred=2):  # NO authoritative-primary kind anywhere
-        return {"primary_evidence_kind": None, "information_credibility": cred,
-                "origin_chain": [{"source_id": origin}]}
-    quals = [cea("src-a"), cea("src-b", cred=3)]
-    # 2 independent origins + floor, but no authoritative-primary → SUPPORTED with the leg OFF
+# ---- WP-D: §6.1c declared scope-matched corroboration leg (C2b via corroboration_rating_id) ----
+# sas registry: src-a's active leaf is B (sas-a, superseding an older D), src-b D, src-belligerent B.
+_SAS = [{"id": "sas-a-old", "source_id": "src-a", "reliability": "D", "supersedes": None},
+        {"id": "sas-a", "source_id": "src-a", "reliability": "B", "supersedes": "sas-a-old"},  # active leaf
+        {"id": "sas-b", "source_id": "src-b", "reliability": "D", "supersedes": None},
+        {"id": "sas-bel", "source_id": "src-belligerent", "reliability": "B", "supersedes": None}]
+_BYID = vsup.active_sas_by_id(_SAS)
+
+
+def _cea(origin, cred=2, link=None, kind=None):
+    c = {"primary_evidence_kind": kind, "information_credibility": cred,
+         "origin_chain": [{"source_id": origin}]}
+    if link:
+        c["corroboration_rating_id"] = link
+    return c
+
+
+def test_ac_leg_corroborates_only_with_a_named_scope_rating():
+    quals = [_cea("src-a", link="sas-a"), _cea("src-b", cred=3)]
+    # 2 independent origins + floor, but the leg is OFF (no resolver) → SUPPORTED
     assert vsup.compute_support(quals)[0] == "SUPPORTED"
-    # turn the leg on: src-a assessed A-C in scope → C2 satisfied → CORROBORATED
-    assert vsup.compute_support(quals, {"src-a"})[0] == "CORROBORATED"
+    # with the resolver, cea-a names sas-a (active, B, owned by src-a) → C2 satisfied → CORROBORATED
+    assert vsup.compute_support(quals, _BYID)[0] == "CORROBORATED"
+    # the SAME two origins WITHOUT a named link no longer corroborate (this is the WP-D tightening)
+    assert vsup.compute_support([_cea("src-a"), _cea("src-b", cred=3)], _BYID)[0] == "SUPPORTED"
+
+
+def test_ac_link_must_be_ac_owned_and_active():
+    # named a D-rated rating → not A-C → SUPPORTED
+    assert vsup.compute_support([_cea("src-b", link="sas-b"), _cea("src-a", cred=3)], _BYID)[0] == "SUPPORTED"
+    # named a rating owned by a DIFFERENT source (sas-b is src-b's) on an src-a chain → SUPPORTED
+    assert vsup.compute_support([_cea("src-a", link="sas-b"), _cea("src-b", cred=3)], _BYID)[0] == "SUPPORTED"
+    # named a SUPERSEDED rating id (sas-a-old) → not an active leaf → SUPPORTED
+    assert vsup.compute_support([_cea("src-a", link="sas-a-old"), _cea("src-b", cred=3)], _BYID)[0] == "SUPPORTED"
 
 
 def test_ac_leg_does_not_relax_two_origin_requirement():
-    # a single A-C-rated source is still ONE origin → C1 unmet → SUPPORTED (the leg substitutes for
-    # authoritative-primary only, never for ≥2 independent origins)
-    one = [{"primary_evidence_kind": None, "information_credibility": 2,
-            "origin_chain": [{"source_id": "src-a"}]}]
-    assert vsup.compute_support(one, {"src-a"})[0] == "SUPPORTED"
+    # a single linked origin is still ONE origin → C1 unmet → SUPPORTED
+    assert vsup.compute_support([_cea("src-a", link="sas-a")], _BYID)[0] == "SUPPORTED"
 
 
 def test_ac_leg_first_party_source_cannot_backdoor():
-    # the A-C signal is computed over COUNTING (non-first-party) chains, so an A-C rating on a
-    # belligerent's first-party record can't stand in for corroboration
-    fp = {"primary_evidence_kind": "FIRST_PARTY_ACTION_RECORD", "information_credibility": 1,
-          "origin_chain": [{"source_id": "src-belligerent"}]}
-    indep = {"primary_evidence_kind": None, "information_credibility": 2,
-             "origin_chain": [{"source_id": "src-independent"}]}
-    # only the belligerent is A-C-rated; it is first-party-excluded → still 1 counting origin → SUPPORTED
-    assert vsup.compute_support([fp, indep], {"src-belligerent"})[0] == "SUPPORTED"
+    # a first-party belligerent chain naming an A-C rating is C3-excluded → still 1 counting origin → SUPPORTED
+    fp = _cea("src-belligerent", cred=1, link="sas-bel", kind="FIRST_PARTY_ACTION_RECORD")
+    indep = _cea("src-independent", cred=2)
+    assert vsup.compute_support([fp, indep], _BYID)[0] == "SUPPORTED"
 
 
-def test_active_reliabilities_resolver_takes_leaf_and_drops_superseded():
-    sas = [{"id": "sas-1", "source_id": "src-x", "reliability": "D", "supersedes": None},
-           {"id": "sas-2", "source_id": "src-x", "reliability": "B", "supersedes": "sas-1"},  # leaf
-           {"id": "sas-3", "source_id": "src-x", "reliability": "E", "supersedes": None}]    # other scope
-    rel = vsup.active_reliabilities_by_source(sas)
-    assert rel["src-x"] == {"B", "E"}  # superseded D dropped; both active leaves kept
-    assert vsup.ac_rated_sources(sas) == {"src-x"}  # B ∈ {A,B,C}
-    # a source whose only active leaf is D-F is not A-C-rated
-    assert vsup.ac_rated_sources([{"id": "s", "source_id": "src-y", "reliability": "E",
-                                   "supersedes": None}]) == set()
+def test_active_sas_resolver_takes_leaf_and_drops_superseded():
+    rel = vsup.active_reliabilities_by_source(_SAS)
+    assert rel["src-a"] == {"B"}  # the superseded D leaf is dropped
+    byid = vsup.active_sas_by_id(_SAS)
+    assert "sas-a-old" not in byid and byid["sas-a"]["reliability"] == "B"  # only active leaves resolve
 
 
 def test_first_party_excluded_from_independence():

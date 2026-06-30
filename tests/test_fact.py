@@ -327,3 +327,23 @@ def test_query_filter_lifecycle_excludes_superseded(tmp_path, capsys):
     capsys.readouterr()
     assert fact.main(["--root", str(tmp_path), "query", "--lifecycle", "REVIEWED"]) == 0
     assert "1 fact(s)" in capsys.readouterr().out  # only the active replacement, not the SUPERSEDED original
+
+
+# ---- WP-D: §6.1c declared corroboration link (cea names its scoped sas rating) ----
+def test_supersede_link_reaches_corroborated_end_to_end(tmp_path):
+    # rate src-a-mil A-C for a scope
+    src_spec = {"source": {"id": "src-a-mil", "title": "Source A", "source_type": "MILITARY"},
+                "ratings": [{"scope": "weapons specifications", "reliability": "B",
+                             "sample_definition": "review of ~10 statements vs outcomes", "sample_size": 10,
+                             "rationale": "accurate on specs", "assessed_by": "ai:test"}]}
+    assert fact.main(["--root", str(tmp_path), "source", str(_write(tmp_path, src_spec)), "--as-of", ASOF]) == 0
+    sas_id = _sas(tmp_path)[0]["id"]
+    # a 2-independent-origin fact — having an A-C rating is NOT enough without a named link → SUPPORTED
+    assert fact.main(["--root", str(tmp_path), "add", str(_write(tmp_path, _two_support_spec())), "--as-of", ASOF]) == 0
+    assert _baseline_claims(tmp_path)[0]["support_status"] == "SUPPORTED"
+    # link the src-a-mil assessment to its scoped rating → recompute → CORROBORATED
+    target = next(a["id"] for a in _ceas(tmp_path) if a["origin_chain"][0]["source_id"] == "src-a-mil")
+    code = fact.main(["--root", str(tmp_path), "supersede", "--target", target,
+                      "--corroboration-rating-id", sas_id, "--reviewer", "human:tim", "--as-of", ASOF])
+    assert code == 0
+    assert _baseline_claims(tmp_path)[0]["support_status"] == "CORROBORATED"
