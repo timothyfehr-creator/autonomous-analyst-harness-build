@@ -513,10 +513,14 @@ recorded so token limits do not masquerade as consensus.
 > closed record: `claim_refs`/`assessment_refs`/`observation_refs` bind `record_hash`,
 > `artifact_refs` bind the evidence `content_hash`, and `pack_hash = record_hash(pack,
 > exclude=pack_hash)`. Each `omitted_candidates` entry is `{id, reason}` with `reason` from the
-> **closed enum** `{STALE, SUPERSEDED, TOKEN_BUDGET, REDUNDANT, CONTESTED, OUT_OF_SCOPE}` — a free-
-> text reason cannot launder a dropped current claim as "stale." `token_budget` must be a positive
-> integer. (Draft/answer additionally recompute a `STALE` omission against the live freshness
-> clock — a false-STALE omission of a current claim fails; full topic-completeness is Phase 4.)
+> **closed enum** `{STALE, SUPERSEDED, TOKEN_BUDGET, REDUNDANT, CONTESTED, OUT_OF_SCOPE, REVIEW_DUE,
+> INELIGIBLE}` — a free-text reason cannot launder a dropped current claim. `REVIEW_DUE` = a reviewed
+> claim whose review clock lapsed; `INELIGIBLE` = a topic match that is not a REVIEWED+CURRENT fact
+> (not-yet-reviewed / REJECTED, or a reviewed non-FACT). The builder records **every** topic-matching
+> claim that is not selected, so an omission is never silent. `token_budget` must be a positive
+> integer. (Draft/answer additionally recompute the `STALE`, `SUPERSEDED`, `REVIEW_DUE`, and
+> `INELIGIBLE` omissions against the live records — a false omission that hides a current claim fails;
+> full topic-completeness is Phase 4.)
 
 ## 9. Analysis manifest
 

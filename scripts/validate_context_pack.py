@@ -9,9 +9,10 @@ question. Integrity checks (beyond the closed schema, WP3.0):
   - pack_hash == record_hash(pack, exclude=pack_hash) (self-consistency);
   - if the citing manifest is supplied, manifest.context_pack_hash == pack.pack_hash (agreement);
   - token_budget > 0 (a non-positive budget is incoherent — deferred from WP3.0);
-  - A4-PARTIAL: an `omitted_candidates` entry claiming reason STALE must, if it resolves to a live
-    claim, actually be STALE (a false STALE omission silently drops a current contrary claim).
-    Full topic-completeness of the pack is a Phase-4 concern (disclosed, not closed here).
+  - A4-PARTIAL: an `omitted_candidates` entry must, if it resolves to a live claim, match its declared
+    reason — STALE / REVIEW_DUE against `freshness_status`, SUPERSEDED against `lifecycle`, and
+    INELIGIBLE must not name a REVIEWED+CURRENT (selectable) claim — so a false omission cannot hide a
+    current contrary claim. Full topic-completeness of the pack is a Phase-4 concern (disclosed).
 
 Returns (exit_code, findings): 0 clean · 1 a finding in valid input. Schema validation runs FIRST
 in the caller; `Live` is resolved only on a clean parse (§13).
@@ -48,9 +49,22 @@ def validate_context_pack(pack: dict, live: al.Live, manifest_context_pack_hash:
         f.append(f"manifest context_pack_hash {manifest_context_pack_hash!r} does not match the "
                  f"pack's pack_hash {pack.get('pack_hash')!r}")
     for oc in pack.get("omitted_candidates") or []:
-        if isinstance(oc, dict) and oc.get("reason") == "STALE":
-            claim = live.claims.get(oc.get("id"))
-            if claim is not None and claim.get("freshness_status") != "STALE":
-                f.append(f"omitted_candidate {oc.get('id')!r}: reason STALE but the live claim's "
-                         f"freshness_status is {claim.get('freshness_status')!r} (A4 false-omission)")
+        if not isinstance(oc, dict):
+            continue
+        claim = live.claims.get(oc.get("id"))
+        if claim is None:
+            continue  # an omitted id need not resolve to a live record (e.g. TOKEN_BUDGET/REDUNDANT)
+        reason, lc, fr = oc.get("reason"), claim.get("lifecycle"), claim.get("freshness_status")
+        if reason == "STALE" and fr != "STALE":
+            f.append(f"omitted_candidate {oc.get('id')!r}: reason STALE but the live claim's "
+                     f"freshness_status is {fr!r} (false-omission)")
+        elif reason == "REVIEW_DUE" and fr != "REVIEW_DUE":
+            f.append(f"omitted_candidate {oc.get('id')!r}: reason REVIEW_DUE but the live claim's "
+                     f"freshness_status is {fr!r} (false-omission)")
+        elif reason == "SUPERSEDED" and lc != "SUPERSEDED":
+            f.append(f"omitted_candidate {oc.get('id')!r}: reason SUPERSEDED but the live claim's "
+                     f"lifecycle is {lc!r} (false-omission)")
+        elif reason == "INELIGIBLE" and lc == "REVIEWED" and fr == "CURRENT":
+            f.append(f"omitted_candidate {oc.get('id')!r}: reason INELIGIBLE but the live claim is "
+                     f"REVIEWED+CURRENT — a selectable claim cannot be hidden as ineligible")
     return (1 if f else 0), sorted(f)

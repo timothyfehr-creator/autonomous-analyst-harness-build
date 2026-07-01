@@ -674,8 +674,12 @@ VISUAL_SCHEMA = {
 # ---- context pack (WP3.0; DATA_MODEL §8 + EXAMPLE_WORKFLOW §9) ----
 # A deterministic snapshot of the records selected to answer a question, hash-pinned. Closed
 # `omitted_candidates.reason` enum so "token limits cannot masquerade as consensus" (§8): a dropped
-# claim must say WHY in an auditable vocabulary, not free text.
-OMITTED_REASON = {"STALE", "SUPERSEDED", "TOKEN_BUDGET", "REDUNDANT", "CONTESTED", "OUT_OF_SCOPE"}
+# claim must say WHY in an auditable vocabulary, not free text. REVIEW_DUE = a reviewed claim whose
+# review clock lapsed; INELIGIBLE = a topic match that is not a REVIEWED+CURRENT fact (not-yet-
+# reviewed / REJECTED, or a reviewed non-FACT). Both are recompute-checked in validate_context_pack
+# (a current claim cannot be hidden behind either reason).
+OMITTED_REASON = {"STALE", "SUPERSEDED", "TOKEN_BUDGET", "REDUNDANT", "CONTESTED", "OUT_OF_SCOPE",
+                  "REVIEW_DUE", "INELIGIBLE"}
 
 
 def _context_pack_extra(rec):

@@ -44,3 +44,46 @@ def test_token_budget_must_be_integer(tmp_path):
         "token_budget: 4000", "token_budget: 4000.5"))
     code, findings = _run(p)
     assert code == 1 and any("token_budget" in f and "integer" in f for f in findings), findings
+
+
+# ---- WP4.3 / honest-use audit 1c: omitted_candidates anti-laundering (validate_context_pack) ----
+import types  # noqa: E402
+
+import validate_context_pack as v_ctx  # noqa: E402
+
+
+def _live(claims):
+    return types.SimpleNamespace(
+        claims={c["id"]: c for c in claims}, cea={}, evidence={}, observations={}, predictions={},
+        record_ref_hash=lambda r: None, artifact_ref_hash=lambda r: None)
+
+
+def _pack(omitted):
+    p = {"id": "ctx-x", "query": "q", "topics": ["t"], "generated_at": "2026-06-22T12:00:00Z",
+         "generator_version": "v1", "selection_policy": "test", "token_budget": 100,
+         "claim_refs": [], "assessment_refs": [], "artifact_refs": [], "observation_refs": [],
+         "prediction_refs": [], "omitted_candidates": omitted, "pack_hash": None}
+    p["pack_hash"] = vs.record_hash(p, exclude=("pack_hash",))
+    return p
+
+
+def test_false_review_due_omission_rejected():
+    # reason REVIEW_DUE but the live claim is CURRENT → a current claim hidden behind a stale-ish reason
+    live = _live([{"id": "clm-c", "lifecycle": "REVIEWED", "freshness_status": "CURRENT"}])
+    code, findings = v_ctx.validate_context_pack(_pack([{"id": "clm-c", "reason": "REVIEW_DUE"}]), live)
+    assert code == 1 and any("clm-c" in f and "REVIEW_DUE" in f for f in findings), findings
+
+
+def test_false_ineligible_omission_rejected():
+    # reason INELIGIBLE but the live claim IS REVIEWED+CURRENT (i.e. selectable) → cannot be hidden
+    live = _live([{"id": "clm-c", "lifecycle": "REVIEWED", "freshness_status": "CURRENT"}])
+    code, findings = v_ctx.validate_context_pack(_pack([{"id": "clm-c", "reason": "INELIGIBLE"}]), live)
+    assert code == 1 and any("clm-c" in f and "INELIGIBLE" in f for f in findings), findings
+
+
+def test_truthful_review_due_and_ineligible_omissions_pass():
+    live = _live([{"id": "clm-rd", "lifecycle": "REVIEWED", "freshness_status": "REVIEW_DUE"},
+                  {"id": "clm-cand", "lifecycle": "CANDIDATE", "freshness_status": "CURRENT"}])
+    code, findings = v_ctx.validate_context_pack(
+        _pack([{"id": "clm-rd", "reason": "REVIEW_DUE"}, {"id": "clm-cand", "reason": "INELIGIBLE"}]), live)
+    assert code == 0, findings

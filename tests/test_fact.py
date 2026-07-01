@@ -392,31 +392,33 @@ def test_context_no_match_fails(tmp_path):
     assert fact.main(["--root", str(tmp_path), "context", "--topic", "nonexistent-topic", "--as-of", ASOF]) == 1
 
 
-def test_context_review_due_match_is_dropped_and_not_recorded(tmp_path):
-    """Honest-use audit 1b: a topic-matching REVIEWED claim whose freshness has lapsed to REVIEW_DUE
-    is currently NEITHER selected NOR recorded in omitted_candidates — the closed OMITTED_REASON enum
-    ({STALE, SUPERSEDED, TOKEN_BUDGET, REDUNDANT, CONTESTED, OUT_OF_SCOPE}) has no value for it, so
-    recording it is the owner-gated 1c extension. This pins the documented gap and keeps the
-    selection_policy string honest; flip the last assertion when 1c lands."""
-    fact.main(["--root", str(tmp_path), "add", str(_write(tmp_path, _bridge_spec())), "--as-of", ASOF])
-    # inject a second on-topic claim that is REVIEWED but whose freshness has lapsed to REVIEW_DUE
+def _inject_claim(tmp_path, cid, lifecycle, freshness):
+    """Append a minimal on-topic (geography) claim with the given lifecycle/freshness to the corpus."""
     bl = tmp_path / "factbase" / "baseline" / "claims.yaml"
     doc = vs.load_yaml_strict(bl)
     doc["claims"].append({
-        "id": "clm-example-bridge-lapsed-review",
-        "text": "The Example Bridge also carries a rail line (lapsed review).",
+        "id": cid, "text": f"The Example Bridge note ({cid}).",
         "epistemic_type": "FACT", "support_status": "SUPPORTED", "dispute_status": "UNCONTESTED",
-        "freshness_status": "REVIEW_DUE", "lifecycle": "REVIEWED", "stability": "DURABLE",
+        "freshness_status": freshness, "lifecycle": lifecycle, "stability": "DURABLE",
         "topics": ["geography", "infrastructure"], "high_impact": False,
         "created_at": ASOF, "supersedes": None,
         "temporal": {"kind": "AS_OF", "event_time": None, "as_of": ASOF},
         "review_by": "2026-01-01T00:00:00Z",
     })
     bl.write_text(yaml.safe_dump(doc, sort_keys=False))
+
+
+def test_context_records_review_due_and_ineligible_omissions(tmp_path):
+    """Honest-use audit 1c: every topic-matching claim that is NOT selected is now recorded in
+    omitted_candidates with its reason — a REVIEWED-but-REVIEW_DUE claim as REVIEW_DUE, and a
+    not-REVIEWED+CURRENT match (e.g. a CANDIDATE) as INELIGIBLE. (Closes the 1b documented gap.)"""
+    fact.main(["--root", str(tmp_path), "add", str(_write(tmp_path, _bridge_spec())), "--as-of", ASOF])
+    _inject_claim(tmp_path, "clm-lapsed-review", "REVIEWED", "REVIEW_DUE")
+    _inject_claim(tmp_path, "clm-unreviewed-candidate", "CANDIDATE", "CURRENT")
     assert fact.main(["--root", str(tmp_path), "context", "--topic", "geography", "--as-of", ASOF]) == 0
     pack = _packs(tmp_path)[0]
     packed = {r["id"] for r in pack["claim_refs"]}
-    omitted = {o["id"] for o in pack["omitted_candidates"]}
-    assert "clm-the-example-bridge-spans-the-river" in packed       # the CURRENT claim is selected
-    assert "clm-example-bridge-lapsed-review" not in packed         # the REVIEW_DUE claim is dropped
-    assert "clm-example-bridge-lapsed-review" not in omitted        # documented gap: not yet recorded
+    reason = {o["id"]: o["reason"] for o in pack["omitted_candidates"]}
+    assert "clm-the-example-bridge-spans-the-river" in packed   # the REVIEWED+CURRENT claim is selected
+    assert "clm-lapsed-review" not in packed and reason.get("clm-lapsed-review") == "REVIEW_DUE"
+    assert "clm-unreviewed-candidate" not in packed and reason.get("clm-unreviewed-candidate") == "INELIGIBLE"
