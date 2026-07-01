@@ -25,7 +25,7 @@ corroboration leg) PLUS answer authoring (`answer_build.py` fill/manifest/refute
 repo-backed DRAFT composes over the private corpus, and a committed Tier-2 answer is independent-refuter-
 gated by design (DRAFT is autonomous; the COMMITTED answer needs a human/different-model refuter — the
 autonomous tooling stops at a green draft + a blank, gate-scoped refuter packet and never self-attests).
-503 tests green; all three machine phase-gates (`gate_phase1_exit`,
+506 tests green; all three machine phase-gates (`gate_phase1_exit`,
 `gate_phase2_exit`, `gate_phase3_exit`) exit 0. Governance READY
 (ACCEPTED_WITH_LIMITS).** Phase 3 built the committed-answer loop: WP3.0 answer-layer oracle +
 real hash chain + `CONTEXT_PACK_SCHEMA`; WP3.1 `draft` mode (records + manifest_structural +
@@ -64,10 +64,13 @@ corrected to stop over-claiming completeness, with a test pinning the known gap 
 REVIEWED-but-`REVIEW_DUE` / `CANDIDATE` / `REJECTED` claim is dropped and NOT recorded, because the closed
 `OMITTED_REASON` enum has no value for it); plus a docs reconciliation pass (TOOLING/CLAUDE/README/AGENTS/
 EXAMPLE_WORKFLOW + the `answer_build --help` string) to the built state. 503 tests; gate1/2/3 + preflight +
-sensitive_scan green; the private corpus draft composes. **Surfaced + DEFERRED (owner-gated, NOT changed):**
-(1c) extend the closed `OMITTED_REASON` enum so a dropped `REVIEW_DUE`/ineligible match is recorded like
-STALE (DATA_MODEL §8 + `schema_defs`); (1d) ratify the still-`ASSUMED` `CLAIM_CONTENT_EXCLUDE` membership
-(CONSTITUTION/DATA_MODEL). **Documented residuals (out of threat model — no change):** non-atomic
+sensitive_scan green; the private corpus draft composes. **Audit tail then DONE (2026-06-30, owner-approved
+— now 506 tests):** (1c) extended the closed `OMITTED_REASON` enum with `REVIEW_DUE` + `INELIGIBLE`
+(DATA_MODEL §8 + `schema_defs`) so `cmd_context` records EVERY non-selected match, with anti-laundering
+recompute in `validate_context_pack` (a current claim can't be hidden behind either reason); the *selected*
+set is unchanged (REVIEWED+CURRENT). (1d) reconciled the stale `CLAIM_CONTENT_EXCLUDE` comment to the
+already-ratified DATA_MODEL §4 (the audit had over-flagged it as unratified — the doc ratified it
+2026-06-24). **Documented residuals (out of threat model — no change):** non-atomic
 write→validate→drop rollback in `_cmd_manifest`/`_cmd_refuter`; `artifact_ref_hash` carries
 `evidence.content_hash` un-recomputed at that layer; a flipped-to-SURVIVES refuter the reviewer didn't
 truly run (the independent human/different-model refuter is the control, by design). The repo's gitignored
@@ -614,8 +617,8 @@ witnesses mutation-proven load-bearing.
       the FIRST real repo-backed DRAFT composes over the private corpus. The committed answer is
       independent-refuter-gated (the autonomous tooling stops at a green draft + a blank refuter).
       Honest-use audit (2026-06-30): `fill` fails closed on an unbound `output_path`; the omission policy
-      was made honest (REVIEW_DUE/ineligible drops are a documented gap pending an `OMITTED_REASON`
-      extension). See the audit paragraph under Current state.
+      now records EVERY non-selected match (1c added `REVIEW_DUE` + `INELIGIBLE` to `OMITTED_REASON`, with
+      anti-laundering recompute) — no silent omission. See the audit paragraph under Current state.
 - [~] WP4.4 Candidate and promotion workflow — `fact.py add` fuses candidate→assess→promote
       (fail-closed; verbatim-quote honesty guard); `fact.py supersede` is append-only correction;
       `fact.py review-due` surfaces staleness. Separate `candidate`/`assess`/`refresh` not built.
