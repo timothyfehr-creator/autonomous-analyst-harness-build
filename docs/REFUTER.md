@@ -46,3 +46,24 @@ A `ref-` record (schema in `scripts/schema_defs.py`) that binds one analysis man
 
 `unresolved_gaps` being non-empty is **not** a failure — recording what was not resolved is the
 honest behavior, not a defect. Exit codes: `0` clean · `1` a finding in valid input · `2` cannot run.
+
+## Wiring the independent reviewer (WP-AL.7)
+
+`answer_build.py refuter` scaffolds a gate-scoped but UNSIGNED refuter (`SAME_MODEL_FRESH_CONTEXT`,
+every verdict `REVISE`) that fails `--mode answer` closed. Two ways to sign it:
+
+- **Human** — edit the refuter YAML: set `reviewer_class` `HUMAN`, run each check, set `SURVIVES` (or an
+  honest negative).
+- **Different model** — `scripts/refuter_review.py --analysis <id> --root <root> --as-of <ts>` calls an
+  OpenAI model as the adversarial reviewer (auto-picking the strongest available, or `--model <id>`). It
+  fills only the *judgment*; the coverage, binding hashes, and gate-computed `high_impact` come from the
+  scaffold, so the model cannot shrink scope or self-sign. It persists a `DIFFERENT_MODEL` refuter ONLY
+  if every required claim `SURVIVES` (fail-closed: append → schema → `validate_refuter` answer-mode →
+  drop on any failure; the support floor is checked before the paid call). Reproducibility
+  (model/version/prompt/temperature/hashes/usage/code SHA) goes to a git-ignored run-manifest; the API
+  key is read from a git-ignored file and never enters any artifact, log, or arg.
+
+A `DIFFERENT_MODEL` review of the **same curated pack** shares the author's blind spots — it raises the
+bar over same-model review but is not a substitute for a human on a genuinely high-stakes claim. An
+honest `DOWNGRADE`/`REJECT` means the answer needs work (e.g. independent corroborating evidence), **not**
+a re-roll of the reviewer — re-running to fish for a `SURVIVES` defeats the entire control.

@@ -77,6 +77,26 @@ truly run (the independent human/different-model refuter is the control, by desi
 `.claude/settings.local.json` gained a `deny` backstop (git push / rm -rf / curl / wget). **Pushed to
 public `origin/main` @ `6ad85d4` (2026-06-30, owner-approved fast-forward; 7647512..6ad85d4, 14 commits).**
 
+**WP-AL.7 — the WIRED DIFFERENT_MODEL refuter + the FIRST live independent review (2026-07-01).**
+`scripts/refuter_review.py` wires an OpenAI model as the genuine independent adversarial refuter the
+Constitution names (§10) but the tooling had only stubbed. It reuses `answer_build.scaffold_refuter`
+for gate-computed coverage (the model fills only JUDGMENT — it cannot shrink scope, flip a gate-computed
+`high_impact`, or self-sign HUMAN), calls Chat Completions over stdlib `urllib`, and persists a
+`DIFFERENT_MODEL` refuter ONLY if every required claim SURVIVES (append → schema → `validate_refuter`
+answer-mode → drop on any failure; the support floor is checked BEFORE the paid call). Reproducibility
+goes to a git-ignored run-manifest (model/version/prompt/temperature/hashes/usage/code SHA — never the
+key, read from a git-ignored `private/.env`). A 5-dimension adversarial review (key-leak / fail-open /
+scope-integrity / correctness / reproducibility) found 8 issues (5 P2 + 3 NIT, no P0/P1), all fixed:
+cross-host-redirect auth stripping, floor-before-paid-call, atomic persist (validate before side
+effects), most-adverse duplicate-verdict resolution, hardened JSON parsing, check-value normalization,
+`response_hash`, and a response-digest manifest filename. 524 tests; gate1/2/3 + preflight +
+sensitive_scan green. **The first live review (`gpt-5.5-2026-04-23`) returned a substantive, honest
+DOWNGRADE of the single-claim Crimean-Bridge answer — `independence_check` FAIL: the support rests on a
+single Wikipedia source with no independent corroboration, and the alias "Kerch Strait Bridge" is not in
+the cited quote. The tool failed closed (no refuter persisted, answer NOT committed) — the control
+working, not a rubber stamp.** No committed Tier-2 answer yet; the honest next step is corroborating
+evidence, not re-rolling the reviewer.
+
 v3 merges two v2 designs (see `MERGE_NOTES.md`): it keeps the rigorous evidence-chain /
 multi-axis data model and adds the **three-tier rigor model** (Constitution §1) so the
 heavy chain is opt-in and **Tier 0 — conversational** is the lightweight default. New since
