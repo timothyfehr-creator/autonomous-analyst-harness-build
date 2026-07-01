@@ -55,7 +55,7 @@ import verify  # noqa: E402
 
 Live = ab.Live
 
-PROMPT_VERSION = "refuter-review-v1"
+PROMPT_VERSION = "refuter-review-v2-defensibility"
 DEFAULT_BASE_URL = "https://api.openai.com/v1"
 CHECK_KEYS = ("displacement_check", "independence_check", "freshness_check",
               "observation_check", "reasoning_check")
@@ -68,26 +68,34 @@ _CHECK_SYNONYMS = {"FAILED": "FAIL", "FAILS": "FAIL", "PASSED": "PASS", "PASSES"
                    "NA": "NOT_APPLICABLE", "N/A": "NOT_APPLICABLE", "NOT APPLICABLE": "NOT_APPLICABLE"}
 
 SYSTEM_PROMPT = (
-    "You are an INDEPENDENT adversarial reviewer — a different model from the author of a private "
-    "research answer. Your job is to try to REFUTE the answer's claims, not to agree with them. For "
-    "each claim, actively look for a reason it is wrong, overstated, stale, mis-sourced, or not "
-    "actually entailed by the cited evidence quote.\n\n"
-    "For each claim run these checks and report PASS / FAIL / NOT_APPLICABLE:\n"
-    "  - displacement_check: is there a superseding or contradicting claim, or a more precise "
-    "correction that displaces this one?\n"
-    "  - independence_check: does the support rest on genuinely independent sourcing, or on one source "
-    "echoed? (for a high-impact claim this may NOT be NOT_APPLICABLE)\n"
-    "  - freshness_check: is the claim still current / not time-decayed? Use NOT_APPLICABLE only for a "
-    "genuinely timeless fact.\n"
-    "  - observation_check: if a structured observation or number is cited, does it match the "
-    "evidence? NOT_APPLICABLE if none is cited.\n"
-    "  - reasoning_check: for an INFERENCE claim, is the inference valid? NOT_APPLICABLE for a claim "
-    "read directly off the source (a FACT).\n\n"
-    "A claim SURVIVES only if, after genuinely trying, you could not refute it AND no check FAILed. If "
-    "any check FAILs, the verdict must be REVISE, DOWNGRADE, or REJECT — never SURVIVES with a failed "
-    "check. It is correct and expected to return SURVIVES for a well-supported claim, but only after "
-    "actually attempting to break it. You are reviewing the SAME curated evidence the author saw, so "
-    "record in unresolved_gaps anything you could not check against independent sources.\n\n"
+    "You are an INDEPENDENT reviewer — a different model from the author — checking whether a private "
+    "research answer is DEFENSIBLE as worded. The bar is MATERIAL soundness, NOT perfection. Start from a "
+    "presumption that a claim is usable and commit it (SURVIVES) UNLESS you find a MATERIAL problem.\n\n"
+    "A claim has a MATERIAL problem (→ REVISE / DOWNGRADE / REJECT) only if it:\n"
+    "  - OVER-CLAIMS beyond its cited evidence — asserts as settled fact something the evidence only "
+    "reports, attributes, or weakly supports (e.g. states a belligerent or single-relayed claim as "
+    "established fact);\n"
+    "  - is UNSUPPORTED (not entailed by the cited quote) or CONTRADICTED by a cited source;\n"
+    "  - is MIS-ATTRIBUTED — a one-sided/belligerent claim presented as independent fact; or\n"
+    "  - is STALE (time-decayed, no longer current).\n"
+    "A claim honestly WORDED to the confidence its evidence supports — attributed or hedged ('X reported', "
+    "'a fire, satellite-confirmed, amid reported strikes') — is DEFENSIBLE and SHOULD survive, even if the "
+    "underlying event is only reported or single-sourced.\n\n"
+    "Do NOT block a claim for PRECISION or WORDING that could merely be improved (e.g. 'state-owned' vs "
+    "'state-controlled', 'a primary source would strengthen it', 'could be more specific'). Put such "
+    "observations in `unresolved_gaps` — they are NEVER by themselves grounds for a non-SURVIVES verdict.\n\n"
+    "For each claim report these checks as PASS / FAIL / NOT_APPLICABLE (FAIL only for a MATERIAL problem):\n"
+    "  - displacement_check: is the claim superseded or CONTRADICTED by a cited source? (a precision "
+    "quibble is not a FAIL)\n"
+    "  - independence_check: for a HIGH-IMPACT claim, does its wording assert MORE than its sourcing can "
+    "bear (e.g. a belligerent/relayed claim stated as fact)? A well-attributed high-impact claim PASSES.\n"
+    "  - freshness_check: is the claim stale / time-decayed? NOT_APPLICABLE for a timeless fact.\n"
+    "  - observation_check: if a structured number/observation is cited, does it match the evidence? "
+    "NOT_APPLICABLE if none is cited.\n"
+    "  - reasoning_check: for an INFERENCE claim, is the inference valid? NOT_APPLICABLE for a direct FACT.\n\n"
+    "A SURVIVES verdict may not carry a FAILed check. For a high-impact claim you SURVIVE, still include one "
+    "well-formed disconfirming search you would run. You review the SAME curated evidence the author saw, so "
+    "record honest residue (what you could not check independently) in unresolved_gaps.\n\n"
     "Respond with STRICT JSON only, no prose outside the JSON object."
 )
 
@@ -733,8 +741,9 @@ def main(argv=None) -> int:
                    help="omit temperature (some models reject a non-default value)")
     p.add_argument("--samples", type=int, default=5,
                    help="independent review samples for the majority-vote gate (default 5)")
-    p.add_argument("--survive-threshold", type=int, default=4, dest="survive_threshold",
-                   help="a claim must SURVIVE in >= this many of --samples to commit (default 4)")
+    p.add_argument("--survive-threshold", type=int, default=3, dest="survive_threshold",
+                   help="a claim must SURVIVE in >= this many of --samples to commit (default 3 of 5, a "
+                        "majority — inclusive bar; raise for stricter)")
     p.add_argument("--dry-run", action="store_true", help="build+print the request; no call, no write")
     p.add_argument("--list-models", action="store_true", help="list models the key can access, then exit")
     p.set_defaults(fn=_cmd_review)

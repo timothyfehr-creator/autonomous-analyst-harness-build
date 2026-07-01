@@ -122,6 +122,21 @@ are not Tier-2-certifiable from open sources — the FIRE is (NASA satellite), t
 gate correctly distinguished borderline (1/5) from robust (5/5) claims. All private (gitignored
 `private/corpus`).
 
+**WP-AL.8b — the gate was CALIBRATED to an INCLUSIVE bar (owner-chosen, 2026-07-01).** The reframed gate was
+found over-strict: it rejected *defensible* claims over precision nits ("state-owned" vs "state-controlled").
+Owner's steer: don't build a methodology so strict it discards useful-but-imperfect data. Fix (note: the gate
+only ever gated **Tier-2 committed answers** — every fact stays usable at Tier-1 regardless): the `SYSTEM_PROMPT`
+was reframed from "try to REFUTE" to a **DEFENSIBILITY check with a presumption of usability** — commit (SURVIVES)
+UNLESS there is a MATERIAL problem (over-claim beyond the evidence, unsupported, contradicted, mis-attributed as
+independent fact, stale); precision/wording goes to `unresolved_gaps` and NEVER blocks. Default threshold lowered
+to a **majority (3 of 5)**; `PROMPT_VERSION` = `refuter-review-v2-defensibility`. Validated live on a gold set:
+the honestly-attributed Ryazan strike-fire claim went **1/5 → 5/5** (now commits as a **richer 2-claim committed
+answer**: profile + attributed strike-fire), the clean profile stays 5/5, and a deliberate **over-claim** ("a
+strike *destroyed* units and *halted* operations", asserted as fact on the same belligerent+relayed evidence)
+was still **blocked 0/5** — inclusive, NOT a rubber stamp. The over-claim probe was removed after the test.
+Now **2 committed Tier-2 answers** (Crimean bridge + Ryazan). Framework pushed to public main (`d6b2862`); the
+calibration is a follow-up local commit.
+
 v3 merges two v2 designs (see `MERGE_NOTES.md`): it keeps the rigorous evidence-chain /
 multi-axis data model and adds the **three-tier rigor model** (Constitution §1) so the
 heavy chain is opt-in and **Tier 0 — conversational** is the lightweight default. New since

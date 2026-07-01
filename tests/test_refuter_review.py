@@ -333,6 +333,23 @@ def test_multisample_blocks_borderline_claim(tmp_path):
     assert all(v["survives"] == 2 for v in m["survive_votes"].values())  # 2/5 recorded honestly
 
 
+def test_multisample_majority_default_3of5(tmp_path):
+    # the INCLUSIVE default (WP-AL.8 calibration): 3-of-5 commits; 2-of-5 blocks.
+    fb = _stage(tmp_path)
+    _drop_skeleton_refuter(fb)
+    rc, _ = _required_claims(tmp_path)
+    surv, rev = _response_verdict(rc, "SURVIVES"), _response_verdict(rc, "REVISE")
+    code, _ = rr.run_review(tmp_path, "ana-skeleton", ASOF, "gpt-test", KEY,
+                            post=_scripted_post([surv, surv, surv, rev, rev]),
+                            samples=5, survive_threshold=3)
+    assert code == 0  # 3/5 -> commits at the majority default
+    _drop_skeleton_refuter(fb)
+    code2, _ = rr.run_review(tmp_path, "ana-skeleton", ASOF, "gpt-test", KEY,
+                             post=_scripted_post([surv, surv, rev, rev, rev]),
+                             samples=5, survive_threshold=3)
+    assert code2 != 0  # 2/5 -> blocked
+
+
 def test_synthesize_omission_shortfall_never_survives():
     # P0 regression: a claim SURVIVES in <K PRESENT samples and is OMITTED from the rest must NOT
     # synthesize to SURVIVES (a lucky partial SURVIVE via omission cannot slip the gate).
