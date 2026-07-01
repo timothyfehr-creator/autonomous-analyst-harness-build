@@ -94,8 +94,14 @@ sensitive_scan green. **The first live review (`gpt-5.5-2026-04-23`) returned a 
 DOWNGRADE of the single-claim Crimean-Bridge answer — `independence_check` FAIL: the support rests on a
 single Wikipedia source with no independent corroboration, and the alias "Kerch Strait Bridge" is not in
 the cited quote. The tool failed closed (no refuter persisted, answer NOT committed) — the control
-working, not a rubber stamp.** No committed Tier-2 answer yet; the honest next step is corroborating
-evidence, not re-rolling the reviewer.
+working, not a rubber stamp.** The honest response was corroborating evidence, NOT re-rolling the
+reviewer: an independent second source (WorldAtlas, a distinct verbatim geography quote) was added to the
+claim as a 2nd CHECKED SUPPORTS assessment (honesty-guarded, independent origin chain; claim →
+SUPPORTED). **On re-review the same model (gpt-5.5) SURVIVED the now-corroborated claim (independence_check
+PASS — "sufficiently distinct and consistent" — with honest unresolved_gaps on source tier + Crimea's
+political status), so `verify.py --mode answer` composes at exit 0: the harness's FIRST committed Tier-2
+answer.** The committed answer + its `DIFFERENT_MODEL` refuter live in gitignored `private/corpus` (public
+factbase stays empty).
 
 v3 merges two v2 designs (see `MERGE_NOTES.md`): it keeps the rigorous evidence-chain /
 multi-axis data model and adds the **three-tier rigor model** (Constitution §1) so the
