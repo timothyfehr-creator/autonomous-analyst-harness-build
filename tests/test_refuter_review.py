@@ -255,10 +255,115 @@ def test_run_manifest_has_repro_fields_and_no_key():
     resp = {"id": "r1", "model": "gpt-x-2026", "usage": {"total_tokens": 42}}
     m = rr.build_run_manifest("ana-x", refuter, "gpt-x", rr.DEFAULT_BASE_URL, 0.0, {"q": 1}, resp, ASOF)
     for k in ("model", "prompt_version", "temperature", "request_hash", "system_prompt_hash",
-              "code_version", "usage", "raw_response", "model_version_reported"):
+              "code_version", "usage", "raw_responses", "samples", "survive_votes",
+              "model_version_reported"):
         assert k in m, k
     assert m["model_version_reported"] == "gpt-x-2026" and m["usage"]["total_tokens"] == 42
+    assert m["samples"] == 1 and m["raw_responses"] == [resp]  # single response wrapped in a list
     assert KEY not in json.dumps(m)  # defensive: the key is never passed to this builder
+
+
+# ---- multi-sample gate (Phase A hardening) ---------------------------------------------------------
+
+def _scripted_post(responses):
+    """A stateful post() returning each response in turn (then the last) — simulates the model's
+    run-to-run non-determinism across the multi-sample gate."""
+    state = {"i": 0}
+
+    def post(*a, **k):
+        r = responses[min(state["i"], len(responses) - 1)]
+        state["i"] += 1
+        return r
+    return post
+
+
+def _response_verdict(claim_ids, verdict):
+    return _chat_response({
+        "verdicts": [{"claim_id": c, "verdict": verdict, "displacement_check": "PASS",
+                      "independence_check": "PASS", "freshness_check": "PASS",
+                      "observation_check": "PASS", "reasoning_check": "PASS", "notes": "x"}
+                     for c in sorted(claim_ids)],
+        "alternative_hypotheses": [], "disconfirming_searches": [{"query": "q", "result": "r"}],
+        "unresolved_gaps": []})
+
+
+def test_synthesize_majority_and_most_adverse():
+    def s(v):
+        return ({"c": {"verdict": v, "displacement_check": "PASS", "independence_check": "PASS",
+                       "freshness_check": "PASS", "observation_check": "PASS",
+                       "reasoning_check": "PASS", "notes": None}},
+                {"disconfirming_searches": [{"query": "q", "result": "r"}]})
+    syn, res, votes = rr._synthesize_samples(
+        [s("SURVIVES"), s("SURVIVES"), s("SURVIVES"), s("SURVIVES"), s("REVISE")], 4, set())
+    assert syn["c"]["verdict"] == "SURVIVES" and votes["c"]["survives"] == 4
+    assert res["disconfirming_searches"] == [{"query": "q", "result": "r"}]  # unioned + deduped
+    syn2, _r, votes2 = rr._synthesize_samples(
+        [s("SURVIVES"), s("REVISE"), s("DOWNGRADE"), s("REVISE"), s("REVISE")], 4, set())
+    assert syn2["c"]["verdict"] == "DOWNGRADE" and votes2["c"]["survives"] == 1  # most adverse
+
+
+def test_multisample_commits_robust_claim(tmp_path):
+    import glob
+    fb = _stage(tmp_path)
+    _drop_skeleton_refuter(fb)
+    rc, _ = _required_claims(tmp_path)
+    resp = _response_verdict(rc, "SURVIVES")  # every sample survives
+    code, lines = rr.run_review(tmp_path, "ana-skeleton", ASOF, "gpt-test", KEY,
+                                post=lambda *a, **k: resp, samples=5, survive_threshold=4)
+    assert code == 0, lines
+    assert verify.answer_check(tmp_path, "ana-skeleton", ASOF)[0] == 0
+    m = json.loads(open(sorted(glob.glob(str(tmp_path / "run_manifests" / "*.json")))[-1]).read())
+    assert m["samples"] == 5 and all(v["survives"] == 5 for v in m["survive_votes"].values())
+
+
+def test_multisample_blocks_borderline_claim(tmp_path):
+    # a claim SURVIVING only 2 of 5 samples must NOT commit at threshold 4 (the non-determinism fix:
+    # a lucky-single-SURVIVE claim is reliably caught, and re-rolling can't sneak it through).
+    import glob
+    fb = _stage(tmp_path)
+    _drop_skeleton_refuter(fb)
+    rc, _ = _required_claims(tmp_path)
+    scripted = _scripted_post([_response_verdict(rc, v) for v in
+                               ("SURVIVES", "REVISE", "SURVIVES", "REVISE", "REVISE")])
+    code, lines = rr.run_review(tmp_path, "ana-skeleton", ASOF, "gpt-test", KEY,
+                                post=scripted, samples=5, survive_threshold=4)
+    assert code != 0, lines
+    assert _read(fb / "refuters.yaml")["refuters"] == []  # fail-closed, nothing persisted
+    m = json.loads(open(sorted(glob.glob(str(tmp_path / "run_manifests" / "*.json")))[-1]).read())
+    assert all(v["survives"] == 2 for v in m["survive_votes"].values())  # 2/5 recorded honestly
+
+
+def test_synthesize_omission_shortfall_never_survives():
+    # P0 regression: a claim SURVIVES in <K PRESENT samples and is OMITTED from the rest must NOT
+    # synthesize to SURVIVES (a lucky partial SURVIVE via omission cannot slip the gate).
+    def present(v):
+        return ({"c": {"verdict": v, "displacement_check": "PASS", "independence_check": "PASS",
+                       "freshness_check": "PASS", "observation_check": "PASS",
+                       "reasoning_check": "PASS", "notes": None}}, {})
+    absent = ({}, {})  # the model omitted the claim entirely this sample
+    syn, _r, votes = rr._synthesize_samples(
+        [present("SURVIVES"), present("SURVIVES"), present("SURVIVES"), absent, absent], 4, set())
+    assert votes["c"]["survives"] == 3 and votes["c"]["total"] == 5
+    assert syn["c"]["verdict"] != "SURVIVES"  # below threshold -> forced to a blocking verdict
+
+
+def test_multisample_blocks_omission_shortfall(tmp_path):
+    # P0 regression end-to-end: a claim SURVIVES in 3/5 samples and is OMITTED from the other 2 must NOT
+    # commit at threshold 4 (the fail-open the adversarial review caught).
+    import glob
+    fb = _stage(tmp_path)
+    _drop_skeleton_refuter(fb)
+    rc, _ = _required_claims(tmp_path)
+    surv = _response_verdict(rc, "SURVIVES")
+    empty = _chat_response({"verdicts": [], "alternative_hypotheses": [],
+                            "disconfirming_searches": [], "unresolved_gaps": []})
+    scripted = _scripted_post([surv, surv, surv, empty, empty])  # each claim SURVIVES 3/5, omitted 2/5
+    code, lines = rr.run_review(tmp_path, "ana-skeleton", ASOF, "gpt-test", KEY,
+                                post=scripted, samples=5, survive_threshold=4)
+    assert code != 0, lines  # below threshold -> blocked, not committed
+    assert _read(fb / "refuters.yaml")["refuters"] == []  # fail-closed
+    m = json.loads(open(sorted(glob.glob(str(tmp_path / "run_manifests" / "*.json")))[-1]).read())
+    assert all(v["survives"] == 3 for v in m["survive_votes"].values())
 
 
 def test_redirect_handler_strips_auth_cross_host():

@@ -14,5 +14,7 @@ outputs/*
 analyses/*
 !analyses/.gitkeep
 visuals/renders/
+# refuter_review run-manifests hold raw model output over private claims — never commit (any root).
+run_manifests/
 *.tmp
 *.bak

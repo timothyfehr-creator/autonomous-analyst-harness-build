@@ -103,6 +103,25 @@ political status), so `verify.py --mode answer` composes at exit 0: the harness'
 answer.** The committed answer + its `DIFFERENT_MODEL` refuter live in gitignored `private/corpus` (public
 factbase stays empty).
 
+**WP-AL.8 — multi-sample refuter gate + the first real seeding slice (2026-07-01).** The wired refuter was
+found NON-DETERMINISTIC (gpt-5.5 forces temperature=1; verdicts vary run-to-run, so a single SURVIVE is
+unreliable). `refuter_review.py` now samples the model N times (`--samples`, default 5) and commits a claim
+only if it SURVIVES in ≥K (`--survive-threshold`, default 4) — the honest opposite of re-rolling (it requires
+CONSISTENT survival); all N votes + raw responses go to the run-manifest (`run_manifests/` added to
+`.gitignore`). An adversarial Workflow review caught + fixed a **P0 fail-open** (a claim surviving <K samples
+but OMITTED from the rest synthesized to SURVIVES) and a **P1** (non-git-ignored manifest path + a false
+"git-ignored" assurance, now `git check-ignore`-verified). 529 tests; gates green. The first seeding slice
+(Ukraine's long-range strike campaign → **Slice 1A: the Ryazan refinery**) ran with a preregistered evidence
+protocol: a corroborated durable profile fact + a high-impact strike fact (independent Reuters/Moscow Times +
+belligerent Ukrainian General Staff + independent **NASA satellite**). Through the hardened 5-sample gate the
+**Ryazan profile committed (5/5) — the harness's 2nd committed Tier-2 answer** (after a genuine
+"state-owned"→precise-wording fix gpt-5.5 flagged 4/5). But the **strike-EFFECT claim did NOT commit (0–1/5)
+even with NASA corroboration**: the strike's attribution/suspension/damage rest on relayed + belligerent
+sources with no independent battle-damage assessment. **Honest Slice-1A finding: deep-interior strike EFFECTS
+are not Tier-2-certifiable from open sources — the FIRE is (NASA satellite), the military effect is not.** The
+gate correctly distinguished borderline (1/5) from robust (5/5) claims. All private (gitignored
+`private/corpus`).
+
 v3 merges two v2 designs (see `MERGE_NOTES.md`): it keeps the rigorous evidence-chain /
 multi-axis data model and adds the **three-tier rigor model** (Constitution §1) so the
 heavy chain is opt-in and **Tier 0 — conversational** is the lightweight default. New since

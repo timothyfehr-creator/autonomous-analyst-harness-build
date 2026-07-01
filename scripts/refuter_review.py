@@ -385,12 +385,18 @@ def _code_version() -> str:
     return "git:unknown"
 
 
-def build_run_manifest(analysis_id, refuter, model, base_url, temperature, request, response,
-                       as_of, prompt_version=PROMPT_VERSION) -> dict:
-    """The git-ignored reproducibility record for one live review. Records model/version/prompt/temp,
-    request+response hashes, the raw response and token usage — but NEVER the API key."""
+def build_run_manifest(analysis_id, refuter, model, base_url, temperature, request, responses,
+                       as_of, votes=None, prompt_version=PROMPT_VERSION) -> dict:
+    """The git-ignored reproducibility record for one (multi-sample) live review. Records
+    model/version/prompt/temp, request+response hashes, EVERY raw sample response, the per-claim SURVIVES
+    vote, and token usage — but NEVER the API key. `responses` may be a single dict (back-compat) or a
+    list of the N sample responses."""
+    if isinstance(responses, dict):
+        responses = [responses]
     req_json = json.dumps(request, ensure_ascii=False, sort_keys=True)
-    usage = response.get("usage") if isinstance(response, dict) else None
+    usages = [r.get("usage") for r in responses if isinstance(r, dict) and r.get("usage")]
+    usage = {"total_tokens": sum((u.get("total_tokens") or 0) for u in usages),
+             "per_sample": usages} if usages else None
     return {
         "kind": "refuter_review_run",
         "analysis_id": analysis_id,
@@ -399,20 +405,21 @@ def build_run_manifest(analysis_id, refuter, model, base_url, temperature, reque
         "reviewer_class": "DIFFERENT_MODEL",
         "provider": "openai",
         "model": model,
-        "model_version_reported": (response or {}).get("model"),
+        "model_version_reported": (responses[0] if responses else {} or {}).get("model"),
         "base_url": base_url,
         "temperature": temperature,
         "prompt_version": prompt_version,
+        "samples": len(responses),
+        "survive_votes": votes or {},
         "system_prompt_hash": _sha(SYSTEM_PROMPT),
         "request_hash": _sha(req_json),
-        "response_hash": _sha(json.dumps(response, ensure_ascii=False, sort_keys=True))
-        if isinstance(response, dict) else None,
-        "response_id": (response or {}).get("id"),
+        "response_hash": _sha(json.dumps(responses, ensure_ascii=False, sort_keys=True)),
+        "response_ids": [(r or {}).get("id") for r in responses],
         "usage": usage,
         "code_version": _code_version(),
         "verdicts": [{"claim_id": v["claim_id"], "verdict": v["verdict"]}
                      for v in refuter.get("verdicts") or []],
-        "raw_response": response,
+        "raw_responses": responses,
     }
 
 
@@ -447,9 +454,60 @@ def read_key(key_file: str | None) -> str:
 
 # ---- orchestration ---------------------------------------------------------------------------------
 
+def _synthesize_samples(samples, threshold, hi_claims):
+    """Combine N independent review samples into one verdict set, robust to the model's non-determinism.
+    `samples`: list of (model_verdicts, residue). Per claim: SURVIVES iff its SURVIVES count >= threshold
+    (taking a CLEAN SURVIVES sample's checks — no FAIL, and for a high-impact claim an independence_check
+    that actually ran); otherwise the MOST-ADVERSE sample's verdict + aggregated concern notes. Residue
+    (alternative_hypotheses / disconfirming_searches / unresolved_gaps) is unioned across samples.
+    Returns (synthesized_verdicts, residue, votes) where votes[cid] = {survives, total, verdicts:[...]}."""
+    n = len(samples)
+    per_claim = {}
+    for mv, _res in samples:
+        for cid, vd in mv.items():
+            per_claim.setdefault(cid, []).append(vd)
+    synthesized, votes = {}, {}
+    for cid, vds in per_claim.items():
+        surv = [vd for vd in vds if vd.get("verdict") == "SURVIVES"]
+        votes[cid] = {"survives": len(surv), "total": n, "verdicts": [vd.get("verdict") for vd in vds]}
+        if len(surv) >= threshold:
+            hi = cid in hi_claims
+
+            def _clean(vd):
+                if any(vd.get(k) == "FAIL" for k in CHECK_KEYS):
+                    return False
+                return not (hi and vd.get("independence_check") == "NOT_APPLICABLE")
+            chosen = next((vd for vd in surv if _clean(vd)), surv[0])
+            entry = dict(chosen)
+            entry["notes"] = (f"survived {len(surv)}/{n} independent refuter samples. "
+                              + (chosen.get("notes") or ""))[:2000]
+        else:
+            chosen = min(vds, key=lambda vd: _VERDICT_ADVERSITY.get(vd.get("verdict"), 99))
+            entry = dict(chosen)
+            # below threshold ⇒ NOT reliably certified. If the only PRESENT verdicts were SURVIVES (the
+            # shortfall was OMISSION across samples, or an unrecognized verdict), still force a BLOCKING
+            # verdict — a lucky partial SURVIVE must never slip through the gate (fail-open P0).
+            if entry.get("verdict") not in {"REVISE", "DOWNGRADE", "REJECT"}:
+                entry["verdict"] = "REVISE"
+            concerns = "; ".join(sorted({vd["notes"] for vd in vds if vd.get("notes")}))
+            entry["notes"] = (f"survived only {len(surv)}/{n} samples (below the {threshold}-of-{n} "
+                              f"threshold; not reliably certified). Concerns: {concerns}")[:2000]
+        synthesized[cid] = entry
+    residue = {"alternative_hypotheses": [], "disconfirming_searches": [], "unresolved_gaps": []}
+    for key in residue:
+        seen = set()
+        for _mv, r in samples:
+            for x in (r.get(key) or []):
+                k = json.dumps(x, sort_keys=True) if isinstance(x, (dict, list)) else str(x)
+                if k not in seen:
+                    seen.add(k)
+                    residue[key].append(x)
+    return synthesized, residue, votes
+
+
 def run_review(root: Path, analysis_id: str, as_of: str, model: str, key: str,
                base_url: str = DEFAULT_BASE_URL, temperature=0.0, dry_run: bool = False,
-               post=_post_chat):
+               post=_post_chat, samples: int = 1, survive_threshold: int = 1):
     """Load → build request → (call model) → assemble → validate → persist fail-closed + run-manifest.
     Returns (exit_code, lines). `post` is injectable for tests. dry_run stops before the network call."""
     root = Path(root)
@@ -490,18 +548,36 @@ def run_review(root: Path, analysis_id: str, as_of: str, model: str, key: str,
                            "regardless of the review, so no paid call is made. Add a credibility-scored "
                            "SUPPORTS assessment (fact.py) for the floored claim(s), then re-run."]
 
-    try:
-        response, model_verdicts, residue, temp_used = _review_call(
-            post, base_url, key, request, model, temperature)
-    except urllib.error.URLError as e:  # HTTPError is converted to ValueError inside _review_call
-        return 2, lines + [f"[refuter_review] network unavailable ({e}); the live call needs the Bash "
-                           f"sandbox disabled."]
-    except (ValueError, TypeError, AttributeError, json.JSONDecodeError) as e:
-        return 2, lines + [f"[refuter_review] {e}"]
-    if temp_used != temperature:
-        lines.append(f"[refuter_review] model rejected temperature={temperature}; used the model "
-                     f"default instead (run-manifest records temperature={temp_used}).")
-    temperature = temp_used
+    # multi-sample: call the model N times and decide per claim by a threshold (robust to the model's
+    # non-determinism). N=1 with threshold 1 is the single-shot path. This is the honest opposite of
+    # re-rolling — it requires CONSISTENT survival, so a lucky single SURVIVE cannot slip through.
+    n = max(1, samples)
+    threshold = min(max(1, survive_threshold), n)
+    sample_results, raw_responses = [], []
+    for i in range(n):
+        try:
+            response, mv, residue_i, temp_used = _review_call(
+                post, base_url, key, request, model, temperature)
+        except urllib.error.URLError as e:  # HTTPError → ValueError inside _review_call
+            return 2, lines + [f"[refuter_review] network unavailable ({e}); the live call needs the "
+                               f"Bash sandbox disabled."]
+        except (ValueError, TypeError, AttributeError, json.JSONDecodeError) as e:
+            return 2, lines + [f"[refuter_review] sample {i + 1}/{n}: {e}"]
+        if temp_used != temperature and i == 0:
+            lines.append(f"[refuter_review] model rejected temperature={temperature}; used the model "
+                         f"default instead (recorded as temperature={temp_used}).")
+        temperature = temp_used
+        sample_results.append((mv, residue_i))
+        raw_responses.append(response)
+
+    triggers = v_hi.trigger_set()
+    hi_claims = {cid for cid in required_claims
+                 if v_hi.compute_high_impact(live.claims.get(cid) or {}, triggers)[0]
+                 or (live.claims.get(cid) or {}).get("high_impact") is True}
+    model_verdicts, residue, votes = _synthesize_samples(sample_results, threshold, hi_claims)
+    if n > 1:
+        lines.append(f"[refuter_review] {n} samples (threshold {threshold}/{n}); SURVIVES votes: "
+                     + ", ".join(f"{c}={v['survives']}/{v['total']}" for c, v in sorted(votes.items())))
 
     refuter, floor2, unaddressed = assemble_refuter(ana, live, as_of, model, model_verdicts, residue)
     if unaddressed:
@@ -523,26 +599,26 @@ def run_review(root: Path, analysis_id: str, as_of: str, model: str, key: str,
     if sc != 0 or rc != 0:
         ab._drop_record(rpath, "refuters", refuter["id"], doc)  # scaffold (if any) left intact
         _safe_write_run_manifest(root, analysis_id, refuter, model, base_url, temperature,
-                                 request, response, as_of, lines)  # honest residue: the review ran
+                                 request, raw_responses, as_of, lines, votes=votes)  # honest residue
         verdicts = ", ".join(f"{v['claim_id']}={v['verdict']}" for v in refuter["verdicts"])
         why = "the refuter fails schema" if sc != 0 else \
             f"the independent review did NOT certify (verdicts: {verdicts})"
         return (sc or 1), lines + (sf if sc != 0 else [f"  [refuter] {x}" for x in rf]) + [
             f"[refuter_review] NOT persisted — {why}. A committed answer requires every claim to "
-            f"SURVIVE; this is the control working, not a bug. The honest review is recorded in the "
-            f"run-manifest."]
+            f"SURVIVE the refuter across the sample threshold; this is the control working, not a bug. "
+            f"The honest review is recorded in the run-manifest."]
     # certified → reproducibility is REQUIRED before we finalize: if the manifest cannot be written we
     # refuse to persist a certification we cannot reproducibly record (fail closed).
     if _safe_write_run_manifest(root, analysis_id, refuter, model, base_url, temperature,
-                                request, response, as_of, lines) is None:
+                                request, raw_responses, as_of, lines, votes=votes) is None:
         ab._drop_record(rpath, "refuters", refuter["id"], doc)
         return 2, lines + ["[refuter_review] could not write the reproducibility run-manifest — "
                            "refusing to persist a certification we cannot reproducibly record."]
     if existing is not None:  # certified → drop the replaceable scaffold so exactly one refuter binds
         _remove_refuter(rpath, existing.get("id"))
     lines.append(f"[refuter_review] OK — {refuter['id']!r} signed DIFFERENT_MODEL ({model}); every "
-                 f"required claim SURVIVES. Run `verify.py --mode answer --analysis {analysis_id}` to "
-                 f"commit the answer.")
+                 f"required claim SURVIVES across {threshold}/{n} samples. Run `verify.py --mode answer "
+                 f"--analysis {analysis_id}` to commit the answer.")
     return 0, lines
 
 
@@ -556,30 +632,43 @@ def _remove_refuter(rpath: Path, rec_id: str):
 
 
 def _write_run_manifest(root: Path, analysis_id, refuter, model, base_url, temperature, request,
-                        response, as_of) -> Path:
+                        responses, as_of, votes=None) -> Path:
     manifest = build_run_manifest(analysis_id, refuter, model, base_url, temperature, request,
-                                  response, as_of)
+                                  responses, as_of, votes=votes)
     d = root / "run_manifests"
     d.mkdir(parents=True, exist_ok=True)
     safe_as_of = as_of.replace(":", "").replace("/", "")
-    # disambiguate by the RESPONSE digest so a re-run at the same --as-of (e.g. a first blocked review
+    # disambiguate by the RESPONSES digest so a re-run at the same --as-of (e.g. a first blocked review
     # then a passing one) writes a distinct file and never overwrites the earlier honest record.
-    resp_tag = _sha(json.dumps(response, ensure_ascii=False, sort_keys=True))[7:15] \
-        if isinstance(response, dict) else "noresp"
+    resp_tag = _sha(json.dumps(responses, ensure_ascii=False, sort_keys=True))[7:15]
     mpath = d / f"refuter-{analysis_id}-{safe_as_of}-{resp_tag}.json"
     mpath.write_text(json.dumps(manifest, indent=2, ensure_ascii=False))
     return mpath
 
 
+def _is_git_ignored(path: Path) -> bool:
+    """True iff `path` is git-ignored (so the manifest's raw model output won't be committed). Best-effort:
+    returns False on any error / non-repo, so the caller WARNS rather than falsely reassures."""
+    try:
+        out = subprocess.run(["git", "check-ignore", "-q", str(path)],
+                             cwd=str(Path(path).resolve().parent), capture_output=True, timeout=10)
+        return out.returncode == 0
+    except Exception:
+        return False
+
+
 def _safe_write_run_manifest(root, analysis_id, refuter, model, base_url, temperature, request,
-                             response, as_of, lines):
+                             responses, as_of, lines, votes=None):
     """Write the reproducibility sidecar; on any OSError append a warning and return None (never
     crash — the caller decides whether a missing manifest is fatal). Keeps the persist path from
-    letting a manifest-write failure orphan a refuter."""
+    letting a manifest-write failure orphan a refuter. The 'git-ignored' assurance is CHECKED, not
+    assumed — the manifest holds raw model output over private claims and must not be committed."""
     try:
         mpath = _write_run_manifest(root, analysis_id, refuter, model, base_url, temperature,
-                                    request, response, as_of)
-        lines.append(f"[refuter_review] run-manifest (git-ignored, no key): {mpath}")
+                                    request, responses, as_of, votes=votes)
+        tag = "git-ignored" if _is_git_ignored(mpath) else \
+            "WARNING: NOT git-ignored — holds raw model output, do NOT commit it"
+        lines.append(f"[refuter_review] run-manifest (no key; {tag}): {mpath}")
         return mpath
     except OSError as e:
         lines.append(f"[refuter_review] WARNING — could not write run-manifest: {e}")
@@ -617,13 +706,14 @@ def _cmd_review(args) -> int:
                 return 2
             print(f"[refuter_review] auto-selected strongest model {model!r} from {len(available)} "
                   f"available: {', '.join(sorted(available))}", file=sys.stderr)
-        print("[refuter_review] COST: this makes ONE paid OpenAI API call (typically a few US cents "
-              "for a short review). Token usage is written to the run-manifest.", file=sys.stderr)
+        print(f"[refuter_review] COST: this makes {args.samples} paid OpenAI API call(s) (multi-sample "
+              f"gate, ~a few US cents each). Token usage is written to the run-manifest.", file=sys.stderr)
     else:
         model = model or "<auto: strongest at run time>"
     temperature = None if args.no_temperature else args.temperature
     code, lines = run_review(Path(args.root), args.analysis, args.as_of, model, key,
-                             base_url=args.base_url, temperature=temperature, dry_run=args.dry_run)
+                             base_url=args.base_url, temperature=temperature, dry_run=args.dry_run,
+                             samples=args.samples, survive_threshold=args.survive_threshold)
     print("\n".join(lines))
     return code
 
@@ -641,6 +731,10 @@ def main(argv=None) -> int:
     p.add_argument("--temperature", type=float, default=0.0)
     p.add_argument("--no-temperature", action="store_true",
                    help="omit temperature (some models reject a non-default value)")
+    p.add_argument("--samples", type=int, default=5,
+                   help="independent review samples for the majority-vote gate (default 5)")
+    p.add_argument("--survive-threshold", type=int, default=4, dest="survive_threshold",
+                   help="a claim must SURVIVE in >= this many of --samples to commit (default 4)")
     p.add_argument("--dry-run", action="store_true", help="build+print the request; no call, no write")
     p.add_argument("--list-models", action="store_true", help="list models the key can access, then exit")
     p.set_defaults(fn=_cmd_review)
